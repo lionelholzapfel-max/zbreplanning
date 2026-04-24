@@ -314,6 +314,23 @@ export function useSupabase() {
     console.log('[Supabase] Existing participation:', existing);
 
     if (existing) {
+      // If clicking the same status, DELETE (deselect)
+      if (existing.status === status) {
+        console.log('[Supabase] Same status clicked, deleting participation:', existing.id);
+        const { error: deleteError } = await supabase
+          .from('match_participations')
+          .delete()
+          .eq('id', existing.id);
+
+        if (deleteError) {
+          console.error('[Supabase] Error deleting participation:', deleteError);
+        } else {
+          console.log('[Supabase] Participation deleted successfully (deselected)');
+        }
+        return;
+      }
+
+      // Otherwise update to new status
       console.log('[Supabase] Updating participation:', existing.id);
       const { error: updateError } = await supabase
         .from('match_participations')
@@ -542,6 +559,23 @@ export function useSupabase() {
     console.log('[Supabase] Existing activity participation:', existing);
 
     if (existing) {
+      // If clicking the same status, DELETE (deselect)
+      if (existing.status === status) {
+        console.log('[Supabase] Same status clicked, deleting activity participation:', existing.id);
+        const { error: deleteError } = await supabase
+          .from('activity_participations')
+          .delete()
+          .eq('id', existing.id);
+
+        if (deleteError) {
+          console.error('[Supabase] Error deleting activity participation:', deleteError);
+        } else {
+          console.log('[Supabase] Activity participation deleted (deselected)');
+        }
+        return;
+      }
+
+      // Otherwise update to new status
       console.log('[Supabase] Updating activity participation');
       const { error: updateError } = await supabase
         .from('activity_participations')
