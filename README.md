@@ -1,36 +1,150 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🎉 ZbrePlanning - La Team au Complet
 
-## Getting Started
+Plateforme de planning pour la Zbre Team pour organiser des activités et regarder la Coupe du Monde 2026 ensemble.
 
-First, run the development server:
+![ZbrePlanning](public/team/group.png)
+
+## ✨ Fonctionnalités
+
+### 🏠 Page d'accueil
+- Photo de groupe en hero avec animations
+- Stats dynamiques (membres, matchs, jours avant la CDM)
+- Accès rapide à toutes les sections
+- Vue de tous les membres de la team
+
+### ⚽ Coupe du Monde 2026
+- Calendrier complet des **104 matchs**
+- Filtres par phase (Groupes, 8e, Quarts, Demis, Finale)
+- Filtres par groupe (A à L)
+- Drapeaux des équipes
+- Système de participation: **Oui / Peut-être / Non**
+- Proposition de lieux pour regarder les matchs ensemble
+- Vote pour les lieux préférés
+- Affichage des participants avec photos
+
+### 📅 Activités
+- **8 types d'activités**: Restaurant, Bar, Sport, Cinéma, Gaming, Soirée, Voyage, Autre
+- Création d'activités en 2 étapes (type puis détails)
+- Participation avec photos des membres
+- Affichage clair de qui vient / peut-être / ne vient pas
+
+### 🗓️ Calendrier
+- Vue calendrier mensuel interactive
+- Visualisation des matchs et activités par date
+- Navigation rapide vers les mois de la CDM
+- Détails au clic sur une date
+- Légende des couleurs
+
+## 🚀 Installation
 
 ```bash
+# Se placer dans le dossier
+cd ~/Desktop/zbreplanning
+
+# Installer les dépendances
+npm install
+
+# Lancer en développement
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+L'app sera disponible sur **http://localhost:3000** (ou 3002 si 3000 est occupé).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 👥 Membres de la Team
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Benjamin Oyowe
+2. Edu Rodger Martinez
+3. Gregory Longueville
+4. Ian Poznanski
+5. Kevin Nounomo
+6. Killian Bohan
+7. Lionel Holzapfel
+8. Martin Bracken
+9. Maximilien Piquet
+10. Nicolas Reuter
+11. Ramzi Lahouegue
+12. Ruairi Doyle
+13. Sacha Convens
+14. Sam Spinnael
 
-## Learn More
+## ⚽ Coupe du Monde 2026
 
-To learn more about Next.js, take a look at the following resources:
+- **Dates**: 11 juin - 19 juillet 2026
+- **Pays hôtes**: USA 🇺🇸, Mexique 🇲🇽, Canada 🇨🇦
+- **Équipes**: 48
+- **Matchs**: 104
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🎨 Design
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Theme**: Dark mode avec glassmorphism
+- **Couleurs principales**:
+  - Primary: `#6366f1` (Indigo)
+  - Accent: `#fbbf24` (Gold - pour la CDM)
+  - Success: `#22c55e` (Vert - pour "Je viens")
+  - Warning: `#f59e0b` (Orange - pour "Peut-être")
+  - Danger: `#ef4444` (Rouge - pour "Non")
 
-## Deploy on Vercel
+## 💾 Mode Démo
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+L'app fonctionne en **mode démo** avec localStorage. Les données sont stockées localement dans le navigateur de chaque utilisateur.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Pour une utilisation en production avec synchronisation entre utilisateurs, il faut configurer Supabase.
+
+## ☁️ Configuration Supabase (optionnel)
+
+1. Créer un projet sur [supabase.com](https://supabase.com)
+
+2. Créer le fichier `.env.local`:
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://votre-projet.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=votre-anon-key
+```
+
+3. Exécuter le schéma SQL dans l'éditeur Supabase (voir `supabase-schema.sql`)
+
+4. Décommenter les lignes dans `middleware.ts` pour activer l'auth
+
+## 🌐 Déploiement
+
+### Vercel (recommandé)
+```bash
+npm i -g vercel
+vercel
+```
+
+### Autres options
+- Netlify
+- Railway
+- DigitalOcean App Platform
+
+## 🛠️ Tech Stack
+
+- **Framework**: Next.js 15 (App Router)
+- **Styling**: Tailwind CSS
+- **Database**: Supabase (PostgreSQL) ou localStorage en mode démo
+- **Auth**: Supabase Auth (optionnel)
+- **Icons**: Emojis natifs
+
+## 📁 Structure
+
+```
+src/
+├── app/
+│   ├── page.tsx          # Page d'accueil
+│   ├── login/            # Connexion (choix du membre)
+│   ├── world-cup/        # Coupe du Monde 2026
+│   ├── activities/       # Activités de la team
+│   └── calendar/         # Calendrier des événements
+├── components/
+│   └── Navbar.tsx        # Navigation
+├── data/
+│   ├── members.ts        # Liste des 14 membres
+│   └── matches.json      # 104 matchs de la CDM
+└── lib/
+    ├── demo-store.ts     # Stockage localStorage
+    └── supabase/         # Client Supabase
+```
+
+---
+
+Made with ❤️ pour la Zbre Team • Bruxelles 🇧🇪
