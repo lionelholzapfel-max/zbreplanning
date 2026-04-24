@@ -7,11 +7,14 @@ import Navbar from '@/components/Navbar';
 import { MEMBERS } from '@/data/members';
 import { useSupabase, PredictionType, Prediction } from '@/hooks/useSupabase';
 
-// World Cup 2026 Teams
+// World Cup 2026 Teams - 48 équipes (qualifiées + probables)
 const TEAMS = [
+  // Hôtes (qualifiés automatiquement)
+  { name: 'USA', flag: '🇺🇸' },
+  { name: 'Mexique', flag: '🇲🇽' },
+  { name: 'Canada', flag: '🇨🇦' },
+  // Europe (16 places)
   { name: 'France', flag: '🇫🇷' },
-  { name: 'Brésil', flag: '🇧🇷' },
-  { name: 'Argentine', flag: '🇦🇷' },
   { name: 'Angleterre', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
   { name: 'Espagne', flag: '🇪🇸' },
   { name: 'Allemagne', flag: '🇩🇪' },
@@ -20,40 +23,118 @@ const TEAMS = [
   { name: 'Pays-Bas', flag: '🇳🇱' },
   { name: 'Italie', flag: '🇮🇹' },
   { name: 'Croatie', flag: '🇭🇷' },
+  { name: 'Suisse', flag: '🇨🇭' },
+  { name: 'Danemark', flag: '🇩🇰' },
+  { name: 'Autriche', flag: '🇦🇹' },
+  { name: 'Ukraine', flag: '🇺🇦' },
+  { name: 'Serbie', flag: '🇷🇸' },
+  { name: 'Pologne', flag: '🇵🇱' },
+  { name: 'Turquie', flag: '🇹🇷' },
+  { name: 'Écosse', flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿' },
+  { name: 'Slovénie', flag: '🇸🇮' },
+  // Amérique du Sud (6 places)
+  { name: 'Argentine', flag: '🇦🇷' },
+  { name: 'Brésil', flag: '🇧🇷' },
   { name: 'Uruguay', flag: '🇺🇾' },
-  { name: 'USA', flag: '🇺🇸' },
-  { name: 'Mexique', flag: '🇲🇽' },
-  { name: 'Canada', flag: '🇨🇦' },
+  { name: 'Colombie', flag: '🇨🇴' },
+  { name: 'Équateur', flag: '🇪🇨' },
+  { name: 'Paraguay', flag: '🇵🇾' },
+  { name: 'Chili', flag: '🇨🇱' },
+  { name: 'Venezuela', flag: '🇻🇪' },
+  // Afrique (9 places)
   { name: 'Maroc', flag: '🇲🇦' },
   { name: 'Sénégal', flag: '🇸🇳' },
+  { name: 'Nigeria', flag: '🇳🇬' },
+  { name: 'Égypte', flag: '🇪🇬' },
+  { name: 'Cameroun', flag: '🇨🇲' },
+  { name: 'Algérie', flag: '🇩🇿' },
+  { name: 'Côte d\'Ivoire', flag: '🇨🇮' },
+  { name: 'Ghana', flag: '🇬🇭' },
+  { name: 'Tunisie', flag: '🇹🇳' },
+  { name: 'Mali', flag: '🇲🇱' },
+  { name: 'Afrique du Sud', flag: '🇿🇦' },
+  // Asie (8 places)
   { name: 'Japon', flag: '🇯🇵' },
   { name: 'Corée du Sud', flag: '🇰🇷' },
   { name: 'Australie', flag: '🇦🇺' },
+  { name: 'Iran', flag: '🇮🇷' },
+  { name: 'Arabie Saoudite', flag: '🇸🇦' },
+  { name: 'Qatar', flag: '🇶🇦' },
+  { name: 'Irak', flag: '🇮🇶' },
+  { name: 'Ouzbékistan', flag: '🇺🇿' },
+  { name: 'Chine', flag: '🇨🇳' },
+  // CONCACAF (hors hôtes)
+  { name: 'Panama', flag: '🇵🇦' },
+  { name: 'Costa Rica', flag: '🇨🇷' },
+  { name: 'Jamaïque', flag: '🇯🇲' },
+  // Océanie
+  { name: 'Nouvelle-Zélande', flag: '🇳🇿' },
 ];
 
-// Famous players
+// Famous players - Candidats Ballon d'Or / Meilleur joueur CDM
 const PLAYERS = [
+  // Attaquants stars
   'Kylian Mbappé',
   'Erling Haaland',
   'Vinicius Jr',
-  'Jude Bellingham',
-  'Rodri',
-  'Kevin De Bruyne',
+  'Harry Kane',
   'Lionel Messi',
-  'Lamine Yamal',
-  'Florian Wirtz',
+  'Cristiano Ronaldo',
+  'Mohamed Salah',
+  'Lautaro Martínez',
+  'Victor Osimhen',
+  'Julián Álvarez',
+  'Darwin Núñez',
+  'Randal Kolo Muani',
+  'Marcus Rashford',
+  'Rafael Leão',
+  'Khvicha Kvaratskhelia',
+  // Milieux offensifs
+  'Jude Bellingham',
+  'Kevin De Bruyne',
+  'Bruno Fernandes',
   'Cole Palmer',
   'Bukayo Saka',
   'Phil Foden',
   'Jamal Musiala',
+  'Florian Wirtz',
+  'Lamine Yamal',
   'Pedri',
-  'Gavi',
+  'Martin Ødegaard',
+  'Bernardo Silva',
+  'Antoine Griezmann',
+  'Ousmane Dembélé',
+  'Leroy Sané',
+  // Milieux défensifs
+  'Rodri',
+  'Aurélien Tchouaméni',
+  'N\'Golo Kanté',
+  'Declan Rice',
+  'Federico Valverde',
+  'Toni Kroos',
+  'Eduardo Camavinga',
+  // Défenseurs
+  'Rúben Dias',
+  'Virgil van Dijk',
+  'William Saliba',
+  'Antonio Rüdiger',
+  'Achraf Hakimi',
+  'Theo Hernández',
+  'João Cancelo',
+  // Gardiens
+  'Thibaut Courtois',
+  'Alisson Becker',
+  'Ederson',
+  'Mike Maignan',
+  'Gianluigi Donnarumma',
 ];
 
-// Young players (U23)
+// Young players (U23) - Nés après le 1er janvier 2003
 const YOUNG_PLAYERS = [
   'Lamine Yamal',
   'Florian Wirtz',
+  'Jude Bellingham',
+  'Jamal Musiala',
   'Endrick',
   'Kobbie Mainoo',
   'Warren Zaïre-Emery',
@@ -67,6 +148,25 @@ const YOUNG_PLAYERS = [
   'Désiré Doué',
   'Benjamin Šeško',
   'Xavi Simons',
+  'Gavi',
+  'Pedri',
+  'Cole Palmer',
+  'Evan Ferguson',
+  'Kaoru Mitoma',
+  'Moisés Caicedo',
+  'Romeo Lavia',
+  'Josko Gvardiol',
+  'Jurriën Timber',
+  'Eduardo Camavinga',
+  'Aurélien Tchouaméni',
+  'Khvicha Kvaratskhelia',
+  'Yeremy Pino',
+  'Nico Williams',
+  'Rasmus Højlund',
+  'Amadou Onana',
+  'Ibrahima Konaté',
+  'Wesley Fofana',
+  'Castello Lukeba',
 ];
 
 const PREDICTION_CATEGORIES: { type: PredictionType; title: string; emoji: string; description: string }[] = [
@@ -89,6 +189,8 @@ export default function PredictionsPage() {
   const [allPredictions, setAllPredictions] = useState<Prediction[]>([]);
   const [editingType, setEditingType] = useState<PredictionType | null>(null);
   const [searchValue, setSearchValue] = useState('');
+  const [customMode, setCustomMode] = useState(false);
+  const [customValue, setCustomValue] = useState('');
   const [mounted, setMounted] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -199,37 +301,84 @@ export default function PredictionsPage() {
                   <div className="mb-4">
                     {editingType === cat.type ? (
                       <div className="space-y-3">
-                        <input
-                          type="text"
-                          placeholder="Rechercher..."
-                          value={searchValue}
-                          onChange={(e) => setSearchValue(e.target.value)}
-                          className="w-full px-4 py-2 bg-[#1e1e2e] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#fbbf24]"
-                          autoFocus
-                        />
-                        <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                          {getOptionsForType(cat.type)
-                            .filter(opt => opt.toLowerCase().includes(searchValue.toLowerCase()))
-                            .map(opt => (
+                        {customMode ? (
+                          /* Custom input mode */
+                          <div className="space-y-3">
+                            <p className="text-sm text-gray-400">Saisir un choix personnalisé :</p>
+                            <input
+                              type="text"
+                              placeholder={cat.type.includes('player') || cat.type.includes('young') ? "Nom du joueur..." : "Nom de l'équipe..."}
+                              value={customValue}
+                              onChange={(e) => setCustomValue(e.target.value)}
+                              className="w-full px-4 py-2 bg-[#1e1e2e] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#fbbf24]"
+                              autoFocus
+                            />
+                            <div className="flex gap-2">
                               <button
-                                key={opt}
-                                onClick={() => handleSelectPrediction(cat.type, opt)}
-                                disabled={saving}
-                                className="px-3 py-2 bg-[#1e1e2e] hover:bg-[#fbbf24]/20 border border-white/10 hover:border-[#fbbf24]/50 rounded-xl text-sm text-left transition-all flex items-center gap-2"
+                                onClick={() => {
+                                  if (customValue.trim()) {
+                                    handleSelectPrediction(cat.type, customValue.trim());
+                                    setCustomMode(false);
+                                    setCustomValue('');
+                                  }
+                                }}
+                                disabled={saving || !customValue.trim()}
+                                className="flex-1 px-4 py-2 bg-[#fbbf24] hover:bg-[#f59e0b] text-black font-medium rounded-xl transition-colors disabled:opacity-50"
                               >
-                                {(cat.type === 'winner' || cat.type === 'surprise_team') && (
-                                  <span>{getTeamFlag(opt)}</span>
-                                )}
-                                <span className="text-white truncate">{opt}</span>
+                                Valider
                               </button>
-                            ))}
-                        </div>
-                        <button
-                          onClick={() => { setEditingType(null); setSearchValue(''); }}
-                          className="text-sm text-gray-400 hover:text-white"
-                        >
-                          Annuler
-                        </button>
+                              <button
+                                onClick={() => { setCustomMode(false); setCustomValue(''); }}
+                                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors"
+                              >
+                                Retour
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          /* Normal selection mode */
+                          <>
+                            <input
+                              type="text"
+                              placeholder="Rechercher..."
+                              value={searchValue}
+                              onChange={(e) => setSearchValue(e.target.value)}
+                              className="w-full px-4 py-2 bg-[#1e1e2e] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#fbbf24]"
+                              autoFocus
+                            />
+                            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                              {getOptionsForType(cat.type)
+                                .filter(opt => opt.toLowerCase().includes(searchValue.toLowerCase()))
+                                .map(opt => (
+                                  <button
+                                    key={opt}
+                                    onClick={() => handleSelectPrediction(cat.type, opt)}
+                                    disabled={saving}
+                                    className="px-3 py-2 bg-[#1e1e2e] hover:bg-[#fbbf24]/20 border border-white/10 hover:border-[#fbbf24]/50 rounded-xl text-sm text-left transition-all flex items-center gap-2"
+                                  >
+                                    {(cat.type === 'winner' || cat.type === 'surprise_team') && (
+                                      <span>{getTeamFlag(opt)}</span>
+                                    )}
+                                    <span className="text-white truncate">{opt}</span>
+                                  </button>
+                                ))}
+                              {/* Autre option */}
+                              <button
+                                onClick={() => setCustomMode(true)}
+                                className="px-3 py-2 bg-[#6366f1]/20 hover:bg-[#6366f1]/30 border border-[#6366f1]/50 hover:border-[#6366f1] rounded-xl text-sm text-left transition-all flex items-center gap-2"
+                              >
+                                <span>✏️</span>
+                                <span className="text-[#6366f1] font-medium">Autre...</span>
+                              </button>
+                            </div>
+                            <button
+                              onClick={() => { setEditingType(null); setSearchValue(''); }}
+                              className="text-sm text-gray-400 hover:text-white"
+                            >
+                              Annuler
+                            </button>
+                          </>
+                        )}
                       </div>
                     ) : myPrediction ? (
                       <div className="flex items-center justify-between p-4 bg-[#fbbf24]/20 rounded-xl border border-[#fbbf24]/30">
