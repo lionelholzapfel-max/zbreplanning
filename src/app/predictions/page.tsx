@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import { MEMBERS } from '@/data/members';
 import { useSupabase, PredictionType, Prediction } from '@/hooks/useSupabase';
+import { toast } from 'sonner';
 
 // World Cup 2026 Teams - 48 équipes (qualifiées + probables)
 const TEAMS = [
@@ -178,7 +179,7 @@ const PREDICTION_CATEGORIES: { type: PredictionType; title: string; emoji: strin
 
 export default function PredictionsPage() {
   const router = useRouter();
-  const { currentUser, loading, getMyPredictions, getAllPredictions, setPrediction } = useSupabase();
+  const { currentUser, loading } = useSupabase();
 
   const [myPredictions, setMyPredictions] = useState<Record<PredictionType, string | null>>({
     best_player: null,
@@ -194,14 +195,48 @@ export default function PredictionsPage() {
   const [mounted, setMounted] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Lock state
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockDate, setLockDate] = useState<Date | null>(null);
+  const [timeUntilLock, setTimeUntilLock] = useState<number>(-1);
+  const [totalByType, setTotalByType] = useState<Record<string, number>>({});
+
   const loadData = useCallback(async () => {
-    const [mine, all] = await Promise.all([
-      getMyPredictions(),
-      getAllPredictions(),
-    ]);
-    setMyPredictions(mine);
-    setAllPredictions(all);
-  }, [getMyPredictions, getAllPredictions]);
+    try {
+      const res = await fetch('/api/predictions/global');
+      if (!res.ok) return;
+
+      const data = await res.json();
+      setIsLocked(data.locked);
+      setLockDate(data.lockDate ? new Date(data.lockDate) : null);
+      setTimeUntilLock(data.timeUntilLock || -1);
+
+      if (data.locked) {
+        // When locked, we have all predictions
+        setAllPredictions(data.predictions || []);
+        // Extract my predictions from the list
+        const mine: Record<PredictionType, string | null> = {
+          best_player: null, best_young: null, surprise_team: null, winner: null,
+        };
+        (data.myPredictions || []).forEach((p: Prediction) => {
+          mine[p.prediction_type as PredictionType] = p.prediction_value;
+        });
+        setMyPredictions(mine);
+      } else {
+        // When not locked, we only have our own predictions
+        const mine: Record<PredictionType, string | null> = {
+          best_player: null, best_young: null, surprise_team: null, winner: null,
+        };
+        (data.myPredictions || []).forEach((p: Prediction) => {
+          mine[p.prediction_type as PredictionType] = p.prediction_value;
+        });
+        setMyPredictions(mine);
+        setTotalByType(data.totalPredictionsByType || {});
+      }
+    } catch (err) {
+      console.error('Error loading predictions:', err);
+    }
+  }, []);
 
   useEffect(() => {
     if (!loading && !currentUser) {
@@ -216,14 +251,33 @@ export default function PredictionsPage() {
 
   const handleSelectPrediction = async (type: PredictionType, value: string) => {
     setSaving(true);
-    await setPrediction(type, value);
-    setMyPredictions(prev => ({ ...prev, [type]: value }));
-    setEditingType(null);
-    setSearchValue('');
-    setSaving(false);
-    // Reload all predictions
-    const all = await getAllPredictions();
-    setAllPredictions(all);
+    try {
+      const res = await fetch('/api/predictions/global', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prediction_type: type, prediction_value: value }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || 'Erreur lors de l\'enregistrement');
+        return;
+      }
+
+      toast.success('Pronostic enregistré !', { icon: '🎯' });
+      setMyPredictions(prev => ({ ...prev, [type]: value }));
+      setEditingType(null);
+      setSearchValue('');
+
+      // Reload data to get updated counts
+      await loadData();
+    } catch (err) {
+      console.error('Error saving prediction:', err);
+      toast.error('Erreur de connexion');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const getOptionsForType = (type: PredictionType): string[] => {
@@ -267,6 +321,22 @@ export default function PredictionsPage() {
               <span className="text-5xl">🔮</span>
             </div>
             <p className="text-gray-400 text-lg">Qui va briller à la Coupe du Monde 2026 ?</p>
+
+            {/* Lock status banner */}
+            {isLocked ? (
+              <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-gray-500/20 rounded-full border border-gray-500/30">
+                <span>🔒</span>
+                <span className="text-gray-400">Pronos verrouillés depuis le premier match</span>
+              </div>
+            ) : timeUntilLock > 0 && timeUntilLock < 24 * 60 * 60 * 1000 && (
+              <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-orange-500/20 rounded-full border border-orange-500/30 animate-pulse">
+                <span>⚠️</span>
+                <span className="text-orange-400">
+                  Verrouillage dans {Math.floor(timeUntilLock / (60 * 60 * 1000))}h{' '}
+                  {Math.floor((timeUntilLock % (60 * 60 * 1000)) / (60 * 1000))}m
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -299,7 +369,23 @@ export default function PredictionsPage() {
 
                   {/* My prediction */}
                   <div className="mb-4">
-                    {editingType === cat.type ? (
+                    {isLocked ? (
+                      /* Locked state - show prediction or "pas de prono" */
+                      <div className="flex items-center justify-between p-4 bg-gray-500/20 rounded-xl border border-gray-500/30">
+                        <div className="flex items-center gap-3">
+                          {(cat.type === 'winner' || cat.type === 'surprise_team') && myPrediction && (
+                            <span className="text-3xl">{getTeamFlag(myPrediction)}</span>
+                          )}
+                          <div>
+                            <p className="text-xs text-gray-400">Mon choix</p>
+                            <p className="text-lg font-bold text-gray-300">
+                              {myPrediction || 'Pas de pronostic'}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-gray-500">🔒</span>
+                      </div>
+                    ) : editingType === cat.type ? (
                       <div className="space-y-3">
                         {customMode ? (
                           /* Custom input mode */
@@ -408,8 +494,8 @@ export default function PredictionsPage() {
                     )}
                   </div>
 
-                  {/* Other predictions */}
-                  {otherPredictions.length > 0 && (
+                  {/* Other predictions - only show details when locked */}
+                  {isLocked && otherPredictions.length > 0 && (
                     <div className="pt-4 border-t border-white/10">
                       <p className="text-xs text-gray-500 mb-3">Choix de la team ({otherPredictions.length})</p>
                       <div className="flex flex-wrap gap-2">
@@ -436,6 +522,14 @@ export default function PredictionsPage() {
                       </div>
                     </div>
                   )}
+                  {/* When not locked, just show count */}
+                  {!isLocked && (totalByType[cat.type] || 0) > 0 && (
+                    <div className="pt-4 border-t border-white/10">
+                      <p className="text-xs text-gray-500">
+                        {totalByType[cat.type]} membres ont fait leur pronostic
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -443,7 +537,8 @@ export default function PredictionsPage() {
         </div>
       </section>
 
-      {/* All predictions summary */}
+      {/* All predictions summary - only show when locked */}
+      {isLocked && (
       <section className="max-w-7xl mx-auto px-4 py-8">
         <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
           <span>📊</span>
@@ -504,6 +599,7 @@ export default function PredictionsPage() {
           </table>
         </div>
       </section>
+      )}
     </div>
   );
 }
