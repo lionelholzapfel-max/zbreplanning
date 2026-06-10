@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -39,25 +39,99 @@ interface Match {
   group: string;
 }
 
+// Flag helper
+const getFlag = (country: string): string => {
+  const flags: Record<string, string> = {
+    'Mexique': '🇲🇽', 'Afrique du Sud': '🇿🇦', 'Corée du Sud': '🇰🇷', 'République tchèque': '🇨🇿',
+    'Canada': '🇨🇦', 'Bosnie-Herzégovine': '🇧🇦', 'Qatar': '🇶🇦', 'Suisse': '🇨🇭',
+    'Brésil': '🇧🇷', 'Maroc': '🇲🇦', 'Haïti': '🇭🇹', 'Écosse': '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+    'Allemagne': '🇩🇪', 'Japon': '🇯🇵', 'Honduras': '🇭🇳', 'Turquie': '🇹🇷',
+    'Argentine': '🇦🇷', 'Ouganda': '🇺🇬', 'Australie': '🇦🇺', 'Bahreïn': '🇧🇭',
+    'France': '🇫🇷', 'Colombie': '🇨🇴', 'Panama': '🇵🇦', 'Nouvelle-Zélande': '🇳🇿',
+    'Espagne': '🇪🇸', 'Pays-Bas': '🇳🇱', 'Équateur': '🇪🇨', 'Corée du Nord': '🇰🇵',
+    'Angleterre': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Pologne': '🇵🇱', 'Sénégal': '🇸🇳', 'Slovénie': '🇸🇮',
+    'Belgique': '🇧🇪', 'Croatie': '🇭🇷', 'Grèce': '🇬🇷', 'Ukraine': '🇺🇦',
+    'Portugal': '🇵🇹', 'Italie': '🇮🇹', 'Irlande': '🇮🇪', 'Égypte': '🇪🇬',
+    'USA': '🇺🇸', 'États-Unis': '🇺🇸', 'Chili': '🇨🇱', 'Arabie Saoudite': '🇸🇦',
+    'Uruguay': '🇺🇾', 'Nigeria': '🇳🇬', 'Pérou': '🇵🇪', 'Tunisie': '🇹🇳',
+  };
+  for (const [key, flag] of Object.entries(flags)) {
+    if (country.includes(key)) return flag;
+  }
+  return '⚽';
+};
+
 export default function HomePage() {
   const [mounted, setMounted] = useState(false);
   const [stats, setStats] = useState({ matchesJoined: 0, activitiesCreated: 0 });
   const [showCastor, setShowCastor] = useState(false);
   const [upcomingActivities, setUpcomingActivities] = useState<UpcomingActivity[]>([]);
   const [myUpcomingMatches, setMyUpcomingMatches] = useState<UpcomingMatch[]>([]);
+  const [myPredictions, setMyPredictions] = useState<Set<number>>(new Set());
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const router = useRouter();
   const { currentUser, loading, getUserStats, getUpcomingActivities, getMyUpcomingMatches } = useSupabase();
+
+  // Load user's predictions
+  const loadPredictions = useCallback(async () => {
+    try {
+      // Fetch all predictions for upcoming matches
+      const upcomingMatchIds = (matches as Match[])
+        .filter(m => {
+          const [day, month, year] = m.date.split('/').map(Number);
+          const [hours, minutes] = m.time.split(':').map(Number);
+          const matchDate = new Date(year, month - 1, day, hours, minutes);
+          return matchDate > new Date();
+        })
+        .map(m => m.id);
+
+      const predictions = new Set<number>();
+      // Fetch in batches to avoid too many requests
+      await Promise.all(upcomingMatchIds.slice(0, 20).map(async (matchId) => {
+        try {
+          const res = await fetch(`/api/predictions/score?match_id=${matchId}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.myPrediction) {
+              predictions.add(matchId);
+            }
+          }
+        } catch {
+          // Ignore errors
+        }
+      }));
+      setMyPredictions(predictions);
+    } catch (err) {
+      console.error('Error loading predictions:', err);
+    }
+  }, []);
+
+  // Load favorites
+  const loadFavorites = useCallback(async () => {
+    try {
+      const res = await fetch('/api/favorites');
+      if (res.ok) {
+        const data = await res.json();
+        setFavorites(data.favorites || []);
+      }
+    } catch (err) {
+      console.error('Error loading favorites:', err);
+    }
+  }, []);
 
   const loadData = useCallback(async () => {
     const [userStats, activities, myMatches] = await Promise.all([
       getUserStats(),
       getUpcomingActivities(),
       getMyUpcomingMatches(),
+      loadPredictions(),
+      loadFavorites(),
     ]);
     setStats(userStats);
     setUpcomingActivities(activities);
     setMyUpcomingMatches(myMatches);
-  }, [getUserStats, getUpcomingActivities, getMyUpcomingMatches]);
+  }, [getUserStats, getUpcomingActivities, getMyUpcomingMatches, loadPredictions, loadFavorites]);
 
   useEffect(() => {
     if (!loading && !currentUser) {
@@ -71,6 +145,46 @@ export default function HomePage() {
     }
   }, [currentUser, loading, router, loadData]);
 
+  // Get next match for countdown
+  const nextMatch = useMemo(() => {
+    const now = new Date();
+    const upcoming = (matches as Match[])
+      .map(m => {
+        const [day, month, year] = m.date.split('/').map(Number);
+        const [hours, minutes] = m.time.split(':').map(Number);
+        return { ...m, dateObj: new Date(year, month - 1, day, hours, minutes) };
+      })
+      .filter(m => m.dateObj > now)
+      .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
+    return upcoming[0] || null;
+  }, []);
+
+  // Countdown timer effect
+  useEffect(() => {
+    if (!nextMatch) return;
+
+    const updateCountdown = () => {
+      const now = new Date();
+      const diff = nextMatch.dateObj.getTime() - now.getTime();
+
+      if (diff <= 0) {
+        setCountdown({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      setCountdown({ days, hours, minutes, seconds });
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [nextMatch]);
+
   // Helper to get match data from ID
   const getMatchData = (matchId: number): Match | undefined => {
     return (matches as Match[]).find(m => m.id === matchId);
@@ -81,6 +195,41 @@ export default function HomePage() {
     const parts = matchStr.split(' - ');
     return parts.length === 2 ? { team1: parts[0].trim(), team2: parts[1].trim() } : { team1: matchStr, team2: '' };
   };
+
+  // Get next upcoming matches (sorted by date)
+  const nextMatches = useMemo(() => {
+    const now = new Date();
+    return (matches as Match[])
+      .filter(m => {
+        const [day, month, year] = m.date.split('/').map(Number);
+        const [hours, minutes] = m.time.split(':').map(Number);
+        const matchDate = new Date(year, month - 1, day, hours, minutes);
+        return matchDate > now;
+      })
+      .sort((a, b) => {
+        const [dayA, monthA, yearA] = a.date.split('/').map(Number);
+        const [hoursA, minutesA] = a.time.split(':').map(Number);
+        const dateA = new Date(yearA, monthA - 1, dayA, hoursA, minutesA);
+
+        const [dayB, monthB, yearB] = b.date.split('/').map(Number);
+        const [hoursB, minutesB] = b.time.split(':').map(Number);
+        const dateB = new Date(yearB, monthB - 1, dayB, hoursB, minutesB);
+
+        return dateA.getTime() - dateB.getTime();
+      })
+      .slice(0, 6);
+  }, []);
+
+  // Count matches needing predictions
+  const toPredictCount = useMemo(() => {
+    const now = new Date();
+    return (matches as Match[]).filter(m => {
+      const [day, month, year] = m.date.split('/').map(Number);
+      const [hours, minutes] = m.time.split(':').map(Number);
+      const matchDate = new Date(year, month - 1, day, hours, minutes);
+      return matchDate > now && !myPredictions.has(m.id);
+    }).length;
+  }, [myPredictions]);
 
   if (loading || !currentUser) return null;
 
@@ -158,11 +307,14 @@ export default function HomePage() {
             <span className="text-3xl font-bold text-white">{MEMBERS.length}</span>
             <p className="text-gray-400 text-sm">Membres</p>
           </div>
-          <div className="glass rounded-2xl p-6 text-center border border-white/5 hover:border-[#fbbf24]/30 transition-colors group">
-            <span className="text-4xl mb-2 block group-hover:scale-110 transition-transform">⚽</span>
-            <span className="text-3xl font-bold text-white">104</span>
-            <p className="text-gray-400 text-sm">Matchs à venir</p>
-          </div>
+          <Link
+            href="/world-cup"
+            className="glass rounded-2xl p-6 text-center border border-white/5 hover:border-[#22c55e]/30 transition-colors group cursor-pointer"
+          >
+            <span className="text-4xl mb-2 block group-hover:scale-110 transition-transform">✍️</span>
+            <span className="text-3xl font-bold text-[#22c55e]">{toPredictCount}</span>
+            <p className="text-gray-400 text-sm">À pronostiquer</p>
+          </Link>
           <div className="glass rounded-2xl p-6 text-center border border-white/5 hover:border-[#22c55e]/30 transition-colors group">
             <span className="text-4xl mb-2 block group-hover:scale-110 transition-transform">⏰</span>
             <span className="text-3xl font-bold text-[#fbbf24]">{daysUntil > 0 ? daysUntil : 'C\'est parti!'}</span>
@@ -175,6 +327,167 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Countdown to Next Match */}
+      {nextMatch && (
+        <section className="max-w-7xl mx-auto px-4 py-8">
+          <Link href="/world-cup" className="block">
+            <div className="relative overflow-hidden rounded-3xl border border-[#fbbf24]/30 bg-gradient-to-br from-[#1a472a]/80 to-[#0d2818]/80 p-6 hover:border-[#fbbf24]/50 transition-all group">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-[#fbbf24]/10 rounded-full blur-3xl" />
+
+              <div className="relative flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="text-center md:text-left">
+                  <p className="text-[#fbbf24] font-bold text-sm mb-1">⏰ PROCHAIN MATCH</p>
+                  <h3 className="text-xl md:text-2xl font-bold text-white mb-2">
+                    {(() => {
+                      const { team1, team2 } = parseMatch(nextMatch.match);
+                      return (
+                        <>
+                          {getFlag(team1)} {team1} vs {team2} {getFlag(team2)}
+                        </>
+                      );
+                    })()}
+                  </h3>
+                  <p className="text-gray-400 text-sm">
+                    {nextMatch.dateDisplay} à {nextMatch.time}
+                  </p>
+                </div>
+
+                {/* Countdown Timer */}
+                <div className="flex items-center gap-3">
+                  <div className="text-center">
+                    <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-[#fbbf24]/20 border border-[#fbbf24]/30 flex items-center justify-center">
+                      <span className="text-2xl md:text-3xl font-black text-[#fbbf24]">{countdown.days}</span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">jours</p>
+                  </div>
+                  <span className="text-2xl text-[#fbbf24] font-bold animate-pulse">:</span>
+                  <div className="text-center">
+                    <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-[#fbbf24]/20 border border-[#fbbf24]/30 flex items-center justify-center">
+                      <span className="text-2xl md:text-3xl font-black text-[#fbbf24]">{String(countdown.hours).padStart(2, '0')}</span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">heures</p>
+                  </div>
+                  <span className="text-2xl text-[#fbbf24] font-bold animate-pulse">:</span>
+                  <div className="text-center">
+                    <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-[#fbbf24]/20 border border-[#fbbf24]/30 flex items-center justify-center">
+                      <span className="text-2xl md:text-3xl font-black text-[#fbbf24]">{String(countdown.minutes).padStart(2, '0')}</span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">min</p>
+                  </div>
+                  <span className="text-2xl text-[#fbbf24] font-bold animate-pulse">:</span>
+                  <div className="text-center">
+                    <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-[#22c55e]/20 border border-[#22c55e]/30 flex items-center justify-center">
+                      <span className="text-2xl md:text-3xl font-black text-[#22c55e] tabular-nums">{String(countdown.seconds).padStart(2, '0')}</span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">sec</p>
+                  </div>
+                </div>
+
+                <div className="hidden md:block text-right opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-[#fbbf24] font-medium">Voir les matchs →</span>
+                </div>
+              </div>
+            </div>
+          </Link>
+        </section>
+      )}
+
+      {/* Next Matches Section */}
+      {nextMatches.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 py-12">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold flex items-center gap-3">
+                <span className="text-3xl">⚽</span>
+                Prochains matchs
+              </h2>
+              <p className="text-gray-400 mt-1">Les matchs à venir</p>
+            </div>
+            <div className="flex items-center gap-3">
+              {toPredictCount > 0 && (
+                <Link
+                  href="/world-cup"
+                  className="px-4 py-2 bg-[#22c55e]/20 text-[#22c55e] rounded-xl font-bold hover:bg-[#22c55e]/30 transition-colors flex items-center gap-2"
+                >
+                  <span>✍️</span>
+                  <span>{toPredictCount} à pronostiquer</span>
+                </Link>
+              )}
+              <Link
+                href="/world-cup"
+                className="text-[#fbbf24] hover:text-[#fbbf24]/80 transition-colors font-medium"
+              >
+                Voir tous →
+              </Link>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {nextMatches.map((match) => {
+              const { team1, team2 } = parseMatch(match.match);
+              const hasPrediction = myPredictions.has(match.id);
+              const isFavorite = favorites.includes(team1) || favorites.includes(team2);
+
+              return (
+                <Link
+                  key={`next-${match.id}`}
+                  href="/world-cup"
+                  className={`group relative overflow-hidden rounded-2xl border transition-all hover:scale-[1.02] ${
+                    isFavorite
+                      ? 'border-[#fbbf24]/30 bg-gradient-to-br from-[#1a472a]/60 to-[#12121a]'
+                      : 'border-white/10 bg-gradient-to-br from-[#1a472a]/30 to-[#12121a]'
+                  }`}
+                >
+                  {/* Favorite badge */}
+                  {isFavorite && (
+                    <div className="absolute top-3 right-3 text-[#fbbf24]">
+                      ★
+                    </div>
+                  )}
+
+                  <div className="p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      {match.group && (
+                        <span className="px-2 py-1 bg-[#fbbf24]/20 text-[#fbbf24] text-xs font-bold rounded-lg">
+                          {match.group}
+                        </span>
+                      )}
+                      <span className="text-xs text-gray-400">{match.dateDisplay}</span>
+                      <span className="text-xs text-[#fbbf24] font-bold">{match.time}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl">{getFlag(team1)}</span>
+                        <span className="font-bold text-white">{team1}</span>
+                      </div>
+                      <span className="text-gray-500">vs</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-white">{team2}</span>
+                        <span className="text-2xl">{getFlag(team2)}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className={`px-2 py-1 rounded-lg text-xs font-bold ${
+                        hasPrediction
+                          ? 'bg-[#6366f1]/20 text-[#6366f1]'
+                          : 'bg-[#22c55e]/20 text-[#22c55e]'
+                      }`}>
+                        {hasPrediction ? '✓ Prono fait' : '✍️ À pronostiquer'}
+                      </span>
+                      <span className="text-xs text-gray-500 group-hover:text-white transition-colors">
+                        Voir →
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* My Upcoming Events Section */}
       {(myUpcomingMatches.length > 0 || upcomingActivities.length > 0) && (

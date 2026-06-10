@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser, getSupabaseAdmin } from '@/lib/auth/session';
-import { getMatchById, hasMatchStarted, parseMatchTeams } from '@/lib/matches';
+import { getMatchById, hasMatchStarted, isPredictionLocked, parseMatchTeams, getTimeUntilLock, PREDICTION_LOCK_OFFSET_MS } from '@/lib/matches';
 
 // GET /api/predictions/score?match_id=X
 // Returns all predictions if match has started, otherwise only current user's prediction
@@ -42,9 +42,11 @@ export async function GET(request: NextRequest) {
 
     const supabase = getSupabaseAdmin();
     const matchStarted = hasMatchStarted(matchId);
+    const predictionLocked = isPredictionLocked(matchId);
+    const timeUntilLock = getTimeUntilLock(matchId);
 
-    if (matchStarted) {
-      // Match has started - return ALL predictions with user info
+    if (predictionLocked) {
+      // Predictions are locked (2h before kickoff) - return ALL predictions with user info
       const { data: predictions, error } = await supabase
         .from('match_score_predictions')
         .select('*, user:users!user_id(member_name, member_slug)')
@@ -66,6 +68,33 @@ export async function GET(request: NextRequest) {
         .eq('match_id', matchId)
         .single();
 
+      // Get points if result exists
+      let pointsMap: Record<string, { total: number; base: number; visionary: number; outsider: number; detail: string }> = {};
+      if (result) {
+        const { data: pointsData } = await supabase
+          .from('points_log')
+          .select('user_id, total_points, base_points, visionary_bonus, outsider_bonus, detail')
+          .eq('match_id', matchId);
+
+        if (pointsData) {
+          pointsData.forEach(p => {
+            pointsMap[p.user_id] = {
+              total: p.total_points,
+              base: p.base_points,
+              visionary: p.visionary_bonus,
+              outsider: p.outsider_bonus,
+              detail: p.detail || '',
+            };
+          });
+        }
+      }
+
+      // Enrich predictions with points
+      const enrichedPredictions = (predictions || []).map(p => ({
+        ...p,
+        points: pointsMap[p.user_id] || null,
+      }));
+
       return NextResponse.json({
         match: {
           id: match.id,
@@ -73,12 +102,13 @@ export async function GET(request: NextRequest) {
           date: match.dateDisplay,
           time: match.time,
         },
-        matchStarted: true,
-        predictions: predictions || [],
+        matchStarted,
+        predictionLocked: true,
+        predictions: enrichedPredictions,
         result: result || null,
       });
     } else {
-      // Match hasn't started - return ONLY current user's prediction (anti-cheat)
+      // Predictions still open - return ONLY current user's prediction (anti-cheat)
       const { data: myPrediction, error } = await supabase
         .from('match_score_predictions')
         .select('*')
@@ -108,6 +138,8 @@ export async function GET(request: NextRequest) {
           time: match.time,
         },
         matchStarted: false,
+        predictionLocked: false,
+        timeUntilLock, // milliseconds until predictions lock
         myPrediction: myPrediction || null,
         totalPredictions: count || 0,
       });
@@ -171,10 +203,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if match has started (ANTI-CHEAT)
-    if (hasMatchStarted(matchId)) {
+    // Check if predictions are locked (ANTI-CHEAT)
+    // Predictions lock 2 HOURS BEFORE kickoff
+    if (isPredictionLocked(matchId)) {
       return NextResponse.json(
-        { error: 'Match verrouillé 🔒 - Le match a déjà commencé' },
+        { error: 'Pronos verrouillés 🔒 (2h avant le match)' },
         { status: 403 }
       );
     }

@@ -11,9 +11,9 @@ import { fr } from 'date-fns/locale';
 const navItems = [
   { href: '/', label: 'Accueil', icon: '🏠', mobileLabel: 'Home' },
   { href: '/world-cup', label: 'Coupe du Monde', icon: '⚽', mobileLabel: 'CDM' },
+  { href: '/leaderboard', label: 'Classement', icon: '🏆', mobileLabel: 'Classement' },
   { href: '/predictions', label: 'Pronostics', icon: '🎰', mobileLabel: 'Pronos' },
   { href: '/activities', label: 'Activités', icon: '📅', mobileLabel: 'Activités' },
-  { href: '/calendar', label: 'Calendrier', icon: '🗓️', mobileLabel: 'Calendrier' },
 ];
 
 const notificationIcons: Record<string, string> = {

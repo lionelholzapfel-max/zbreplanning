@@ -1,4 +1,4 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env -S NODE_OPTIONS=--experimental-fetch npx tsx
 
 /**
  * Database Health Check Script

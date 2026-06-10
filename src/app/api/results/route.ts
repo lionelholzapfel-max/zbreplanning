@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser, getSupabaseAdmin, requireAdmin } from '@/lib/auth/session';
 import { getMatchById, parseMatchTeams } from '@/lib/matches';
+import { calculateMatchPoints, Prediction, MatchResult, PointsBreakdown } from '@/lib/scoring';
+import { MEMBERS } from '@/data/members';
 
 // GET /api/results?match_id=X
 // Get result for a specific match (public)
@@ -49,12 +51,19 @@ export async function GET(request: NextRequest) {
       const match = getMatchById(matchId);
       const teams = match ? parseMatchTeams(match.match) : { home: '', away: '' };
 
+      // Also get points for this match
+      const { data: pointsLog } = await supabase
+        .from('points_log')
+        .select('*')
+        .eq('match_id', matchId);
+
       return NextResponse.json({
         result: {
           ...result,
           home_team: teams.home,
           away_team: teams.away,
         },
+        points: pointsLog || [],
       });
     } else {
       // Get all results
@@ -83,7 +92,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/results
-// Record a match result (ADMIN ONLY)
+// Record a match result and calculate points (ADMIN ONLY)
 export async function POST(request: NextRequest) {
   try {
     // Require admin
@@ -136,8 +145,9 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
+    const teams = parseMatchTeams(match.match);
 
-    // Upsert result (update if exists, insert if not)
+    // Upsert result
     const { data: existing } = await supabase
       .from('match_results')
       .select('id')
@@ -145,7 +155,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (existing) {
-      // Update existing result
       const { error: updateError } = await supabase
         .from('match_results')
         .update({
@@ -164,7 +173,6 @@ export async function POST(request: NextRequest) {
         );
       }
     } else {
-      // Create new result
       const { error: insertError } = await supabase
         .from('match_results')
         .insert({
@@ -183,7 +191,86 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const teams = parseMatchTeams(match.match);
+    // Get all predictions for this match
+    const { data: predictionsData, error: predError } = await supabase
+      .from('match_score_predictions')
+      .select('user_id, home_score, away_score')
+      .eq('match_id', matchId);
+
+    if (predError) {
+      console.error('[Results] Error getting predictions:', predError);
+    }
+
+    const predictions: Prediction[] = predictionsData || [];
+    const result: MatchResult = { home_score: homeScore, away_score: awayScore };
+
+    // Calculate points for all predictions
+    const pointsMap = calculateMatchPoints(predictions, result, teams.home, teams.away);
+
+    // Delete existing points log for this match (in case of update)
+    await supabase
+      .from('points_log')
+      .delete()
+      .eq('match_id', matchId);
+
+    // Insert new points log entries
+    const pointsLogEntries: Array<{
+      user_id: string;
+      match_id: number;
+      base_points: number;
+      visionary_bonus: number;
+      outsider_bonus: number;
+      total_points: number;
+      detail: string;
+    }> = [];
+
+    const pointsResults: Record<string, PointsBreakdown> = {};
+
+    for (const [userId, breakdown] of pointsMap) {
+      pointsLogEntries.push({
+        user_id: userId,
+        match_id: matchId,
+        base_points: breakdown.base,
+        visionary_bonus: breakdown.visionary,
+        outsider_bonus: breakdown.outsider,
+        total_points: breakdown.total,
+        detail: breakdown.detail,
+      });
+      pointsResults[userId] = breakdown;
+    }
+
+    if (pointsLogEntries.length > 0) {
+      const { error: pointsError } = await supabase
+        .from('points_log')
+        .insert(pointsLogEntries);
+
+      if (pointsError) {
+        console.error('[Results] Error inserting points:', pointsError);
+      }
+    }
+
+    // Send notifications to all members
+    const notifications = MEMBERS.map(member => {
+      const points = pointsResults[member.id];
+      const pointsText = points
+        ? `+${points.total} pt${points.total > 1 ? 's' : ''}`
+        : 'pas de prono';
+
+      return {
+        user_id: member.id,
+        type: 'match_response' as const,
+        title: `${teams.home} ${homeScore}-${awayScore} ${teams.away}`,
+        message: `Résultat enregistré — ${pointsText}`,
+        link: '/leaderboard',
+        created_by: admin.id,
+        related_id: matchId.toString(),
+      };
+    });
+
+    await supabase.from('notifications').insert(notifications);
+
+    // Check for Drère de la journée
+    await updateDailyAwards(supabase, match.date);
 
     return NextResponse.json({
       success: true,
@@ -194,6 +281,7 @@ export async function POST(request: NextRequest) {
         match: `${teams.home} ${homeScore} - ${awayScore} ${teams.away}`,
         entered_by: admin.member_name,
       },
+      points_calculated: pointsLogEntries.length,
     });
   } catch (error) {
     console.error('[Results] POST error:', error);
@@ -202,4 +290,69 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// Helper to update daily awards
+async function updateDailyAwards(supabase: ReturnType<typeof getSupabaseAdmin>, dateStr: string) {
+  // Get all points for matches on this date
+  const { data: matchesData } = await supabase
+    .from('match_results')
+    .select('match_id')
+    .gte('entered_at', `${dateStr}T00:00:00`)
+    .lt('entered_at', `${dateStr}T23:59:59`);
+
+  if (!matchesData || matchesData.length === 0) return;
+
+  const matchIds = matchesData.map(m => m.match_id);
+
+  // Get points for these matches
+  const { data: pointsData } = await supabase
+    .from('points_log')
+    .select('user_id, total_points')
+    .in('match_id', matchIds);
+
+  if (!pointsData || pointsData.length === 0) return;
+
+  // Sum points per user
+  const userPoints: Record<string, number> = {};
+  for (const p of pointsData) {
+    userPoints[p.user_id] = (userPoints[p.user_id] || 0) + p.total_points;
+  }
+
+  // Find max points
+  const maxPoints = Math.max(...Object.values(userPoints));
+  if (maxPoints === 0) return;
+
+  // Find users with max points (could be multiple)
+  const drereUsers = Object.entries(userPoints)
+    .filter(([, points]) => points === maxPoints)
+    .map(([userId]) => userId);
+
+  // Create daily awards (delete existing for today first)
+  await supabase
+    .from('daily_awards')
+    .delete()
+    .eq('award_date', dateStr)
+    .eq('award_type', 'drere');
+
+  const awards = drereUsers.map(userId => ({
+    user_id: userId,
+    award_date: dateStr,
+    award_type: 'drere' as const,
+    points_earned: maxPoints,
+  }));
+
+  await supabase.from('daily_awards').insert(awards);
+
+  // Send notification to Drère(s)
+  const drereNotifications = drereUsers.map(userId => ({
+    user_id: userId,
+    type: 'activity_created' as const,
+    title: '👑 Tu es le Drère du jour !',
+    message: `Avec ${maxPoints} pts aujourd'hui, tu portes la couronne !`,
+    link: '/leaderboard',
+    created_by: userId,
+  }));
+
+  await supabase.from('notifications').insert(drereNotifications);
 }

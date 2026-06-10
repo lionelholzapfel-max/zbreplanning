@@ -14,6 +14,16 @@ export interface Match {
 
 export const matches: Match[] = matchesData as Match[];
 
+// ============================================================================
+// PREDICTION LOCK CONFIGURATION
+// Predictions lock 2 hours BEFORE kickoff to prevent last-minute copying
+// ============================================================================
+export const PREDICTION_LOCK_OFFSET_MS = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
+
+// First match kickoff - used to lock global predictions (winner, best_player, etc.)
+// Match 1: Mexique - Afrique du Sud, 11 juin 2026 à 21:00 (Europe/Brussels)
+export const FIRST_MATCH_KICKOFF = new Date('2026-06-11T21:00:00+02:00');
+
 export function getMatchById(matchId: number): Match | undefined {
   return matches.find(m => m.id === matchId);
 }
@@ -35,6 +45,29 @@ export function getMatchKickoff(match: Match): Date {
 }
 
 /**
+ * Get the lock time for predictions (2 hours before kickoff)
+ */
+export function getPredictionLockTime(match: Match): Date {
+  const kickoff = getMatchKickoff(match);
+  return new Date(kickoff.getTime() - PREDICTION_LOCK_OFFSET_MS);
+}
+
+/**
+ * Check if predictions are locked for a match
+ * Predictions lock 2 HOURS BEFORE kickoff (not at kickoff)
+ * This is the SINGLE SOURCE OF TRUTH for lock status
+ */
+export function isPredictionLocked(matchId: number): boolean {
+  const match = getMatchById(matchId);
+  if (!match) return true; // Assume locked if match not found (safety)
+
+  const lockTime = getPredictionLockTime(match);
+  const now = new Date();
+
+  return now >= lockTime;
+}
+
+/**
  * Check if a match has started (kickoff time has passed)
  */
 export function hasMatchStarted(matchId: number): boolean {
@@ -48,6 +81,20 @@ export function hasMatchStarted(matchId: number): boolean {
 }
 
 /**
+ * Get time until lock in milliseconds (negative if already locked)
+ * Returns time until (kickoff - 2h)
+ */
+export function getTimeUntilLock(matchId: number): number {
+  const match = getMatchById(matchId);
+  if (!match) return -1;
+
+  const lockTime = getPredictionLockTime(match);
+  const now = new Date();
+
+  return lockTime.getTime() - now.getTime();
+}
+
+/**
  * Get time until kickoff in milliseconds (negative if already started)
  */
 export function getTimeUntilKickoff(matchId: number): number {
@@ -58,6 +105,23 @@ export function getTimeUntilKickoff(matchId: number): number {
   const now = new Date();
 
   return kickoff.getTime() - now.getTime();
+}
+
+/**
+ * Check if global predictions (winner, best_player, etc.) are locked
+ * They lock at the FIRST MATCH kickoff (11 juin 2026, 21:00)
+ */
+export function areGlobalPredictionsLocked(): boolean {
+  const now = new Date();
+  return now >= FIRST_MATCH_KICKOFF;
+}
+
+/**
+ * Get time until global predictions lock
+ */
+export function getTimeUntilGlobalLock(): number {
+  const now = new Date();
+  return FIRST_MATCH_KICKOFF.getTime() - now.getTime();
 }
 
 /**
