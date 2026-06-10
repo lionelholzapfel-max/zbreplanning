@@ -92,6 +92,7 @@ export async function quickLogin(page: Page, memberId: string = '1') {
       member_id: m.id,
       member_name: m.name,
       member_slug: m.slug,
+      is_admin: m.id === '7', // Lionel is admin
     };
     localStorage.setItem('zbre_current_user', JSON.stringify(user));
   }, member);

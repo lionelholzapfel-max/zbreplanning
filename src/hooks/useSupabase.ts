@@ -12,6 +12,7 @@ export interface UserProfile {
   member_id: string;
   member_name: string;
   member_slug: string;
+  is_admin?: boolean;
 }
 
 export interface MatchParticipation {

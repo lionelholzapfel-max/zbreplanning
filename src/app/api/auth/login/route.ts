@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { getSupabaseClient, createSessionToken, setSessionCookie } from '@/lib/auth/session';
 import { MEMBERS } from '@/data/members';
+import { checkRateLimit, resetRateLimit } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,6 +14,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'member_id et pin requis' },
         { status: 400 }
+      );
+    }
+
+    // Rate limiting - 5 attempts per 15 minutes per member
+    const rateLimitKey = `login:${member_id}`;
+    const rateLimit = checkRateLimit(rateLimitKey, {
+      maxAttempts: 5,
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      blockDurationMs: 15 * 60 * 1000, // 15 minutes
+    });
+
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: `Trop de tentatives, réessaie dans ${rateLimit.retryAfterMinutes} min` },
+        { status: 429 }
       );
     }
 
@@ -85,6 +101,9 @@ export async function POST(request: NextRequest) {
 
     const token = await createSessionToken(sessionUser);
     await setSessionCookie(token);
+
+    // Reset rate limit on successful login
+    resetRateLimit(rateLimitKey);
 
     return NextResponse.json({
       success: true,
