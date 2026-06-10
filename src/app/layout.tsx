@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import Providers from "@/components/Providers";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -48,7 +49,7 @@ export default function RootLayout({
             <p style={{ color: '#9ca3af' }}>Active JavaScript pour utiliser ZbrePlanning.</p>
           </div>
         </noscript>
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

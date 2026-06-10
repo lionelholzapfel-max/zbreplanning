@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/client';
 import { useState, useEffect, useCallback } from 'react';
 import { MEMBERS, Member } from '@/data/members';
+import { toast } from 'sonner';
 
 // Types
 export interface UserProfile {
@@ -98,6 +99,12 @@ export interface Prediction {
   };
 }
 
+// Result type for write operations
+export interface WriteResult {
+  success: boolean;
+  error?: string;
+}
+
 // Local storage for current user (simple auth without email)
 const USER_STORAGE_KEY = 'zbre_current_user';
 
@@ -157,7 +164,7 @@ export function useSupabase() {
   }, []);
 
   // Ensure user exists in database
-  const ensureUserInDb = useCallback(async (user: UserProfile) => {
+  const ensureUserInDb = useCallback(async (user: UserProfile): Promise<WriteResult> => {
     const { data: existing, error: selectError } = await supabase
       .from('users')
       .select('id')
@@ -166,6 +173,7 @@ export function useSupabase() {
 
     if (selectError && selectError.code !== 'PGRST116') {
       console.error('[Supabase] Error checking user:', selectError);
+      return { success: false, error: selectError.message };
     }
 
     if (!existing) {
@@ -179,8 +187,10 @@ export function useSupabase() {
 
       if (insertError) {
         console.error('[Supabase] Error creating user:', insertError);
+        return { success: false, error: insertError.message };
       }
     }
+    return { success: true };
   }, [supabase]);
 
   // Create notification for all other users
@@ -190,14 +200,11 @@ export function useSupabase() {
     message: string,
     link?: string,
     relatedId?: string
-  ) => {
-    if (!currentUser) return;
+  ): Promise<WriteResult> => {
+    if (!currentUser) return { success: false, error: 'Non connecté' };
 
-    // Get all member IDs except current user
     const otherUserIds = MEMBERS.filter(m => m.id !== currentUser.id).map(m => m.id);
-
-    // Create notifications for all other users
-    const notifications = otherUserIds.map(userId => ({
+    const notificationsData = otherUserIds.map(userId => ({
       user_id: userId,
       type,
       title,
@@ -207,10 +214,12 @@ export function useSupabase() {
       related_id: relatedId,
     }));
 
-    const { error } = await supabase.from('notifications').insert(notifications);
+    const { error } = await supabase.from('notifications').insert(notificationsData);
     if (error) {
       console.error('[Supabase] Error creating notifications:', error);
+      return { success: false, error: error.message };
     }
+    return { success: true };
   }, [supabase, currentUser]);
 
   // Get notifications for current user
@@ -236,23 +245,26 @@ export function useSupabase() {
   }, [supabase, currentUser]);
 
   // Mark notification as read
-  const markNotificationRead = useCallback(async (notificationId: string) => {
+  const markNotificationRead = useCallback(async (notificationId: string): Promise<WriteResult> => {
     const { error } = await supabase
       .from('notifications')
       .update({ read: true })
       .eq('id', notificationId);
 
-    if (!error) {
-      setNotifications(prev => prev.map(n =>
-        n.id === notificationId ? { ...n, read: true } : n
-      ));
-      setUnreadCount(prev => Math.max(0, prev - 1));
+    if (error) {
+      return { success: false, error: error.message };
     }
+
+    setNotifications(prev => prev.map(n =>
+      n.id === notificationId ? { ...n, read: true } : n
+    ));
+    setUnreadCount(prev => Math.max(0, prev - 1));
+    return { success: true };
   }, [supabase]);
 
   // Mark all as read
-  const markAllNotificationsRead = useCallback(async () => {
-    if (!currentUser) return;
+  const markAllNotificationsRead = useCallback(async (): Promise<WriteResult> => {
+    if (!currentUser) return { success: false, error: 'Non connecté' };
 
     const { error } = await supabase
       .from('notifications')
@@ -260,18 +272,25 @@ export function useSupabase() {
       .eq('user_id', currentUser.id)
       .eq('read', false);
 
-    if (!error) {
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-      setUnreadCount(0);
+    if (error) {
+      toast.error('Erreur lors du marquage des notifications');
+      return { success: false, error: error.message };
     }
+
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setUnreadCount(0);
+    return { success: true };
   }, [supabase, currentUser]);
 
   // Login
-  const login = useCallback(async (member: Member) => {
+  const login = useCallback(async (member: Member): Promise<{ user: UserProfile } & WriteResult> => {
     const user = loginAsMember(member);
     setCurrentUser(user);
-    await ensureUserInDb(user);
-    return user;
+    const result = await ensureUserInDb(user);
+    if (!result.success) {
+      toast.error('Erreur de connexion à la base de données');
+    }
+    return { ...result, user };
   }, [ensureUserInDb]);
 
   // Match Participations
@@ -289,16 +308,18 @@ export function useSupabase() {
     return data || [];
   }, [supabase]);
 
-  const setMatchParticipation = useCallback(async (matchId: number, status: 'yes' | 'no' | 'maybe') => {
+  const setMatchParticipation = useCallback(async (matchId: number, status: 'yes' | 'no' | 'maybe'): Promise<WriteResult> => {
     if (!currentUser) {
-      console.error('[Supabase] setMatchParticipation: No current user');
-      return;
+      toast.error('Tu dois être connecté');
+      return { success: false, error: 'Non connecté' };
     }
 
-    console.log('[Supabase] setMatchParticipation:', { matchId, status, userId: currentUser.id });
-    await ensureUserInDb(currentUser);
+    const userResult = await ensureUserInDb(currentUser);
+    if (!userResult.success) {
+      toast.error('Erreur de synchronisation du profil');
+      return userResult;
+    }
 
-    // Use maybeSingle() instead of single() to avoid 406 errors
     const { data: existingList, error: selectError } = await supabase
       .from('match_participations')
       .select('id, status')
@@ -306,44 +327,38 @@ export function useSupabase() {
       .eq('user_id', currentUser.id);
 
     if (selectError) {
-      console.error('[Supabase] Error checking participation:', selectError);
-      return;
+      toast.error('Erreur lors de la vérification');
+      return { success: false, error: selectError.message };
     }
 
     const existing = existingList && existingList.length > 0 ? existingList[0] : null;
-    console.log('[Supabase] Existing participation:', existing);
 
     if (existing) {
       // If clicking the same status, DELETE (deselect)
       if (existing.status === status) {
-        console.log('[Supabase] Same status clicked, deleting participation:', existing.id);
         const { error: deleteError } = await supabase
           .from('match_participations')
           .delete()
           .eq('id', existing.id);
 
         if (deleteError) {
-          console.error('[Supabase] Error deleting participation:', deleteError);
-        } else {
-          console.log('[Supabase] Participation deleted successfully (deselected)');
+          toast.error('Erreur lors de la suppression');
+          return { success: false, error: deleteError.message };
         }
-        return;
+        return { success: true };
       }
 
       // Otherwise update to new status
-      console.log('[Supabase] Updating participation:', existing.id);
       const { error: updateError } = await supabase
         .from('match_participations')
         .update({ status })
         .eq('id', existing.id);
 
       if (updateError) {
-        console.error('[Supabase] Error updating participation:', updateError);
-      } else {
-        console.log('[Supabase] Participation updated successfully');
+        toast.error('Erreur lors de la mise à jour');
+        return { success: false, error: updateError.message };
       }
     } else {
-      console.log('[Supabase] Creating new participation');
       const { error: insertError } = await supabase.from('match_participations').insert({
         match_id: matchId,
         user_id: currentUser.id,
@@ -351,25 +366,26 @@ export function useSupabase() {
       });
 
       if (insertError) {
-        console.error('[Supabase] Error creating participation:', insertError);
-      } else {
-        console.log('[Supabase] Participation created successfully');
+        toast.error('Erreur lors de l\'enregistrement');
+        return { success: false, error: insertError.message };
+      }
 
-        // Notify others only for new participations with 'yes' status
-        if (status === 'yes') {
-          await notifyAllUsers(
-            'match_response',
-            'Nouveau spectateur !',
-            `${currentUser.member_name} va regarder le match #${matchId}`,
-            '/world-cup',
-            matchId.toString()
-          );
-        }
+      // Notify others only for new participations with 'yes' status
+      if (status === 'yes') {
+        await notifyAllUsers(
+          'match_response',
+          'Nouveau spectateur !',
+          `${currentUser.member_name} va regarder le match #${matchId}`,
+          '/world-cup',
+          matchId.toString()
+        );
       }
     }
+
+    return { success: true };
   }, [supabase, currentUser, ensureUserInDb, notifyAllUsers]);
 
-  // Watch Locations - with proposer info
+  // Watch Locations
   const getWatchLocations = useCallback(async (matchId: number): Promise<WatchLocation[]> => {
     const { data, error } = await supabase
       .from('watch_locations')
@@ -385,10 +401,17 @@ export function useSupabase() {
     return data || [];
   }, [supabase]);
 
-  const addWatchLocation = useCallback(async (matchId: number, location: string) => {
-    if (!currentUser) return;
+  const addWatchLocation = useCallback(async (matchId: number, location: string): Promise<WriteResult> => {
+    if (!currentUser) {
+      toast.error('Tu dois être connecté');
+      return { success: false, error: 'Non connecté' };
+    }
 
-    await ensureUserInDb(currentUser);
+    const userResult = await ensureUserInDb(currentUser);
+    if (!userResult.success) {
+      toast.error('Erreur de synchronisation du profil');
+      return userResult;
+    }
 
     const { error } = await supabase.from('watch_locations').insert({
       match_id: matchId,
@@ -397,20 +420,30 @@ export function useSupabase() {
       votes: [currentUser.id],
     });
 
-    if (!error) {
-      // Notify others
-      await notifyAllUsers(
-        'location_proposed',
-        'Nouveau lieu proposé !',
-        `${currentUser.member_name} propose "${location}" pour le match #${matchId}`,
-        '/world-cup',
-        matchId.toString()
-      );
+    if (error) {
+      toast.error('Erreur lors de la proposition du lieu');
+      return { success: false, error: error.message };
     }
+
+    toast.success('Lieu proposé !', { icon: '📍' });
+
+    // Notify others
+    await notifyAllUsers(
+      'location_proposed',
+      'Nouveau lieu proposé !',
+      `${currentUser.member_name} propose "${location}" pour le match #${matchId}`,
+      '/world-cup',
+      matchId.toString()
+    );
+
+    return { success: true };
   }, [supabase, currentUser, ensureUserInDb, notifyAllUsers]);
 
-  const toggleVoteLocation = useCallback(async (locationId: string, currentVotes: string[], matchId: number) => {
-    if (!currentUser) return;
+  const toggleVoteLocation = useCallback(async (locationId: string, currentVotes: string[], matchId: number): Promise<WriteResult> => {
+    if (!currentUser) {
+      toast.error('Tu dois être connecté');
+      return { success: false, error: 'Non connecté' };
+    }
 
     const hasVoted = currentVotes.includes(currentUser.id);
     const newVotes = hasVoted
@@ -422,8 +455,13 @@ export function useSupabase() {
       .update({ votes: newVotes })
       .eq('id', locationId);
 
-    if (!error && !hasVoted) {
-      // Notify when adding a vote (not removing)
+    if (error) {
+      toast.error('Erreur lors du vote');
+      return { success: false, error: error.message };
+    }
+
+    if (!hasVoted) {
+      toast.success('Vote enregistré !', { icon: '👍' });
       await notifyAllUsers(
         'location_vote',
         'Nouveau vote !',
@@ -432,21 +470,30 @@ export function useSupabase() {
         matchId.toString()
       );
     }
+
+    return { success: true };
   }, [supabase, currentUser, notifyAllUsers]);
 
   // Delete watch location
-  const deleteWatchLocation = useCallback(async (locationId: string) => {
-    if (!currentUser) return;
+  const deleteWatchLocation = useCallback(async (locationId: string): Promise<WriteResult> => {
+    if (!currentUser) {
+      toast.error('Tu dois être connecté');
+      return { success: false, error: 'Non connecté' };
+    }
 
     const { error } = await supabase
       .from('watch_locations')
       .delete()
       .eq('id', locationId)
-      .eq('proposed_by', currentUser.id); // Only allow deleting own locations
+      .eq('proposed_by', currentUser.id);
 
     if (error) {
-      console.error('[Supabase] Error deleting location:', error);
+      toast.error('Erreur lors de la suppression');
+      return { success: false, error: error.message };
     }
+
+    toast.success('Lieu supprimé');
+    return { success: true };
   }, [supabase, currentUser]);
 
   // Activities
@@ -470,10 +517,17 @@ export function useSupabase() {
     date: string;
     time: string;
     location: string;
-  }): Promise<string | null> => {
-    if (!currentUser) return null;
+  }): Promise<{ id: string | null } & WriteResult> => {
+    if (!currentUser) {
+      toast.error('Tu dois être connecté');
+      return { success: false, error: 'Non connecté', id: null };
+    }
 
-    await ensureUserInDb(currentUser);
+    const userResult = await ensureUserInDb(currentUser);
+    if (!userResult.success) {
+      toast.error('Erreur de synchronisation du profil');
+      return { ...userResult, id: null };
+    }
 
     const { data, error } = await supabase.from('activities').insert({
       ...activity,
@@ -482,9 +536,11 @@ export function useSupabase() {
     }).select('id').single();
 
     if (error) {
-      console.error('[Supabase] Error creating activity:', error);
-      return null;
+      toast.error('Erreur lors de la création de l\'activité');
+      return { success: false, error: error.message, id: null };
     }
+
+    toast.success('Activité créée !', { icon: '🎉' });
 
     // Notify all other users
     await notifyAllUsers(
@@ -495,12 +551,15 @@ export function useSupabase() {
       data.id
     );
 
-    return data.id;
+    return { success: true, id: data.id };
   }, [supabase, currentUser, ensureUserInDb, notifyAllUsers]);
 
   // Delete activity
-  const deleteActivity = useCallback(async (activityId: string) => {
-    if (!currentUser) return;
+  const deleteActivity = useCallback(async (activityId: string): Promise<WriteResult> => {
+    if (!currentUser) {
+      toast.error('Tu dois être connecté');
+      return { success: false, error: 'Non connecté' };
+    }
 
     const { error } = await supabase
       .from('activities')
@@ -509,8 +568,12 @@ export function useSupabase() {
       .eq('created_by', currentUser.id);
 
     if (error) {
-      console.error('[Supabase] Error deleting activity:', error);
+      toast.error('Erreur lors de la suppression');
+      return { success: false, error: error.message };
     }
+
+    toast.success('Activité supprimée');
+    return { success: true };
   }, [supabase, currentUser]);
 
   // Activity Participations
@@ -533,16 +596,18 @@ export function useSupabase() {
     status: 'yes' | 'no' | 'maybe',
     activityTitle?: string,
     creatorId?: string
-  ) => {
+  ): Promise<WriteResult> => {
     if (!currentUser) {
-      console.error('[Supabase] setActivityParticipation: No current user');
-      return;
+      toast.error('Tu dois être connecté');
+      return { success: false, error: 'Non connecté' };
     }
 
-    console.log('[Supabase] setActivityParticipation:', { activityId, status, userId: currentUser.id });
-    await ensureUserInDb(currentUser);
+    const userResult = await ensureUserInDb(currentUser);
+    if (!userResult.success) {
+      toast.error('Erreur de synchronisation du profil');
+      return userResult;
+    }
 
-    // Use array query instead of single() to avoid 406 errors
     const { data: existingList, error: selectError } = await supabase
       .from('activity_participations')
       .select('id, status')
@@ -550,45 +615,39 @@ export function useSupabase() {
       .eq('user_id', currentUser.id);
 
     if (selectError) {
-      console.error('[Supabase] Error checking activity participation:', selectError);
-      return;
+      toast.error('Erreur lors de la vérification');
+      return { success: false, error: selectError.message };
     }
 
     const existing = existingList && existingList.length > 0 ? existingList[0] : null;
     const oldStatus = existing?.status;
-    console.log('[Supabase] Existing activity participation:', existing);
 
     if (existing) {
       // If clicking the same status, DELETE (deselect)
       if (existing.status === status) {
-        console.log('[Supabase] Same status clicked, deleting activity participation:', existing.id);
         const { error: deleteError } = await supabase
           .from('activity_participations')
           .delete()
           .eq('id', existing.id);
 
         if (deleteError) {
-          console.error('[Supabase] Error deleting activity participation:', deleteError);
-        } else {
-          console.log('[Supabase] Activity participation deleted (deselected)');
+          toast.error('Erreur lors de la suppression');
+          return { success: false, error: deleteError.message };
         }
-        return;
+        return { success: true };
       }
 
       // Otherwise update to new status
-      console.log('[Supabase] Updating activity participation');
       const { error: updateError } = await supabase
         .from('activity_participations')
         .update({ status })
         .eq('id', existing.id);
 
       if (updateError) {
-        console.error('[Supabase] Error updating activity participation:', updateError);
-      } else {
-        console.log('[Supabase] Activity participation updated');
+        toast.error('Erreur lors de la mise à jour');
+        return { success: false, error: updateError.message };
       }
     } else {
-      console.log('[Supabase] Creating new activity participation');
       const { error: insertError } = await supabase.from('activity_participations').insert({
         activity_id: activityId,
         user_id: currentUser.id,
@@ -596,16 +655,14 @@ export function useSupabase() {
       });
 
       if (insertError) {
-        console.error('[Supabase] Error creating activity participation:', insertError);
-      } else {
-        console.log('[Supabase] Activity participation created');
+        toast.error('Erreur lors de l\'enregistrement');
+        return { success: false, error: insertError.message };
       }
     }
 
     // Notify the activity creator if someone responds (and it's not the creator themselves)
     if (creatorId && creatorId !== currentUser.id && oldStatus !== status) {
       const statusText = status === 'yes' ? 'vient' : status === 'maybe' ? 'hésite' : 'ne vient pas';
-      console.log('[Supabase] Notifying activity creator:', creatorId);
 
       const { error: notifError } = await supabase.from('notifications').insert({
         user_id: creatorId,
@@ -621,6 +678,8 @@ export function useSupabase() {
         console.error('[Supabase] Error creating notification:', notifError);
       }
     }
+
+    return { success: true };
   }, [supabase, currentUser, ensureUserInDb]);
 
   // User stats
@@ -664,7 +723,6 @@ export function useSupabase() {
 
     if (error || !activities) return [];
 
-    // Get participations for each activity
     const results = await Promise.all(activities.map(async (activity) => {
       const { data: participations } = await supabase
         .from('activity_participations')
@@ -700,7 +758,6 @@ export function useSupabase() {
   }[]> => {
     if (!currentUser) return [];
 
-    // Get matches user said yes or maybe to
     const { data: myParticipations } = await supabase
       .from('match_participations')
       .select('match_id, status')
@@ -709,7 +766,6 @@ export function useSupabase() {
 
     if (!myParticipations || myParticipations.length === 0) return [];
 
-    // Get all participations for these matches
     const matchIds = myParticipations.map(p => p.match_id);
     const { data: allParticipations } = await supabase
       .from('match_participations')
@@ -800,10 +856,17 @@ export function useSupabase() {
     return result;
   }, [supabase, currentUser]);
 
-  const setPrediction = useCallback(async (type: PredictionType, value: string) => {
-    if (!currentUser) return;
+  const setPrediction = useCallback(async (type: PredictionType, value: string): Promise<WriteResult> => {
+    if (!currentUser) {
+      toast.error('Tu dois être connecté');
+      return { success: false, error: 'Non connecté' };
+    }
 
-    await ensureUserInDb(currentUser);
+    const userResult = await ensureUserInDb(currentUser);
+    if (!userResult.success) {
+      toast.error('Erreur de synchronisation du profil');
+      return userResult;
+    }
 
     // Check if prediction exists
     const { data: existingList } = await supabase
@@ -821,7 +884,8 @@ export function useSupabase() {
         .eq('id', existing.id);
 
       if (error) {
-        console.error('[Supabase] Error updating prediction:', error);
+        toast.error('Erreur lors de la mise à jour du pronostic');
+        return { success: false, error: error.message };
       }
     } else {
       const { error } = await supabase.from('predictions').insert({
@@ -831,9 +895,13 @@ export function useSupabase() {
       });
 
       if (error) {
-        console.error('[Supabase] Error creating prediction:', error);
+        toast.error('Erreur lors de l\'enregistrement du pronostic');
+        return { success: false, error: error.message };
       }
     }
+
+    toast.success('Pronostic enregistré !', { icon: '🎯' });
+    return { success: true };
   }, [supabase, currentUser, ensureUserInDb]);
 
   // Load notifications on mount
