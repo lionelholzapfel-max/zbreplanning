@@ -1,7 +1,8 @@
 'use client';
 
 import { createClient } from '@/lib/supabase/client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { MEMBERS, Member } from '@/data/members';
 import { toast } from 'sonner';
 
@@ -153,16 +154,59 @@ export function getMemberFromId(userId: string): Member | undefined {
 // Main hook
 export function useSupabase() {
   const supabase = createClient();
+  const router = useRouter();
+  const pathname = usePathname();
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const sessionValidated = useRef(false);
 
+  // Validate session on mount - single source of truth is the cookie
   useEffect(() => {
-    const user = getCurrentUserLocal();
-    setCurrentUser(user);
-    setLoading(false);
-  }, []);
+    // Skip if already validated in this session
+    if (sessionValidated.current) return;
+    sessionValidated.current = true;
+
+    const validateSession = async () => {
+      try {
+        const res = await fetch('/api/auth/me', {
+          credentials: 'include', // Include cookies
+        });
+
+        if (res.ok) {
+          // Cookie is valid - sync localStorage with server data
+          const data = await res.json();
+          const serverUser: UserProfile = data.user;
+          setCurrentUserLocal(serverUser);
+          setCurrentUser(serverUser);
+        } else if (res.status === 401) {
+          // Cookie invalid or absent - purge localStorage
+          setCurrentUserLocal(null);
+          setCurrentUser(null);
+
+          // Redirect to login if not already there
+          if (pathname !== '/login') {
+            router.push('/login');
+          }
+        } else {
+          // Server error - fall back to localStorage temporarily
+          console.warn('[useSupabase] Session validation failed, using localStorage');
+          const localUser = getCurrentUserLocal();
+          setCurrentUser(localUser);
+        }
+      } catch (error) {
+        // Network error - fall back to localStorage
+        console.warn('[useSupabase] Network error validating session:', error);
+        const localUser = getCurrentUserLocal();
+        setCurrentUser(localUser);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    validateSession();
+  }, [pathname, router]);
 
   // Ensure user exists in database
   const ensureUserInDb = useCallback(async (user: UserProfile): Promise<WriteResult> => {
@@ -912,15 +956,29 @@ export function useSupabase() {
     }
   }, [currentUser, getNotifications]);
 
+  // Full logout - clears both cookie and localStorage
+  const handleLogout = useCallback(async () => {
+    try {
+      // Clear server cookie first
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch (error) {
+      console.warn('[useSupabase] Error clearing server session:', error);
+    }
+    // Always clear local state
+    setCurrentUserLocal(null);
+    setCurrentUser(null);
+    router.push('/login');
+  }, [router]);
+
   return {
     supabase,
     currentUser,
     loading,
     login,
-    logout: () => {
-      logout();
-      setCurrentUser(null);
-    },
+    logout: handleLogout,
     // Match
     getMatchParticipations,
     setMatchParticipation,
