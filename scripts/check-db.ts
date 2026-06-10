@@ -5,7 +5,11 @@
  * Run with: npx tsx scripts/check-db.ts
  */
 
+import { config } from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
+
+// Load environment variables from .env.local
+config({ path: '.env.local' });
 
 const REQUIRED_TABLES = [
   'users',
