@@ -1,11 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { quickLogin } from './helpers';
 
 // Helper to login before each test
 test.beforeEach(async ({ page }) => {
-  await page.goto('/login');
-  await page.locator('button').filter({ has: page.locator('img') }).first().click();
-  await page.click('button:has-text("C\'est parti")');
-  await page.waitForURL('/');
+  await quickLogin(page, '1');
   await page.goto('/world-cup');
 });
 
