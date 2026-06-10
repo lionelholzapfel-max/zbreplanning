@@ -1,37 +1,201 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { MEMBERS, Member } from '@/data/members';
-import { useSupabase } from '@/hooks/useSupabase';
+import { toast } from 'sonner';
+
+type Step = 'select' | 'pin' | 'setup';
 
 export default function LoginPage() {
+  const [step, setStep] = useState<Step>('select');
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [pin, setPin] = useState(['', '', '', '']);
+  const [confirmPin, setConfirmPin] = useState(['', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [hoveredMember, setHoveredMember] = useState<string | null>(null);
+  const [isSettingUp, setIsSettingUp] = useState(false);
+  const pinRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const confirmPinRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
-  const { currentUser, login } = useSupabase();
 
   useEffect(() => {
-    if (currentUser) {
-      router.push('/');
-      return;
+    // Check if already logged in
+    fetch('/api/auth/me')
+      .then(res => {
+        if (res.ok) {
+          router.push('/');
+        } else {
+          setMounted(true);
+        }
+      })
+      .catch(() => setMounted(true));
+  }, [router]);
+
+  const handleMemberSelect = async (member: Member) => {
+    setSelectedMember(member);
+    setPin(['', '', '', '']);
+    setConfirmPin(['', '', '', '']);
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/me', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ member_id: member.id }),
+      });
+
+      const data = await res.json();
+
+      if (data.needsSetup) {
+        setIsSettingUp(true);
+        setStep('setup');
+      } else {
+        setIsSettingUp(false);
+        setStep('pin');
+      }
+    } catch {
+      toast.error('Erreur de connexion au serveur');
+      setStep('select');
+    } finally {
+      setLoading(false);
     }
-    setMounted(true);
-  }, [currentUser, router]);
+  };
+
+  const handlePinChange = (index: number, value: string, isConfirm = false) => {
+    if (!/^\d*$/.test(value)) return;
+
+    const newPin = isConfirm ? [...confirmPin] : [...pin];
+    newPin[index] = value.slice(-1);
+
+    if (isConfirm) {
+      setConfirmPin(newPin);
+    } else {
+      setPin(newPin);
+    }
+
+    // Auto-focus next input
+    if (value && index < 3) {
+      const refs = isConfirm ? confirmPinRefs : pinRefs;
+      refs.current[index + 1]?.focus();
+    }
+  };
+
+  const handlePinKeyDown = (index: number, e: React.KeyboardEvent, isConfirm = false) => {
+    if (e.key === 'Backspace') {
+      const currentPin = isConfirm ? confirmPin : pin;
+      if (!currentPin[index] && index > 0) {
+        const refs = isConfirm ? confirmPinRefs : pinRefs;
+        refs.current[index - 1]?.focus();
+      }
+    }
+  };
 
   const handleLogin = async () => {
     if (!selectedMember) return;
 
-    setLoading(true);
-    await login(selectedMember);
+    const pinString = pin.join('');
+    if (pinString.length !== 4) {
+      toast.error('Entre ton PIN à 4 chiffres');
+      return;
+    }
 
-    setTimeout(() => {
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          member_id: selectedMember.id,
+          pin: pinString,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (data.needsSetup) {
+          setStep('setup');
+          setIsSettingUp(true);
+        } else {
+          toast.error(data.error || 'Erreur de connexion');
+          setPin(['', '', '', '']);
+          pinRefs.current[0]?.focus();
+        }
+        return;
+      }
+
+      toast.success(`Bienvenue ${selectedMember.name.split(' ')[0]} !`);
       router.push('/');
-    }, 500);
+    } catch {
+      toast.error('Erreur de connexion au serveur');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleSetupPin = async () => {
+    if (!selectedMember) return;
+
+    const pinString = pin.join('');
+    const confirmPinString = confirmPin.join('');
+
+    if (pinString.length !== 4) {
+      toast.error('Entre un PIN à 4 chiffres');
+      return;
+    }
+
+    if (pinString !== confirmPinString) {
+      toast.error('Les PINs ne correspondent pas');
+      setConfirmPin(['', '', '', '']);
+      confirmPinRefs.current[0]?.focus();
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/setup-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          member_id: selectedMember.id,
+          pin: pinString,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || 'Erreur lors de la configuration');
+        return;
+      }
+
+      toast.success('PIN configuré ! Bienvenue !');
+      router.push('/');
+    } catch {
+      toast.error('Erreur de connexion au serveur');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBack = () => {
+    setStep('select');
+    setSelectedMember(null);
+    setPin(['', '', '', '']);
+    setConfirmPin(['', '', '', '']);
+  };
+
+  // Auto-submit when PIN is complete
+  useEffect(() => {
+    if (step === 'pin' && pin.every(d => d !== '') && !loading) {
+      handleLogin();
+    }
+  }, [pin, step]);
 
   if (!mounted) return null;
 
@@ -77,115 +241,163 @@ export default function LoginPage() {
 
         {/* Card */}
         <div className="glass rounded-3xl p-8 border border-white/5 shadow-2xl shadow-[#6366f1]/5">
-          <div className="space-y-6">
-            <div className="text-center">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#6366f1]/10 rounded-full text-[#6366f1] text-sm font-medium mb-4">
-                <span className="w-2 h-2 rounded-full bg-[#6366f1] animate-pulse" />
-                {MEMBERS.length} membres actifs
+          {step === 'select' && (
+            <div className="space-y-6">
+              <div className="text-center">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#6366f1]/10 rounded-full text-[#6366f1] text-sm font-medium mb-4">
+                  <span className="w-2 h-2 rounded-full bg-[#6366f1] animate-pulse" />
+                  {MEMBERS.length} membres actifs
+                </div>
+                <h2 className="text-2xl font-bold mb-2">Salut ! Qui es-tu ?</h2>
+                <p className="text-gray-400">Sélectionne ton profil pour rejoindre la team</p>
               </div>
-              <h2 className="text-2xl font-bold mb-2">Salut ! Qui es-tu ?</h2>
-              <p className="text-gray-400">Sélectionne ton profil pour rejoindre la team</p>
-            </div>
 
-            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-3">
-              {MEMBERS.map((member, index) => (
-                <button
-                  key={member.id}
-                  onClick={() => setSelectedMember(member)}
-                  onMouseEnter={() => setHoveredMember(member.id)}
-                  onMouseLeave={() => setHoveredMember(null)}
-                  className={`group relative p-2 rounded-2xl border-2 transition-all duration-300 ${
-                    selectedMember?.id === member.id
-                      ? 'border-[#6366f1] bg-[#6366f1]/20 scale-105 shadow-lg shadow-[#6366f1]/20'
-                      : hoveredMember === member.id
-                      ? 'border-[#6366f1]/50 bg-[#1e1e2e]'
-                      : 'border-transparent bg-[#1e1e2e]/50 hover:bg-[#1e1e2e]'
-                  }`}
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  {selectedMember?.id === member.id && (
-                    <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] opacity-50 blur animate-pulse" />
-                  )}
+              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-3">
+                {MEMBERS.map((member, index) => (
+                  <button
+                    key={member.id}
+                    onClick={() => handleMemberSelect(member)}
+                    onMouseEnter={() => setHoveredMember(member.id)}
+                    onMouseLeave={() => setHoveredMember(null)}
+                    disabled={loading}
+                    className={`group relative p-2 rounded-2xl border-2 transition-all duration-300 ${
+                      hoveredMember === member.id
+                        ? 'border-[#6366f1]/50 bg-[#1e1e2e]'
+                        : 'border-transparent bg-[#1e1e2e]/50 hover:bg-[#1e1e2e]'
+                    } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    <div className="relative">
+                      <div className={`relative w-12 h-12 md:w-14 md:h-14 mx-auto rounded-full overflow-hidden ring-2 transition-all duration-300 ${
+                        'ring-[#2a2a3a] group-hover:ring-[#6366f1]/50'
+                      }`}>
+                        <Image
+                          src={member.photo}
+                          alt={member.name}
+                          fill
+                          className="object-cover transition-transform duration-300 group-hover:scale-110"
+                        />
+                      </div>
 
-                  <div className="relative">
-                    <div className={`relative w-12 h-12 md:w-14 md:h-14 mx-auto rounded-full overflow-hidden ring-2 transition-all duration-300 ${
-                      selectedMember?.id === member.id
-                        ? 'ring-[#6366f1] ring-offset-2 ring-offset-[#12121a]'
-                        : 'ring-[#2a2a3a] group-hover:ring-[#6366f1]/50'
-                    }`}>
-                      <Image
-                        src={member.photo}
-                        alt={member.name}
-                        fill
-                        className="object-cover transition-transform duration-300 group-hover:scale-110"
-                      />
-                    </div>
-
-                    <div className={`absolute -bottom-1 left-1/2 -translate-x-1/2 translate-y-full pointer-events-none transition-all duration-200 ${
-                      hoveredMember === member.id || selectedMember?.id === member.id
-                        ? 'opacity-100'
-                        : 'opacity-0'
-                    }`}>
-                      <div className="bg-[#1e1e2e] border border-[#2a2a3a] rounded-lg px-2 py-1 text-xs font-medium whitespace-nowrap shadow-lg mt-2">
-                        {member.name}
+                      <div className={`absolute -bottom-1 left-1/2 -translate-x-1/2 translate-y-full pointer-events-none transition-all duration-200 ${
+                        hoveredMember === member.id ? 'opacity-100' : 'opacity-0'
+                      }`}>
+                        <div className="bg-[#1e1e2e] border border-[#2a2a3a] rounded-lg px-2 py-1 text-xs font-medium whitespace-nowrap shadow-lg mt-2">
+                          {member.name}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                ))}
+              </div>
             </div>
+          )}
 
-            <div className={`transition-all duration-500 overflow-hidden ${
-              selectedMember ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'
-            }`}>
-              {selectedMember && (
-                <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-[#6366f1]/10 to-transparent rounded-2xl border border-[#6366f1]/20">
-                  <div className="relative w-16 h-16 rounded-full overflow-hidden ring-2 ring-[#6366f1]">
-                    <Image
-                      src={selectedMember.photo}
-                      alt={selectedMember.name}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <div>
-                    <p className="text-lg font-bold text-white">{selectedMember.name}</p>
-                    <p className="text-sm text-[#6366f1]">Prêt à rejoindre la team</p>
-                  </div>
-                  <div className="ml-auto">
-                    <span className="text-3xl animate-bounce inline-block">👋</span>
-                  </div>
+          {(step === 'pin' || step === 'setup') && selectedMember && (
+            <div className="space-y-6">
+              <button
+                onClick={handleBack}
+                className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+              >
+                <span>←</span>
+                <span>Retour</span>
+              </button>
+
+              <div className="text-center">
+                <div className="relative w-20 h-20 mx-auto rounded-full overflow-hidden ring-4 ring-[#6366f1] mb-4">
+                  <Image
+                    src={selectedMember.photo}
+                    alt={selectedMember.name}
+                    fill
+                    className="object-cover"
+                  />
                 </div>
-              )}
-            </div>
+                <h2 className="text-2xl font-bold mb-2">{selectedMember.name}</h2>
+                <p className="text-gray-400">
+                  {isSettingUp
+                    ? 'Configure ton PIN à 4 chiffres'
+                    : 'Entre ton PIN'}
+                </p>
+              </div>
 
-            <button
-              onClick={handleLogin}
-              disabled={!selectedMember || loading}
-              className={`w-full py-4 rounded-2xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-3 ${
-                selectedMember && !loading
-                  ? 'bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] text-white hover:shadow-lg hover:shadow-[#6366f1]/30 hover:scale-[1.02]'
-                  : 'bg-[#1e1e2e] text-gray-500 cursor-not-allowed'
-              }`}
-            >
-              {loading ? (
-                <>
-                  <svg className="animate-spin h-6 w-6" viewBox="0 0 24 24">
+              {/* PIN Input */}
+              <div className="space-y-4">
+                <div className="flex justify-center gap-3">
+                  {[0, 1, 2, 3].map((i) => (
+                    <input
+                      key={i}
+                      ref={(el) => { pinRefs.current[i] = el; }}
+                      type="password"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={pin[i]}
+                      onChange={(e) => handlePinChange(i, e.target.value)}
+                      onKeyDown={(e) => handlePinKeyDown(i, e)}
+                      autoFocus={i === 0}
+                      className="w-14 h-16 text-center text-2xl font-bold bg-[#1e1e2e] border-2 border-white/10 rounded-xl focus:border-[#6366f1] focus:outline-none transition-colors"
+                    />
+                  ))}
+                </div>
+
+                {isSettingUp && (
+                  <>
+                    <p className="text-center text-gray-400 text-sm">Confirme ton PIN</p>
+                    <div className="flex justify-center gap-3">
+                      {[0, 1, 2, 3].map((i) => (
+                        <input
+                          key={i}
+                          ref={(el) => { confirmPinRefs.current[i] = el; }}
+                          type="password"
+                          inputMode="numeric"
+                          maxLength={1}
+                          value={confirmPin[i]}
+                          onChange={(e) => handlePinChange(i, e.target.value, true)}
+                          onKeyDown={(e) => handlePinKeyDown(i, e, true)}
+                          className="w-14 h-16 text-center text-2xl font-bold bg-[#1e1e2e] border-2 border-white/10 rounded-xl focus:border-[#6366f1] focus:outline-none transition-colors"
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {isSettingUp && (
+                <button
+                  onClick={handleSetupPin}
+                  disabled={loading || pin.some(d => !d) || confirmPin.some(d => !d)}
+                  className={`w-full py-4 rounded-2xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-3 ${
+                    !loading && pin.every(d => d) && confirmPin.every(d => d)
+                      ? 'bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] text-white hover:shadow-lg hover:shadow-[#6366f1]/30'
+                      : 'bg-[#1e1e2e] text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  {loading ? (
+                    <>
+                      <svg className="animate-spin h-6 w-6" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Configuration...
+                    </>
+                  ) : (
+                    <>
+                      <span>Configurer mon PIN</span>
+                      <span className="text-xl">🔐</span>
+                    </>
+                  )}
+                </button>
+              )}
+
+              {!isSettingUp && loading && (
+                <div className="flex justify-center">
+                  <svg className="animate-spin h-8 w-8 text-[#6366f1]" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  Connexion en cours...
-                </>
-              ) : selectedMember ? (
-                <>
-                  <span>C&apos;est parti !</span>
-                  <span className="text-xl">🚀</span>
-                </>
-              ) : (
-                'Sélectionne ton profil'
+                </div>
               )}
-            </button>
-          </div>
+            </div>
+          )}
         </div>
 
         <div className="mt-8 text-center">
