@@ -160,10 +160,16 @@ export async function GET() {
     // Calculate fun stats
     const stats = await calculateFunStats(supabase);
 
+    // Get count of matches with results
+    const { count: totalMatchesWithResults } = await supabase
+      .from('match_results')
+      .select('*', { count: 'exact', head: true });
+
     return NextResponse.json({
       leaderboard: entries,
       stats,
       current_user_id: user.id,
+      total_matches_with_results: totalMatchesWithResults || 0,
     });
   } catch (error) {
     console.error('[Leaderboard] GET error:', error);

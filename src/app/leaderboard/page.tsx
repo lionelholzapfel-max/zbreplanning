@@ -11,10 +11,13 @@ interface LeaderboardEntry {
   member_name: string;
   member_slug: string;
   total_points: number;
+  match_points: number;
+  global_points: number;
   exact_scores: number;
   visionary_count: number;
   outsider_count: number;
   matches_predicted: number;
+  global_correct: number;
   crown_count: number;
   is_drere_today: boolean;
   rank_change: number;
@@ -31,6 +34,7 @@ export default function LeaderboardPage() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [stats, setStats] = useState<LeaderboardStats | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [totalMatchesWithResults, setTotalMatchesWithResults] = useState(0);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
@@ -50,6 +54,7 @@ export default function LeaderboardPage() {
         setLeaderboard(data.leaderboard);
         setStats(data.stats);
         setCurrentUserId(data.current_user_id);
+        setTotalMatchesWithResults(data.total_matches_with_results || 0);
       } catch (error) {
         console.error('Error loading leaderboard:', error);
       } finally {
@@ -144,15 +149,21 @@ export default function LeaderboardPage() {
         <div className="bg-[#12121a] rounded-3xl border border-white/10 overflow-hidden">
           <div className="grid grid-cols-12 gap-2 px-6 py-4 bg-[#1e1e2e] text-sm text-gray-400 font-medium">
             <div className="col-span-1">#</div>
-            <div className="col-span-5">Membre</div>
+            <div className="col-span-4">Membre</div>
             <div className="col-span-2 text-center">Points</div>
+            <div className="col-span-2 text-center hidden sm:block">Pronos</div>
             <div className="col-span-2 text-center hidden sm:block">Exacts</div>
-            <div className="col-span-2 text-center">👑</div>
+            <div className="col-span-1 text-center">👑</div>
           </div>
 
           {leaderboard.map((entry, index) => {
             const isMe = entry.user_id === currentUserId;
             const isLast = index === leaderboard.length - 1;
+
+            const pronosRatio = totalMatchesWithResults > 0
+              ? Math.round((entry.matches_predicted / totalMatchesWithResults) * 100)
+              : 0;
+            const isFainéant = totalMatchesWithResults > 0 && entry.matches_predicted < totalMatchesWithResults * 0.5;
 
             return (
               <div
@@ -171,7 +182,7 @@ export default function LeaderboardPage() {
                 </div>
 
                 {/* Member */}
-                <div className="col-span-5 flex items-center gap-3">
+                <div className="col-span-4 flex items-center gap-3">
                   <div className="relative">
                     <div className={`w-10 h-10 rounded-full overflow-hidden relative ${
                       entry.is_drere_today ? 'ring-2 ring-[#fbbf24]' : ''
@@ -210,6 +221,21 @@ export default function LeaderboardPage() {
                   }`}>
                     {entry.total_points}
                   </span>
+                  {entry.global_points > 0 && (
+                    <p className="text-xs text-[#22c55e]">+{entry.global_points} bonus</p>
+                  )}
+                </div>
+
+                {/* Pronos faits */}
+                <div className="col-span-2 text-center hidden sm:block">
+                  {totalMatchesWithResults > 0 ? (
+                    <span className={`text-sm ${isFainéant ? 'text-red-400' : 'text-gray-400'}`}>
+                      {entry.matches_predicted}/{totalMatchesWithResults}
+                      {isFainéant && <span className="ml-1">😴</span>}
+                    </span>
+                  ) : (
+                    <span className="text-gray-600">-</span>
+                  )}
                 </div>
 
                 {/* Exact scores */}
@@ -224,7 +250,7 @@ export default function LeaderboardPage() {
                 </div>
 
                 {/* Crowns */}
-                <div className="col-span-2 text-center">
+                <div className="col-span-1 text-center">
                   {entry.crown_count > 0 ? (
                     <span className="text-[#fbbf24] font-bold">{entry.crown_count}</span>
                   ) : (
@@ -237,8 +263,8 @@ export default function LeaderboardPage() {
         </div>
       </section>
 
-      {/* Wooden Spoon Section */}
-      {woodenSpoon && woodenSpoon.total_points === 0 && (
+      {/* Wooden Spoon Section - Always show last place */}
+      {woodenSpoon && leaderboard.length > 1 && (
         <section className="max-w-4xl mx-auto px-4 pb-8">
           <div className="relative overflow-hidden rounded-3xl border border-[#ef4444]/30 bg-gradient-to-br from-[#ef4444]/10 to-[#12121a] p-6">
             <div className="absolute top-0 right-0 text-8xl opacity-20 rotate-12">🥄</div>
@@ -325,6 +351,10 @@ export default function LeaderboardPage() {
             <div className="flex items-center gap-3">
               <span className="w-8 h-8 bg-red-500/20 text-red-400 rounded-lg flex items-center justify-center font-bold">+1</span>
               <span className="text-gray-300">Bonus outsider (prédit victoire petit)</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="w-8 h-8 bg-[#22c55e]/20 text-[#22c55e] rounded-lg flex items-center justify-center font-bold">+20</span>
+              <span className="text-gray-300">Prono global correct (Vainqueur, MVP...)</span>
             </div>
           </div>
         </div>
