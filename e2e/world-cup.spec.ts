@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { quickLogin } from './helpers';
+import { testLocationName } from './test-constants';
 
 // Helper to login before each test
 test.beforeEach(async ({ page }) => {
@@ -58,7 +59,7 @@ test.describe('World Cup Page', () => {
     // Type location
     const locationInput = page.locator('input[placeholder="Proposer un lieu..."]').first();
     await expect(locationInput).toBeVisible({ timeout: 5000 });
-    await locationInput.fill('Test Location ' + Date.now());
+    await locationInput.fill(testLocationName(Date.now().toString()));
 
     // Click propose button
     await page.locator('button:has-text("Proposer")').first().click();

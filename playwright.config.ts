@@ -9,6 +9,9 @@ export default defineConfig({
   reporter: 'html',
   timeout: 30000,
 
+  // Global setup: blocks tests from running against production Supabase
+  globalSetup: './e2e/global-setup.ts',
+
   use: {
     baseURL: 'http://localhost:3002',
     trace: 'on-first-retry',
