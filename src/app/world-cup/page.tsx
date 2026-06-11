@@ -895,101 +895,29 @@ export default function WorldCupPage() {
                         )}
                       </div>
 
-                      {/* Team names and Score Prediction */}
-                      <div className="flex flex-col sm:flex-row items-center gap-4 mb-3">
-                        <div className="flex items-center gap-3 flex-1">
+                      {/* Team names row */}
+                      <div className="flex items-center justify-between gap-4 mb-2">
+                        <div className="flex items-center gap-2">
                           <span className="text-3xl">{getFlag(team1)}</span>
                           <span className="text-lg sm:text-xl font-bold text-white">{team1}</span>
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleFavorite(team1); }}
                             disabled={loadingFavorite === team1}
-                            className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full transition-all ${
-                              favorites.includes(team1)
-                                ? 'text-[#fbbf24] hover:text-[#fbbf24]/70'
-                                : 'text-gray-500 hover:text-gray-300'
-                            } ${loadingFavorite === team1 ? 'opacity-50' : ''}`}
-                            title={favorites.includes(team1) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                            className={`min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full transition-all text-lg ${
+                              favorites.includes(team1) ? 'text-[#fbbf24]' : 'text-gray-500 hover:text-gray-300'
+                            }`}
                           >
                             {favorites.includes(team1) ? '★' : '☆'}
                           </button>
                         </div>
-
-                        {/* Score Prediction Inputs */}
+                        <span className="text-gray-500 text-xl font-bold">VS</span>
                         <div className="flex items-center gap-2">
-                          {hasResult ? (
-                            // Show actual result
-                            <div className="flex items-center gap-2 px-4 py-2 bg-[#22c55e]/20 rounded-xl border border-[#22c55e]/30">
-                              <span className="text-2xl font-black text-white">{predState.result?.home_score}</span>
-                              <span className="text-gray-400 text-lg">-</span>
-                              <span className="text-2xl font-black text-white">{predState.result?.away_score}</span>
-                              <span className="text-[#22c55e] ml-2">✓</span>
-                            </div>
-                          ) : isLocked ? (
-                            // Show my prediction (locked)
-                            <div className="flex items-center gap-2 px-4 py-2 bg-gray-500/20 rounded-xl border border-gray-500/30">
-                              {myPrediction ? (
-                                <>
-                                  <span className="text-2xl font-black text-gray-400">{myPrediction.home_score}</span>
-                                  <span className="text-gray-500 text-lg">-</span>
-                                  <span className="text-2xl font-black text-gray-400">{myPrediction.away_score}</span>
-                                </>
-                              ) : (
-                                <span className="text-gray-500 text-sm">Pas de prono</span>
-                              )}
-                              <span className="text-gray-500 ml-2">🔒</span>
-                            </div>
-                          ) : (
-                            // Editable score inputs
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                value={currentHome}
-                                onChange={(e) => handleScoreChange(match.id, 'home', e.target.value)}
-                                placeholder="0"
-                                className={`w-12 h-12 text-center text-2xl font-black rounded-xl border-2 transition-all focus:outline-none ${
-                                  currentHome
-                                    ? 'bg-[#6366f1]/20 border-[#6366f1] text-white'
-                                    : 'bg-[#1e1e2e] border-white/20 text-gray-400 placeholder-gray-600'
-                                } ${isSaving ? 'opacity-50' : ''}`}
-                                disabled={isSaving}
-                              />
-                              <span className="text-gray-400 text-lg font-bold">-</span>
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                value={currentAway}
-                                onChange={(e) => handleScoreChange(match.id, 'away', e.target.value)}
-                                placeholder="0"
-                                className={`w-12 h-12 text-center text-2xl font-black rounded-xl border-2 transition-all focus:outline-none ${
-                                  currentAway
-                                    ? 'bg-[#6366f1]/20 border-[#6366f1] text-white'
-                                    : 'bg-[#1e1e2e] border-white/20 text-gray-400 placeholder-gray-600'
-                                } ${isSaving ? 'opacity-50' : ''}`}
-                                disabled={isSaving}
-                              />
-                              {isSaving && (
-                                <div className="animate-spin w-5 h-5 border-2 border-[#6366f1] border-t-transparent rounded-full" />
-                              )}
-                              {myPrediction && !editingThis && (
-                                <span className="text-green-400 text-sm">✓</span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-3 flex-1 justify-end">
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleFavorite(team2); }}
                             disabled={loadingFavorite === team2}
-                            className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full transition-all ${
-                              favorites.includes(team2)
-                                ? 'text-[#fbbf24] hover:text-[#fbbf24]/70'
-                                : 'text-gray-500 hover:text-gray-300'
-                            } ${loadingFavorite === team2 ? 'opacity-50' : ''}`}
-                            title={favorites.includes(team2) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                            className={`min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full transition-all text-lg ${
+                              favorites.includes(team2) ? 'text-[#fbbf24]' : 'text-gray-500 hover:text-gray-300'
+                            }`}
                           >
                             {favorites.includes(team2) ? '★' : '☆'}
                           </button>
@@ -998,52 +926,165 @@ export default function WorldCupPage() {
                         </div>
                       </div>
 
-                      {/* My Points Earned (after result) */}
-                      {myPoints && (
-                        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold mb-3 ${
-                          myPoints.total >= 3 ? 'bg-[#fbbf24]/20 text-[#fbbf24]' :
-                          myPoints.total > 0 ? 'bg-green-500/20 text-green-400' :
-                          'bg-red-500/20 text-red-400'
-                        }`}>
-                          {myPoints.total >= 3 && <span>🎯</span>}
-                          {myPoints.visionary > 0 && <span>🔮</span>}
-                          {myPoints.outsider > 0 && <span>🦄</span>}
-                          <span>+{myPoints.total} pt{myPoints.total > 1 ? 's' : ''}</span>
-                        </div>
-                      )}
-
-                      <div className="flex flex-wrap items-center gap-4 text-sm">
-                        <span className="flex items-center gap-2 text-gray-300">
-                          <span className="text-lg">📅</span>
-                          <span className="font-medium">{match.dateDisplay}</span>
+                      {/* Date/Time/Location row */}
+                      <div className="flex flex-wrap items-center gap-3 text-sm mb-4">
+                        <span className="flex items-center gap-1.5 text-gray-300">
+                          <span>📅</span>
+                          <span>{match.dateDisplay}</span>
                         </span>
-                        <span className="flex items-center gap-2 text-[#fbbf24]">
-                          <span className="text-lg">⏰</span>
-                          <span className="font-bold">{match.time}</span>
+                        <span className="flex items-center gap-1.5 text-[#fbbf24] font-bold">
+                          <span>⏰</span>
+                          <span>{match.time}</span>
                         </span>
-                        <span className="flex items-center gap-2 text-gray-400">
-                          <span className="text-lg">📍</span>
+                        <span className="flex items-center gap-1.5 text-gray-400">
+                          <span>📍</span>
                           <span>{match.city}</span>
                         </span>
-                        {/* Auvio Button - visible 30min before to 2h30 after kickoff */}
-                        {isInAuvioWindow(match) && (
-                          <a
-                            href="https://auvio.rtbf.be/categorie/sport~s-3/football~sc-32"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 px-3 py-1.5 bg-[#e30613]/20 text-[#e30613] rounded-lg font-bold hover:bg-[#e30613]/30 transition-colors border border-[#e30613]/30"
-                          >
-                            <span>📺</span>
-                            <span>Regarder sur Auvio</span>
-                          </a>
+                        {lockCountdownText && (
+                          <span className="px-2 py-1 bg-orange-500/20 text-orange-400 rounded-lg text-xs font-medium animate-pulse">
+                            {lockCountdownText}
+                          </span>
                         )}
                       </div>
+
+                      {/* PROMINENT SCORE PREDICTION SECTION */}
+                      <div className={`p-4 rounded-2xl mb-4 ${
+                        hasResult
+                          ? 'bg-[#22c55e]/10 border border-[#22c55e]/30'
+                          : isLocked
+                            ? 'bg-gray-500/10 border border-gray-500/30'
+                            : myPrediction
+                              ? 'bg-[#6366f1]/10 border border-[#6366f1]/30'
+                              : 'bg-[#fbbf24]/10 border border-[#fbbf24]/30'
+                      }`}>
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-sm font-bold flex items-center gap-2">
+                            <span>🎯</span>
+                            <span className={hasResult ? 'text-[#22c55e]' : isLocked ? 'text-gray-400' : myPrediction ? 'text-[#6366f1]' : 'text-[#fbbf24]'}>
+                              {hasResult ? 'Résultat final' : isLocked ? 'Ton prono (verrouillé)' : myPrediction ? 'Ton prono' : 'Fais ton prono !'}
+                            </span>
+                          </span>
+                          {hasResult && myPoints && (
+                            <span className={`px-2 py-1 rounded-lg text-xs font-bold ${
+                              myPoints.total >= 3 ? 'bg-[#fbbf24]/20 text-[#fbbf24]' :
+                              myPoints.total > 0 ? 'bg-green-500/20 text-green-400' :
+                              'bg-red-500/20 text-red-400'
+                            }`}>
+                              {myPoints.total >= 3 && '🎯 '}+{myPoints.total} pt{myPoints.total > 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-center gap-4">
+                          {hasResult ? (
+                            // Show actual result prominently
+                            <div className="flex items-center gap-4">
+                              <div className="text-center">
+                                <span className="text-4xl font-black text-white">{predState.result?.home_score}</span>
+                              </div>
+                              <span className="text-2xl text-gray-400">-</span>
+                              <div className="text-center">
+                                <span className="text-4xl font-black text-white">{predState.result?.away_score}</span>
+                              </div>
+                              {myPrediction && (
+                                <div className="ml-4 text-sm text-gray-400">
+                                  <span>Ton prono : </span>
+                                  <span className={`font-bold ${
+                                    myPrediction.home_score === predState.result?.home_score &&
+                                    myPrediction.away_score === predState.result?.away_score
+                                      ? 'text-[#fbbf24]' : 'text-white'
+                                  }`}>
+                                    {myPrediction.home_score}-{myPrediction.away_score}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          ) : isLocked ? (
+                            // Locked prediction display
+                            <div className="flex items-center gap-4">
+                              {myPrediction ? (
+                                <>
+                                  <span className="text-4xl font-black text-gray-400">{myPrediction.home_score}</span>
+                                  <span className="text-2xl text-gray-500">-</span>
+                                  <span className="text-4xl font-black text-gray-400">{myPrediction.away_score}</span>
+                                  <span className="text-2xl text-gray-500">🔒</span>
+                                </>
+                              ) : (
+                                <span className="text-gray-500 flex items-center gap-2">
+                                  <span>😔</span>
+                                  <span>Pas de prono enregistré</span>
+                                  <span>🔒</span>
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            // Editable score inputs - BIG and prominent
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={currentHome}
+                                onChange={(e) => handleScoreChange(match.id, 'home', e.target.value)}
+                                placeholder="?"
+                                className={`w-16 h-16 text-center text-3xl font-black rounded-2xl border-2 transition-all focus:outline-none focus:ring-2 focus:ring-[#6366f1] ${
+                                  currentHome
+                                    ? 'bg-[#6366f1]/30 border-[#6366f1] text-white'
+                                    : 'bg-[#1e1e2e] border-[#fbbf24]/50 text-[#fbbf24] placeholder-[#fbbf24]/50'
+                                } ${isSaving ? 'opacity-50' : ''}`}
+                                disabled={isSaving}
+                              />
+                              <span className="text-2xl text-gray-400 font-bold">-</span>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={currentAway}
+                                onChange={(e) => handleScoreChange(match.id, 'away', e.target.value)}
+                                placeholder="?"
+                                className={`w-16 h-16 text-center text-3xl font-black rounded-2xl border-2 transition-all focus:outline-none focus:ring-2 focus:ring-[#6366f1] ${
+                                  currentAway
+                                    ? 'bg-[#6366f1]/30 border-[#6366f1] text-white'
+                                    : 'bg-[#1e1e2e] border-[#fbbf24]/50 text-[#fbbf24] placeholder-[#fbbf24]/50'
+                                } ${isSaving ? 'opacity-50' : ''}`}
+                                disabled={isSaving}
+                              />
+                              {isSaving && (
+                                <div className="animate-spin w-6 h-6 border-2 border-[#6366f1] border-t-transparent rounded-full" />
+                              )}
+                              {myPrediction && !editingThis && !isSaving && (
+                                <span className="text-green-400 text-xl">✓</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Hint text for empty state */}
+                        {!isLocked && !hasResult && !myPrediction && (
+                          <p className="text-center text-sm text-[#fbbf24]/70 mt-2">
+                            Saisis le score que tu prédis !
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Auvio Button - visible 30min before to 2h30 after kickoff */}
+                      {isInAuvioWindow(match) && (
+                        <a
+                          href="https://auvio.rtbf.be/categorie/sport~s-3/football~sc-32"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-[#e30613]/20 text-[#e30613] rounded-xl font-bold hover:bg-[#e30613]/30 transition-colors border border-[#e30613]/30 mb-3"
+                        >
+                          <span>📺</span>
+                          <span>Regarder sur Auvio</span>
+                        </a>
+                      )}
 
                       {/* Group prediction stats after kickoff */}
                       {(() => {
                         const stats = getPredictionStats(match.id, team1, team2);
                         return stats && (
-                          <div className="mt-2 px-3 py-1.5 bg-[#6366f1]/10 rounded-lg text-[#6366f1] text-sm font-medium inline-flex items-center gap-2">
+                          <div className="mb-3 px-3 py-1.5 bg-[#6366f1]/10 rounded-lg text-[#6366f1] text-sm font-medium inline-flex items-center gap-2">
                             <span>📊</span>
                             <span>{stats}</span>
                           </div>
