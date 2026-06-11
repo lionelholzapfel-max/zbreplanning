@@ -2,7 +2,7 @@
 
 export interface Match {
   id: number;
-  date: string; // "DD/MM/YYYY" format (Belgian date format)
+  date: string; // "YYYY-MM-DD" format (ISO date format)
   time: string; // "HH:MM" format (Belgian timezone - Europe/Brussels)
   match: string;
   phase: string;
@@ -13,11 +13,11 @@ export type TimeFilter = 'all' | 'today' | 'week';
 export type TimeSlot = 'all' | 'evening' | 'night';
 
 /**
- * Parse match datetime from Belgian date/time strings
+ * Parse match datetime from ISO date and time strings
  * Times in matches.json are already in Europe/Brussels timezone
  */
 export function getMatchDateTime(match: Match): Date {
-  const [day, month, year] = match.date.split('/').map(Number);
+  const [year, month, day] = match.date.split('-').map(Number);
   const [hours, minutes] = match.time.split(':').map(Number);
   return new Date(year, month - 1, day, hours, minutes);
 }

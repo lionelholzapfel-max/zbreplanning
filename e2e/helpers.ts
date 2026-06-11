@@ -19,21 +19,23 @@ const MEMBERS = [
 ];
 
 /**
- * Quick login for tests - uses the actual UI flow
- * This ensures cookies are properly set in the browser context
+ * Quick login for tests - uses data-testid for robust selection
  */
 export async function quickLogin(page: Page, memberId: string = '1') {
   // Go to login page first to establish browser context
   await page.goto('/login');
 
-  // Wait for login page to be ready - look for member avatars
-  await expect(page.locator('text=Salut ! Qui es-tu ?')).toBeVisible({ timeout: 15000 });
+  // Wait for login page to be ready (look for member grid)
+  await expect(page.locator('[data-testid="member-benjamin-oyowe"]')).toBeVisible({ timeout: 15000 });
 
-  // Click on member avatar (0-indexed, so member "1" is index 0)
+  // Find the member by ID
   const memberIndex = parseInt(memberId, 10) - 1;
-  const avatarButtons = page.locator('button').filter({ has: page.locator('img') });
-  await expect(avatarButtons.first()).toBeVisible({ timeout: 5000 });
-  await avatarButtons.nth(memberIndex).click();
+  const member = MEMBERS[memberIndex];
+
+  // Click on member using data-testid (robust selector)
+  const memberButton = page.locator(`[data-testid="member-${member.slug}"]`);
+  await expect(memberButton).toBeVisible({ timeout: 5000 });
+  await memberButton.click();
 
   // Wait for PIN input to appear
   const pinInputs = page.locator('input[type="password"]');
@@ -79,12 +81,10 @@ export async function quickLogin(page: Page, memberId: string = '1') {
     }
   }
 
-  // Wait for redirect to home page - the router.push('/') takes time
+  // Wait for redirect to home page
   await page.waitForURL('/', { timeout: 20000 });
 
-  // The app has a bug: login sets a cookie but useSupabase reads from localStorage
-  // Fix by manually setting localStorage with user data after login
-  const member = MEMBERS[memberIndex];
+  // Set localStorage with user data (workaround for session handling)
   await page.evaluate((m) => {
     const user = {
       id: m.id,
@@ -100,13 +100,12 @@ export async function quickLogin(page: Page, memberId: string = '1') {
   // Reload to pick up the localStorage user
   await page.reload();
 
-  // Wait for the home page nav to be visible (use .first() for strict mode - there may be an error overlay nav)
+  // Wait for the home page nav to be visible
   await expect(page.locator('nav').first()).toBeVisible({ timeout: 15000 });
 }
 
 /**
- * Wait for page to be interactive (use instead of networkidle)
- * Waits for a specific element that indicates the page is ready
+ * Wait for page to be interactive
  */
 export async function waitForPageReady(page: Page, selector: string = 'nav') {
   await expect(page.locator(selector).first()).toBeVisible({ timeout: 10000 });

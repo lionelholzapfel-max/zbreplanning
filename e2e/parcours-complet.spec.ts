@@ -9,7 +9,7 @@ test.describe('Parcours Complet E2E', () => {
 
     // 2. GO TO WORLD CUP AND MAKE A PREDICTION
     await page.goto('/world-cup');
-    await expect(page.locator('button:has-text("Oui !")').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('button:has-text("✓")').first()).toBeVisible({ timeout: 10000 });
 
     // Find a match card with score inputs (not locked)
     const scoreInputHome = page.locator('input[inputmode="numeric"]').first();
@@ -31,7 +31,7 @@ test.describe('Parcours Complet E2E', () => {
 
     // 3. PERSISTENCE CHECK - Reload and verify prediction persists
     await page.reload();
-    await expect(page.locator('button:has-text("Oui !")').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('button:has-text("✓")').first()).toBeVisible({ timeout: 10000 });
 
     // 4. TEST "MES ÉQUIPES" FILTER
     // First, toggle a favorite team by clicking the star
@@ -96,7 +96,7 @@ test.describe('Mobile Screenshots @mobile', () => {
 
     // Screenshot: World Cup
     await page.goto('/world-cup');
-    await expect(page.locator('button:has-text("Oui !")').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('button:has-text("✓")').first()).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(1000);
     await page.screenshot({ path: 'screenshots/mobile-world-cup.png', fullPage: false });
 

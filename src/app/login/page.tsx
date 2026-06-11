@@ -256,6 +256,7 @@ export default function LoginPage() {
                 {MEMBERS.map((member, index) => (
                   <button
                     key={member.id}
+                    data-testid={`member-${member.slug}`}
                     onClick={() => handleMemberSelect(member)}
                     onMouseEnter={() => setHoveredMember(member.id)}
                     onMouseLeave={() => setHoveredMember(null)}

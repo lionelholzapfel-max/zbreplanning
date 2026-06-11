@@ -79,7 +79,7 @@ export default function HomePage() {
       // Fetch all predictions for upcoming matches
       const upcomingMatchIds = (matches as Match[])
         .filter(m => {
-          const [day, month, year] = m.date.split('/').map(Number);
+          const [year, month, day] = m.date.split('-').map(Number);
           const [hours, minutes] = m.time.split(':').map(Number);
           const matchDate = new Date(year, month - 1, day, hours, minutes);
           return matchDate > new Date();
@@ -150,7 +150,7 @@ export default function HomePage() {
     const now = new Date();
     const upcoming = (matches as Match[])
       .map(m => {
-        const [day, month, year] = m.date.split('/').map(Number);
+        const [year, month, day] = m.date.split('-').map(Number);
         const [hours, minutes] = m.time.split(':').map(Number);
         return { ...m, dateObj: new Date(year, month - 1, day, hours, minutes) };
       })
@@ -201,17 +201,17 @@ export default function HomePage() {
     const now = new Date();
     return (matches as Match[])
       .filter(m => {
-        const [day, month, year] = m.date.split('/').map(Number);
+        const [year, month, day] = m.date.split('-').map(Number);
         const [hours, minutes] = m.time.split(':').map(Number);
         const matchDate = new Date(year, month - 1, day, hours, minutes);
         return matchDate > now;
       })
       .sort((a, b) => {
-        const [dayA, monthA, yearA] = a.date.split('/').map(Number);
+        const [yearA, monthA, dayA] = a.date.split('-').map(Number);
         const [hoursA, minutesA] = a.time.split(':').map(Number);
         const dateA = new Date(yearA, monthA - 1, dayA, hoursA, minutesA);
 
-        const [dayB, monthB, yearB] = b.date.split('/').map(Number);
+        const [yearB, monthB, dayB] = b.date.split('-').map(Number);
         const [hoursB, minutesB] = b.time.split(':').map(Number);
         const dateB = new Date(yearB, monthB - 1, dayB, hoursB, minutesB);
 
@@ -224,7 +224,7 @@ export default function HomePage() {
   const toPredictCount = useMemo(() => {
     const now = new Date();
     return (matches as Match[]).filter(m => {
-      const [day, month, year] = m.date.split('/').map(Number);
+      const [year, month, day] = m.date.split('-').map(Number);
       const [hours, minutes] = m.time.split(':').map(Number);
       const matchDate = new Date(year, month - 1, day, hours, minutes);
       return matchDate > now && !myPredictions.has(m.id);
@@ -469,7 +469,7 @@ export default function HomePage() {
                       <span className="text-xs text-[#fbbf24] font-bold">{match.time}</span>
                     </div>
 
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2">
                         <span className="text-2xl">{getFlag(team1)}</span>
                         <span className="font-bold text-white">{team1}</span>
@@ -481,18 +481,19 @@ export default function HomePage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <span className={`px-2 py-1 rounded-lg text-xs font-bold ${
-                        hasPrediction
-                          ? 'bg-[#6366f1]/20 text-[#6366f1]'
-                          : 'bg-[#22c55e]/20 text-[#22c55e]'
-                      }`}>
-                        {hasPrediction ? '✓ Prono fait' : '✍️ À pronostiquer'}
-                      </span>
-                      <span className="text-xs text-gray-500 group-hover:text-white transition-colors">
-                        Voir →
-                      </span>
-                    </div>
+                    {/* PRONO = STAR - Big CTA or score display */}
+                    {hasPrediction ? (
+                      <div className="flex items-center justify-center gap-2 py-2 px-3 bg-[#6366f1]/20 rounded-xl border border-[#6366f1]/30">
+                        <span className="text-[#6366f1]">🎯</span>
+                        <span className="text-[#6366f1] font-bold">Prono enregistré</span>
+                        <span className="text-[#6366f1]">✓</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-[#fbbf24] to-[#f59e0b] rounded-xl text-black font-bold group-hover:scale-[1.02] transition-transform">
+                        <span>🎯</span>
+                        <span>Pronostique !</span>
+                      </div>
+                    )}
                   </div>
                 </Link>
               );

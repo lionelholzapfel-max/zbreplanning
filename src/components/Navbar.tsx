@@ -5,8 +5,6 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
-import { formatDistanceToNow } from 'date-fns';
-import { fr } from 'date-fns/locale';
 
 const navItems = [
   { href: '/', label: 'Accueil', icon: '🏠', mobileLabel: 'Home' },
@@ -16,30 +14,11 @@ const navItems = [
   { href: '/activities', label: 'Activités', icon: '📅', mobileLabel: 'Activités' },
 ];
 
-const notificationIcons: Record<string, string> = {
-  activity_created: '🎉',
-  activity_response: '✋',
-  location_proposed: '📍',
-  location_vote: '👍',
-  match_response: '⚽',
-};
-
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const {
-    currentUser,
-    loading,
-    logout,
-    notifications,
-    unreadCount,
-    getNotifications,
-    markNotificationRead,
-    markAllNotificationsRead
-  } = useSupabase();
+  const { currentUser, loading, logout } = useSupabase();
   const [showMenu, setShowMenu] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const notificationRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -48,22 +27,10 @@ export default function Navbar() {
     }
   }, [currentUser, loading, pathname, router]);
 
-  // Refresh notifications periodically
-  useEffect(() => {
-    if (currentUser) {
-      getNotifications();
-      const interval = setInterval(getNotifications, 30000); // Refresh every 30s
-      return () => clearInterval(interval);
-    }
-  }, [currentUser, getNotifications]);
-
-  // Close dropdowns when clicking outside
+  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (notificationRef.current && !notificationRef.current.contains(target)) {
-        setShowNotifications(false);
-      }
       if (menuRef.current && !menuRef.current.contains(target)) {
         setShowMenu(false);
       }
@@ -80,14 +47,6 @@ export default function Navbar() {
     }
     logout();
     router.push('/login');
-  };
-
-  const handleNotificationClick = async (notificationId: string, link?: string) => {
-    await markNotificationRead(notificationId);
-    setShowNotifications(false);
-    if (link) {
-      router.push(link);
-    }
   };
 
   if (loading || !currentUser) return null;
@@ -130,87 +89,12 @@ export default function Navbar() {
             ))}
           </div>
 
-          {/* Right side: Notifications + User Menu */}
+          {/* Right side: User Menu */}
           <div className="flex items-center gap-2">
-            {/* Notification Bell */}
-            <div className="relative" ref={notificationRef}>
-              <button
-                onClick={() => {
-                  setShowNotifications(!showNotifications);
-                  setShowMenu(false);
-                }}
-                className="relative p-2 rounded-xl hover:bg-white/5 transition-all"
-              >
-                <span className="text-xl">🔔</span>
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#ef4444] text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </button>
-
-              {/* Notifications Dropdown */}
-              {showNotifications && (
-                <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 py-2 glass rounded-xl border border-white/10 shadow-xl max-h-[70vh] overflow-hidden">
-                  <div className="px-4 py-2 border-b border-white/10 flex items-center justify-between">
-                    <h3 className="font-bold text-white">Notifications</h3>
-                    {unreadCount > 0 && (
-                      <button
-                        onClick={() => markAllNotificationsRead()}
-                        className="text-xs text-[#6366f1] hover:underline"
-                      >
-                        Tout marquer lu
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="overflow-y-auto max-h-[50vh]">
-                    {notifications.length === 0 ? (
-                      <div className="px-4 py-8 text-center">
-                        <span className="text-4xl mb-2 block">🔔</span>
-                        <p className="text-gray-500 text-sm">Aucune notification</p>
-                      </div>
-                    ) : (
-                      notifications.slice(0, 10).map((notif) => (
-                        <button
-                          key={notif.id}
-                          onClick={() => handleNotificationClick(notif.id, notif.link)}
-                          className={`w-full px-4 py-3 text-left hover:bg-white/5 transition-colors border-b border-white/5 last:border-0 ${
-                            !notif.read ? 'bg-[#6366f1]/10' : ''
-                          }`}
-                        >
-                          <div className="flex items-start gap-3">
-                            <span className="text-xl shrink-0">
-                              {notificationIcons[notif.type] || '📢'}
-                            </span>
-                            <div className="flex-1 min-w-0">
-                              <p className={`text-sm font-medium ${!notif.read ? 'text-white' : 'text-gray-300'}`}>
-                                {notif.title}
-                              </p>
-                              <p className="text-xs text-gray-500 truncate">{notif.message}</p>
-                              <p className="text-xs text-gray-600 mt-1">
-                                {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true, locale: fr })}
-                              </p>
-                            </div>
-                            {!notif.read && (
-                              <span className="w-2 h-2 rounded-full bg-[#6366f1] shrink-0 mt-1" />
-                            )}
-                          </div>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
             {/* User Menu */}
             <div className="relative" ref={menuRef}>
               <button
-                onClick={() => {
-                  setShowMenu(!showMenu);
-                  setShowNotifications(false);
-                }}
+                onClick={() => setShowMenu(!showMenu)}
                 className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 transition-all"
               >
                 <div className="relative w-9 h-9 rounded-full overflow-hidden ring-2 ring-[#6366f1]/50">

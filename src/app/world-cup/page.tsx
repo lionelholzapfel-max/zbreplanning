@@ -125,11 +125,18 @@ export default function WorldCupPage() {
 
   // Helper to parse match datetime
   const getMatchDateTime = useCallback((match: Match): Date => {
-    // Parse date like "11/06/2026" and time like "21:00"
-    const [day, month, year] = match.date.split('/').map(Number);
+    // Parse date like "2026-06-11" (YYYY-MM-DD) and time like "21:00"
+    const [year, month, day] = match.date.split('-').map(Number);
     const [hours, minutes] = match.time.split(':').map(Number);
     return new Date(year, month - 1, day, hours, minutes);
   }, []);
+
+  // Check if match is today
+  const isMatchToday = useCallback((match: Match): boolean => {
+    const now = new Date();
+    const kickoff = getMatchDateTime(match);
+    return now.toDateString() === kickoff.toDateString();
+  }, [getMatchDateTime]);
 
   // Check if match is in Auvio window (30min before to 2h30 after kickoff)
   const isInAuvioWindow = useCallback((match: Match): boolean => {
@@ -310,7 +317,7 @@ export default function WorldCupPage() {
     setLocations(prev => ({ ...prev, ...newLocations }));
   }, [getMatchParticipations, getWatchLocations]);
 
-  // Load score predictions for matches
+  // Load score predictions for matches (API always returns all predictions now)
   const loadScorePredictions = useCallback(async (matchIds: number[]) => {
     const newPredictions: Record<number, MatchPredictionState> = {};
 
@@ -320,36 +327,23 @@ export default function WorldCupPage() {
         if (!res.ok) return;
         const data = await res.json();
 
-        if (data.predictionLocked) {
-          // Predictions are locked (2h before kickoff) - we have all predictions
-          newPredictions[matchId] = {
-            myPrediction: data.predictions?.find((p: ScorePrediction) => p.user_id === currentUser?.id) || null,
-            allPredictions: data.predictions || [],
-            matchStarted: data.matchStarted,
-            predictionLocked: true,
-            timeUntilLock: -1,
-            result: data.result,
-            totalPredictions: data.predictions?.length || 0,
-          };
-        } else {
-          // Predictions still open
-          newPredictions[matchId] = {
-            myPrediction: data.myPrediction,
-            allPredictions: [],
-            matchStarted: false,
-            predictionLocked: false,
-            timeUntilLock: data.timeUntilLock || -1,
-            result: null,
-            totalPredictions: data.totalPredictions || 0,
-          };
-        }
+        // API now always returns all predictions
+        newPredictions[matchId] = {
+          myPrediction: data.myPrediction || null,
+          allPredictions: data.predictions || [],
+          matchStarted: data.matchStarted,
+          predictionLocked: data.predictionLocked,
+          timeUntilLock: data.timeUntilLock ?? -1,
+          result: data.result || null,
+          totalPredictions: data.predictions?.length || 0,
+        };
       } catch (err) {
         console.error(`Error loading predictions for match ${matchId}:`, err);
       }
     }));
 
     setScorePredictions(prev => ({ ...prev, ...newPredictions }));
-  }, [currentUser?.id]);
+  }, []);
 
   // Save score prediction
   const saveScorePrediction = useCallback(async (matchId: number, homeScore: number, awayScore: number) => {
@@ -467,6 +461,21 @@ export default function WorldCupPage() {
     }, 1000);
   }, [scorePredictions, saveScorePrediction]);
 
+  // Save immediately on blur (when user leaves the input)
+  const handleScoreBlur = useCallback((matchId: number) => {
+    // Clear debounce timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    setEditingScore(current => {
+      if (current && current.matchId === matchId && current.home !== '' && current.away !== '') {
+        saveScorePrediction(matchId, parseInt(current.home, 10), parseInt(current.away, 10));
+      }
+      return current;
+    });
+  }, [saveScorePrediction]);
+
   useEffect(() => {
     if (!userLoading && !currentUser) {
       router.push('/login');
@@ -528,7 +537,36 @@ export default function WorldCupPage() {
     // Get current yes count before update
     const prevYesCount = participations[matchId]?.filter(p => p.status === 'yes').length || 0;
 
+    // Optimistic update - show change immediately
+    setParticipations(prev => {
+      const existing = prev[matchId] || [];
+      const myExisting = existing.find(p => p.user_id === currentUser.id);
+      if (myExisting) {
+        // Update existing participation
+        return {
+          ...prev,
+          [matchId]: existing.map(p =>
+            p.user_id === currentUser.id ? { ...p, status } : p
+          ),
+        };
+      } else {
+        // Add new participation
+        return {
+          ...prev,
+          [matchId]: [...existing, {
+            id: `temp-${Date.now()}`,
+            user_id: currentUser.id,
+            match_id: matchId,
+            status,
+            users: { member_name: currentUser.member_name, member_slug: currentUser.member_slug },
+          }],
+        };
+      }
+    });
+
+    // Actually save to DB
     await setMatchParticipation(matchId, status);
+    // Refresh from server to get accurate data
     const parts = await getMatchParticipations(matchId);
     setParticipations(prev => ({ ...prev, [matchId]: parts }));
 
@@ -1049,6 +1087,7 @@ export default function WorldCupPage() {
                                 pattern="[0-9]*"
                                 value={currentHome}
                                 onChange={(e) => handleScoreChange(match.id, 'home', e.target.value)}
+                                onBlur={() => handleScoreBlur(match.id)}
                                 placeholder="?"
                                 className={`w-16 h-16 text-center text-3xl font-black rounded-2xl border-2 transition-all focus:outline-none focus:ring-2 focus:ring-[#6366f1] ${
                                   currentHome
@@ -1064,6 +1103,7 @@ export default function WorldCupPage() {
                                 pattern="[0-9]*"
                                 value={currentAway}
                                 onChange={(e) => handleScoreChange(match.id, 'away', e.target.value)}
+                                onBlur={() => handleScoreBlur(match.id)}
                                 placeholder="?"
                                 className={`w-16 h-16 text-center text-3xl font-black rounded-2xl border-2 transition-all focus:outline-none focus:ring-2 focus:ring-[#6366f1] ${
                                   currentAway
@@ -1089,26 +1129,57 @@ export default function WorldCupPage() {
                           </p>
                         )}
 
-                        {/* Hint about when predictions are revealed */}
-                        {!isLocked && !hasResult && (
-                          <p className="text-center text-xs text-gray-500 mt-2 flex items-center justify-center gap-1">
-                            <span>🙈</span>
-                            <span>Pronos des autres révélés 2h avant le match</span>
-                          </p>
+                        {/* Other predictions - compact display with avatars */}
+                        {predState?.allPredictions && predState.allPredictions.filter(p => p.user_id !== currentUser?.id).length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-white/10">
+                            <p className="text-xs text-gray-500 text-center mb-2">Pronos des autres</p>
+                            <div className="flex flex-wrap gap-2 justify-center">
+                              {predState.allPredictions
+                                .filter(p => p.user_id !== currentUser?.id)
+                                .map(pred => {
+                                  const member = MEMBERS.find(m => m.id === pred.user_id);
+                                  return member ? (
+                                    <div
+                                      key={pred.user_id}
+                                      className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-lg"
+                                      title={member.name}
+                                    >
+                                      <div className="w-5 h-5 rounded-full overflow-hidden relative">
+                                        <Image src={`/members/${member.slug}.png`} alt={member.name} fill className="object-cover" />
+                                      </div>
+                                      <span className="text-xs text-gray-300 font-medium">
+                                        {pred.home_score}-{pred.away_score}
+                                      </span>
+                                    </div>
+                                  ) : null;
+                                })}
+                            </div>
+                          </div>
                         )}
                       </div>
 
-                      {/* Auvio Button - visible 30min before to 2h30 after kickoff */}
-                      {isInAuvioWindow(match) && (
-                        <a
-                          href="https://auvio.rtbf.be/categorie/sport~s-3/football~sc-32"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-[#e30613]/20 text-[#e30613] rounded-xl font-bold hover:bg-[#e30613]/30 transition-colors border border-[#e30613]/30 mb-3"
-                        >
-                          <span>📺</span>
-                          <span>Regarder sur Auvio</span>
-                        </a>
+                      {/* Auvio Button - visible on all today's matches */}
+                      {isMatchToday(match) && (
+                        isInAuvioWindow(match) ? (
+                          <a
+                            href="https://auvio.rtbf.be/categorie/sport~s-3/football~sc-32"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-[#e30613]/20 text-[#e30613] rounded-xl font-bold hover:bg-[#e30613]/30 transition-colors border border-[#e30613]/30 mb-3"
+                          >
+                            <span>📺</span>
+                            <span>Regarder sur Auvio</span>
+                          </a>
+                        ) : (
+                          <div
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-500/10 text-gray-500 rounded-xl font-bold border border-gray-500/20 mb-3 cursor-not-allowed"
+                            title="Dispo 30 min avant le match"
+                          >
+                            <span>📺</span>
+                            <span>Auvio</span>
+                            <span className="text-xs opacity-70">(dispo 30 min avant)</span>
+                          </div>
+                        )
                       )}
 
                       {/* Group prediction stats after kickoff */}
@@ -1162,51 +1233,52 @@ export default function WorldCupPage() {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-white/10">
-                    <span className="text-sm text-gray-400 font-medium">Tu regardes ?</span>
+                  {/* Participation section - SECONDARY (smaller buttons) */}
+                  <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-white/10">
+                    <span className="text-xs text-gray-500">Tu regardes ?</span>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => handleParticipation(match.id, 'yes')}
                         disabled={isLoading}
-                        className={`px-5 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 ${
+                        className={`min-h-[36px] px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
                           myStatus === 'yes'
-                            ? 'bg-[#22c55e] text-white shadow-lg shadow-[#22c55e]/30'
-                            : 'bg-[#22c55e]/20 text-[#22c55e] hover:bg-[#22c55e]/30 border border-[#22c55e]/30'
+                            ? 'bg-[#22c55e] text-white shadow-md shadow-[#22c55e]/30'
+                            : 'bg-[#22c55e]/15 text-[#22c55e] hover:bg-[#22c55e]/25 border border-[#22c55e]/20'
                         } ${isLoading ? 'opacity-50' : ''}`}
                       >
                         <span>✓</span>
-                        <span>Oui !</span>
+                        <span className="hidden sm:inline">Oui</span>
                       </button>
                       <button
                         onClick={() => handleParticipation(match.id, 'maybe')}
                         disabled={isLoading}
-                        className={`px-5 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 ${
+                        className={`min-h-[36px] px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
                           myStatus === 'maybe'
-                            ? 'bg-[#fbbf24] text-black shadow-lg shadow-[#fbbf24]/30'
-                            : 'bg-[#fbbf24]/20 text-[#fbbf24] hover:bg-[#fbbf24]/30 border border-[#fbbf24]/30'
+                            ? 'bg-[#fbbf24] text-black shadow-md shadow-[#fbbf24]/30'
+                            : 'bg-[#fbbf24]/15 text-[#fbbf24] hover:bg-[#fbbf24]/25 border border-[#fbbf24]/20'
                         } ${isLoading ? 'opacity-50' : ''}`}
                       >
                         <span>🤔</span>
-                        <span>Peut-être</span>
+                        <span className="hidden sm:inline">Peut-être</span>
                       </button>
                       <button
                         onClick={() => handleParticipation(match.id, 'no')}
                         disabled={isLoading}
-                        className={`px-5 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 ${
+                        className={`min-h-[36px] px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
                           myStatus === 'no'
-                            ? 'bg-[#ef4444] text-white shadow-lg shadow-[#ef4444]/30'
-                            : 'bg-[#ef4444]/20 text-[#ef4444] hover:bg-[#ef4444]/30 border border-[#ef4444]/30'
+                            ? 'bg-[#ef4444] text-white shadow-md shadow-[#ef4444]/30'
+                            : 'bg-[#ef4444]/15 text-[#ef4444] hover:bg-[#ef4444]/25 border border-[#ef4444]/20'
                         } ${isLoading ? 'opacity-50' : ''}`}
                       >
                         <span>✗</span>
-                        <span>Non</span>
+                        <span className="hidden sm:inline">Non</span>
                       </button>
                     </div>
 
                     <button
                       onClick={() => setExpandedMatch(isExpanded ? null : match.id)}
-                      className="ml-auto px-4 py-2 bg-white/10 rounded-xl text-white/70 hover:text-white hover:bg-white/20 transition-all flex items-center gap-2"
+                      className="ml-auto min-h-[36px] px-3 py-1.5 bg-white/10 rounded-lg text-sm text-white/70 hover:text-white hover:bg-white/20 transition-all flex items-center gap-1.5"
                     >
                       <span>{isExpanded ? '▲' : '▼'}</span>
                       <span>{isExpanded ? 'Moins' : 'Détails'}</span>
@@ -1215,12 +1287,13 @@ export default function WorldCupPage() {
 
                   {isExpanded && (
                     <div className="mt-6 pt-6 border-t border-white/10 space-y-6">
-                      {/* All Predictions (visible after kickoff) */}
-                      {isLocked && predState?.allPredictions && predState.allPredictions.length > 0 && (
+                      {/* All Predictions - ALWAYS visible in expanded mode */}
+                      {predState?.allPredictions && predState.allPredictions.length > 0 && (
                         <div>
                           <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
                             <span>🎯</span>
                             Pronostics ({predState.allPredictions.length}/14)
+                            {!myPrediction && !isLocked && <span className="text-[#fbbf24] text-xs font-normal ml-2">Fais ton prono !</span>}
                           </h4>
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                             {predState.allPredictions
@@ -1276,12 +1349,12 @@ export default function WorldCupPage() {
                         </div>
                       )}
 
-                      {/* Before kickoff: show prediction count hint */}
-                      {!isLocked && predState && (
+                      {/* No predictions yet hint */}
+                      {(!predState?.allPredictions || predState.allPredictions.length === 0) && !isLocked && (
                         <div className="flex items-center gap-2 text-sm text-gray-400">
                           <span>🎯</span>
-                          <span>{predState.totalPredictions}/14 ont déjà pronostiqué</span>
-                          {!myPrediction && <span className="text-[#fbbf24]">— Fais ton prono !</span>}
+                          <span>Aucun prono pour l&apos;instant</span>
+                          <span className="text-[#fbbf24]">— Sois le premier !</span>
                         </div>
                       )}
 

@@ -5,7 +5,8 @@ import { areGlobalPredictionsLocked, getTimeUntilGlobalLock, FIRST_MATCH_KICKOFF
 export type GlobalPredictionType = 'winner' | 'best_player' | 'best_young' | 'surprise_team';
 
 // GET /api/predictions/global
-// Returns all predictions if locked (after first match kickoff), otherwise only current user's
+// Always returns ALL predictions (fun > anti-cheat)
+// Lock status still matters for write operations (POST)
 export async function GET() {
   try {
     const user = await getSessionUser();
@@ -20,60 +21,34 @@ export async function GET() {
     const locked = areGlobalPredictionsLocked();
     const timeUntilLock = getTimeUntilGlobalLock();
 
-    if (locked) {
-      // Predictions are locked - return ALL predictions with user info
-      const { data: predictions, error } = await supabase
-        .from('predictions')
-        .select('*, user:users!user_id(member_name, member_slug)')
-        .order('created_at', { ascending: true });
+    // Always return ALL predictions (decision: fun > anti-cheat)
+    const { data: predictions, error } = await supabase
+      .from('predictions')
+      .select('*, user:users!user_id(member_name, member_slug)')
+      .order('created_at', { ascending: true });
 
-      if (error) {
-        console.error('[GlobalPredictions] Error getting predictions:', error);
-        return NextResponse.json(
-          { error: 'Erreur base de données' },
-          { status: 500 }
-        );
-      }
-
-      return NextResponse.json({
-        locked: true,
-        lockDate: FIRST_MATCH_KICKOFF.toISOString(),
-        predictions: predictions || [],
-        myPredictions: (predictions || []).filter(p => p.user_id === user.id),
-      });
-    } else {
-      // Not locked - return only current user's predictions (anti-cheat)
-      const { data: myPredictions, error } = await supabase
-        .from('predictions')
-        .select('*')
-        .eq('user_id', user.id);
-
-      if (error) {
-        console.error('[GlobalPredictions] Error getting my predictions:', error);
-        return NextResponse.json(
-          { error: 'Erreur base de données' },
-          { status: 500 }
-        );
-      }
-
-      // Get count of predictions per type without revealing content
-      const { data: counts } = await supabase
-        .from('predictions')
-        .select('prediction_type');
-
-      const countByType: Record<string, number> = {};
-      (counts || []).forEach(c => {
-        countByType[c.prediction_type] = (countByType[c.prediction_type] || 0) + 1;
-      });
-
-      return NextResponse.json({
-        locked: false,
-        lockDate: FIRST_MATCH_KICKOFF.toISOString(),
-        timeUntilLock,
-        myPredictions: myPredictions || [],
-        totalPredictionsByType: countByType,
-      });
+    if (error) {
+      console.error('[GlobalPredictions] Error getting predictions:', error);
+      return NextResponse.json(
+        { error: 'Erreur base de données' },
+        { status: 500 }
+      );
     }
+
+    // Count predictions per type
+    const countByType: Record<string, number> = {};
+    (predictions || []).forEach(p => {
+      countByType[p.prediction_type] = (countByType[p.prediction_type] || 0) + 1;
+    });
+
+    return NextResponse.json({
+      locked,
+      lockDate: FIRST_MATCH_KICKOFF.toISOString(),
+      timeUntilLock: locked ? -1 : timeUntilLock,
+      predictions: predictions || [],
+      myPredictions: (predictions || []).filter(p => p.user_id === user.id),
+      totalPredictionsByType: countByType,
+    });
   } catch (error) {
     console.error('[GlobalPredictions] GET error:', error);
     return NextResponse.json(

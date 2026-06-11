@@ -3,7 +3,8 @@ import { getSessionUser, getSupabaseAdmin } from '@/lib/auth/session';
 import { getMatchById, hasMatchStarted, isPredictionLocked, parseMatchTeams, getTimeUntilLock, PREDICTION_LOCK_OFFSET_MS } from '@/lib/matches';
 
 // GET /api/predictions/score?match_id=X
-// Returns all predictions if match has started, otherwise only current user's prediction
+// Always returns ALL predictions (fun > anti-cheat)
+// Lock status still matters for write operations (POST)
 export async function GET(request: NextRequest) {
   try {
     const user = await getSessionUser();
@@ -45,105 +46,72 @@ export async function GET(request: NextRequest) {
     const predictionLocked = isPredictionLocked(matchId);
     const timeUntilLock = getTimeUntilLock(matchId);
 
-    if (predictionLocked) {
-      // Predictions are locked (2h before kickoff) - return ALL predictions with user info
-      const { data: predictions, error } = await supabase
-        .from('match_score_predictions')
-        .select('*, user:users!user_id(member_name, member_slug)')
-        .eq('match_id', matchId)
-        .order('created_at', { ascending: true });
+    // Always return ALL predictions (decision: fun > anti-cheat)
+    const { data: predictions, error } = await supabase
+      .from('match_score_predictions')
+      .select('*, user:users!user_id(member_name, member_slug)')
+      .eq('match_id', matchId)
+      .order('created_at', { ascending: true });
 
-      if (error) {
-        console.error('[Predictions] Error getting predictions:', error);
-        return NextResponse.json(
-          { error: 'Erreur base de données' },
-          { status: 500 }
-        );
-      }
+    if (error) {
+      console.error('[Predictions] Error getting predictions:', error);
+      return NextResponse.json(
+        { error: 'Erreur base de données' },
+        { status: 500 }
+      );
+    }
 
-      // Also get the actual result if available
-      const { data: result } = await supabase
-        .from('match_results')
-        .select('*')
-        .eq('match_id', matchId)
-        .single();
+    // Get the actual result if available
+    const { data: result } = await supabase
+      .from('match_results')
+      .select('*')
+      .eq('match_id', matchId)
+      .single();
 
-      // Get points if result exists
-      let pointsMap: Record<string, { total: number; base: number; visionary: number; outsider: number; detail: string }> = {};
-      if (result) {
-        const { data: pointsData } = await supabase
-          .from('points_log')
-          .select('user_id, total_points, base_points, visionary_bonus, outsider_bonus, detail')
-          .eq('match_id', matchId);
-
-        if (pointsData) {
-          pointsData.forEach(p => {
-            pointsMap[p.user_id] = {
-              total: p.total_points,
-              base: p.base_points,
-              visionary: p.visionary_bonus,
-              outsider: p.outsider_bonus,
-              detail: p.detail || '',
-            };
-          });
-        }
-      }
-
-      // Enrich predictions with points
-      const enrichedPredictions = (predictions || []).map(p => ({
-        ...p,
-        points: pointsMap[p.user_id] || null,
-      }));
-
-      return NextResponse.json({
-        match: {
-          id: match.id,
-          ...parseMatchTeams(match.match),
-          date: match.dateDisplay,
-          time: match.time,
-        },
-        matchStarted,
-        predictionLocked: true,
-        predictions: enrichedPredictions,
-        result: result || null,
-      });
-    } else {
-      // Predictions still open - return ONLY current user's prediction (anti-cheat)
-      const { data: myPrediction, error } = await supabase
-        .from('match_score_predictions')
-        .select('*')
-        .eq('match_id', matchId)
-        .eq('user_id', user.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('[Predictions] Error getting my prediction:', error);
-        return NextResponse.json(
-          { error: 'Erreur base de données' },
-          { status: 500 }
-        );
-      }
-
-      // Get count of predictions without revealing content
-      const { count } = await supabase
-        .from('match_score_predictions')
-        .select('*', { count: 'exact', head: true })
+    // Get points if result exists
+    let pointsMap: Record<string, { total: number; base: number; visionary: number; outsider: number; detail: string }> = {};
+    if (result) {
+      const { data: pointsData } = await supabase
+        .from('points_log')
+        .select('user_id, total_points, base_points, visionary_bonus, outsider_bonus, detail')
         .eq('match_id', matchId);
 
-      return NextResponse.json({
-        match: {
-          id: match.id,
-          ...parseMatchTeams(match.match),
-          date: match.dateDisplay,
-          time: match.time,
-        },
-        matchStarted: false,
-        predictionLocked: false,
-        timeUntilLock, // milliseconds until predictions lock
-        myPrediction: myPrediction || null,
-        totalPredictions: count || 0,
-      });
+      if (pointsData) {
+        pointsData.forEach(p => {
+          pointsMap[p.user_id] = {
+            total: p.total_points,
+            base: p.base_points,
+            visionary: p.visionary_bonus,
+            outsider: p.outsider_bonus,
+            detail: p.detail || '',
+          };
+        });
+      }
     }
+
+    // Enrich predictions with points
+    const enrichedPredictions = (predictions || []).map(p => ({
+      ...p,
+      points: pointsMap[p.user_id] || null,
+    }));
+
+    // Find current user's prediction
+    const myPrediction = enrichedPredictions.find(p => p.user_id === user.id) || null;
+
+    return NextResponse.json({
+      match: {
+        id: match.id,
+        ...parseMatchTeams(match.match),
+        date: match.dateDisplay,
+        time: match.time,
+      },
+      matchStarted,
+      predictionLocked,
+      timeUntilLock: predictionLocked ? -1 : timeUntilLock,
+      predictions: enrichedPredictions,
+      myPrediction: myPrediction ? { home_score: myPrediction.home_score, away_score: myPrediction.away_score } : null,
+      result: result || null,
+    });
   } catch (error) {
     console.error('[Predictions] GET error:', error);
     return NextResponse.json(

@@ -28,11 +28,6 @@ test.describe('Navigation', () => {
     await page.waitForURL('/leaderboard', { timeout: 10000 });
   });
 
-  test('should show notification bell', async ({ page }) => {
-    // Verify the bell emoji exists in nav (use .first() for strict mode)
-    await expect(page.locator('nav').first().locator('text=🔔')).toBeVisible({ timeout: 10000 });
-  });
-
   test('should have working user menu', async ({ page }) => {
     // Verify user menu button exists (use .first() for strict mode)
     const userBtn = page.locator('nav').first().locator('button').filter({ has: page.locator('img') });

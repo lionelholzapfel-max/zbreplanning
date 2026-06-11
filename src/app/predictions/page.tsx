@@ -211,28 +211,18 @@ export default function PredictionsPage() {
       setLockDate(data.lockDate ? new Date(data.lockDate) : null);
       setTimeUntilLock(data.timeUntilLock || -1);
 
-      if (data.locked) {
-        // When locked, we have all predictions
-        setAllPredictions(data.predictions || []);
-        // Extract my predictions from the list
-        const mine: Record<PredictionType, string | null> = {
-          best_player: null, best_young: null, surprise_team: null, winner: null,
-        };
-        (data.myPredictions || []).forEach((p: Prediction) => {
-          mine[p.prediction_type as PredictionType] = p.prediction_value;
-        });
-        setMyPredictions(mine);
-      } else {
-        // When not locked, we only have our own predictions
-        const mine: Record<PredictionType, string | null> = {
-          best_player: null, best_young: null, surprise_team: null, winner: null,
-        };
-        (data.myPredictions || []).forEach((p: Prediction) => {
-          mine[p.prediction_type as PredictionType] = p.prediction_value;
-        });
-        setMyPredictions(mine);
-        setTotalByType(data.totalPredictionsByType || {});
-      }
+      // API now always returns all predictions (fun > anti-cheat)
+      setAllPredictions(data.predictions || []);
+      setTotalByType(data.totalPredictionsByType || {});
+
+      // Extract my predictions from the list
+      const mine: Record<PredictionType, string | null> = {
+        best_player: null, best_young: null, surprise_team: null, winner: null,
+      };
+      (data.myPredictions || []).forEach((p: Prediction) => {
+        mine[p.prediction_type as PredictionType] = p.prediction_value;
+      });
+      setMyPredictions(mine);
     } catch (err) {
       console.error('Error loading predictions:', err);
     }
@@ -506,8 +496,8 @@ export default function PredictionsPage() {
                     )}
                   </div>
 
-                  {/* Other predictions - only show details when locked */}
-                  {isLocked && otherPredictions.length > 0 && (
+                  {/* Other predictions - always visible (fun > anti-cheat) */}
+                  {otherPredictions.length > 0 && (
                     <div className="pt-4 border-t border-white/10">
                       <p className="text-xs text-gray-500 mb-3">Choix de la team ({otherPredictions.length})</p>
                       <div className="flex flex-wrap gap-2">
@@ -534,14 +524,6 @@ export default function PredictionsPage() {
                       </div>
                     </div>
                   )}
-                  {/* When not locked, just show count */}
-                  {!isLocked && (totalByType[cat.type] || 0) > 0 && (
-                    <div className="pt-4 border-t border-white/10">
-                      <p className="text-xs text-gray-500">
-                        {totalByType[cat.type]} membres ont fait leur pronostic
-                      </p>
-                    </div>
-                  )}
                 </div>
               </div>
             );
@@ -549,8 +531,8 @@ export default function PredictionsPage() {
         </div>
       </section>
 
-      {/* All predictions summary - only show when locked */}
-      {isLocked && (
+      {/* All predictions summary - always visible */}
+      {allPredictions.length > 0 && (
       <section className="max-w-7xl mx-auto px-4 py-8">
         <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
           <span>📊</span>
