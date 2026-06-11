@@ -117,43 +117,34 @@ export function TeamFactsSheet({ teamName, isOpen, onClose, triggerRef }: TeamFa
     </>
   );
 
-  // Mobile: Bottom sheet with backdrop
-  if (isMobile) {
-    return (
-      <div className="fixed inset-0 z-50">
-        {/* Backdrop */}
-        <div
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
-          onClick={onClose}
-        />
+  // Both mobile and desktop use fixed positioning to avoid clipping
+  return (
+    <div className="fixed inset-0 z-50">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
+        onClick={onClose}
+      />
 
-        {/* Bottom Sheet */}
-        <div
-          ref={sheetRef}
-          className="absolute bottom-0 left-0 right-0 bg-gradient-to-br from-gray-900/95 via-gray-800/95 to-gray-900/95 backdrop-blur-xl rounded-t-3xl p-6 pb-8 animate-slide-up border-t border-white/10 shadow-2xl"
-          style={{ maxHeight: '85vh', overflowY: 'auto' }}
-        >
-          {/* Handle bar */}
+      {/* Sheet - bottom sheet on mobile, centered modal on desktop */}
+      <div
+        ref={sheetRef}
+        className={`absolute bg-gradient-to-br from-gray-900/98 via-gray-800/98 to-gray-900/98 backdrop-blur-xl border border-white/10 shadow-2xl ${
+          isMobile
+            ? 'bottom-0 left-0 right-0 rounded-t-3xl p-6 pb-8 animate-slide-up'
+            : 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[450px] max-w-[90vw] rounded-2xl p-6 animate-pop-in'
+        }`}
+        style={{ maxHeight: '85vh', overflowY: 'auto' }}
+      >
+        {/* Handle bar - mobile only */}
+        {isMobile && (
           <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1 bg-white/30 rounded-full" />
+        )}
 
-          <div className="mt-2">
-            {content}
-          </div>
+        <div className={isMobile ? 'mt-2' : ''}>
+          {content}
         </div>
       </div>
-    );
-  }
-
-  // Desktop: Popover
-  return (
-    <div
-      ref={sheetRef}
-      className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-2 w-[400px] max-w-[90vw] bg-gradient-to-br from-gray-900/98 via-gray-800/98 to-gray-900/98 backdrop-blur-xl rounded-2xl p-5 animate-pop-in border border-white/10 shadow-2xl"
-    >
-      {/* Arrow */}
-      <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-gray-900/98 border-l border-t border-white/10 rotate-45" />
-
-      {content}
     </div>
   );
 }
@@ -192,11 +183,11 @@ export function TeamInfoButton({ teamName, className = '' }: TeamInfoButtonProps
           e.stopPropagation();
           setIsOpen(!isOpen);
         }}
-        className={`w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 transition-all text-white/60 hover:text-white/90 text-sm ${className}`}
+        className={`w-8 h-8 flex items-center justify-center rounded-full bg-[#6366f1]/20 hover:bg-[#6366f1]/40 active:bg-[#6366f1]/50 border border-[#6366f1]/30 hover:border-[#6366f1]/60 transition-all text-base hover:scale-110 ${className}`}
         aria-label={`Info sur ${teamName}`}
-        style={{ minWidth: '44px', minHeight: '44px', padding: '8px' }}
+        style={{ minWidth: '44px', minHeight: '44px' }}
       >
-        ℹ️
+        💡
       </button>
 
       <TeamFactsSheet
