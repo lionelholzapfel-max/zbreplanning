@@ -119,7 +119,7 @@ export function TeamFactsSheet({ teamName, isOpen, onClose, triggerRef }: TeamFa
 
   // Both mobile and desktop use fixed positioning to avoid clipping
   return (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
@@ -129,12 +129,11 @@ export function TeamFactsSheet({ teamName, isOpen, onClose, triggerRef }: TeamFa
       {/* Sheet - bottom sheet on mobile, centered modal on desktop */}
       <div
         ref={sheetRef}
-        className={`absolute bg-gradient-to-br from-gray-900/98 via-gray-800/98 to-gray-900/98 backdrop-blur-xl border border-white/10 shadow-2xl ${
+        className={`relative bg-gradient-to-br from-gray-900/98 via-gray-800/98 to-gray-900/98 backdrop-blur-xl border border-white/10 shadow-2xl overflow-y-auto ${
           isMobile
-            ? 'bottom-0 left-0 right-0 rounded-t-3xl p-6 pb-8 animate-slide-up'
-            : 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[450px] max-w-[90vw] rounded-2xl p-6 animate-pop-in'
+            ? 'w-full rounded-t-3xl p-6 pb-8 animate-slide-up max-h-[85vh]'
+            : 'w-[450px] max-w-[90vw] max-h-[85vh] rounded-2xl p-6 animate-fade-in'
         }`}
-        style={{ maxHeight: '85vh', overflowY: 'auto' }}
       >
         {/* Handle bar - mobile only */}
         {isMobile && (
