@@ -119,29 +119,38 @@ export function TeamFactsSheet({ teamName, isOpen, onClose, triggerRef }: TeamFa
 
   // Both mobile and desktop use fixed positioning to avoid clipping
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+    <div className="fixed inset-0 z-50">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
       />
 
-      {/* Sheet - bottom sheet on mobile, centered modal on desktop */}
-      <div
-        ref={sheetRef}
-        className={`relative bg-gradient-to-br from-gray-900/98 via-gray-800/98 to-gray-900/98 backdrop-blur-xl border border-white/10 shadow-2xl overflow-y-auto ${
-          isMobile
-            ? 'w-full rounded-t-3xl p-6 pb-8 animate-slide-up max-h-[85vh]'
-            : 'w-[450px] max-w-[90vw] max-h-[85vh] rounded-2xl p-6 animate-fade-in'
-        }`}
-      >
-        {/* Handle bar - mobile only */}
-        {isMobile && (
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1 bg-white/30 rounded-full" />
-        )}
+      {/* Sheet container - flexbox for centering */}
+      <div className="absolute inset-0 flex items-end md:items-center justify-center pointer-events-none p-4 md:p-8">
+        <div
+          ref={sheetRef}
+          className={`relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 backdrop-blur-xl border border-white/10 shadow-2xl pointer-events-auto ${
+            isMobile
+              ? 'w-full rounded-t-3xl rounded-b-none -mb-4 pb-8'
+              : 'w-[450px] max-w-full rounded-2xl'
+          }`}
+          style={{ maxHeight: isMobile ? '80vh' : '85vh' }}
+        >
+          {/* Handle bar - mobile only */}
+          {isMobile && (
+            <div className="sticky top-0 pt-3 pb-2 bg-gradient-to-b from-gray-900 to-transparent rounded-t-3xl">
+              <div className="mx-auto w-12 h-1 bg-white/30 rounded-full" />
+            </div>
+          )}
 
-        <div className={isMobile ? 'mt-2' : ''}>
-          {content}
+          {/* Scrollable content */}
+          <div
+            className={`overflow-y-auto px-6 pb-6 ${isMobile ? 'pt-2' : 'pt-6'}`}
+            style={{ maxHeight: isMobile ? 'calc(80vh - 40px)' : 'calc(85vh - 48px)' }}
+          >
+            {content}
+          </div>
         </div>
       </div>
     </div>
