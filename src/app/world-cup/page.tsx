@@ -12,7 +12,7 @@ import confetti from 'canvas-confetti';
 
 // Filter types
 type TimeFilter = 'all' | 'today' | 'week';
-type TimeSlot = 'all' | 'morning' | 'afternoon' | 'evening';
+type TimeSlot = 'all' | 'evening' | 'night';
 
 interface FilterState {
   time: TimeFilter;
@@ -207,13 +207,14 @@ export default function WorldCupPage() {
     return true;
   }, [getMatchDateTime]);
 
-  // Helper to check time slot
+  // Helper to check time slot (based on actual World Cup 2026 schedule)
+  // Evening: 18:00-23:59 (Belgian time)
+  // Night: 00:00-06:59 (Belgian time - North American afternoon/evening matches)
   const isMatchInTimeSlot = useCallback((match: Match, slot: TimeSlot): boolean => {
     if (slot === 'all') return true;
     const [hours] = match.time.split(':').map(Number);
-    if (slot === 'morning') return hours >= 6 && hours < 14;
-    if (slot === 'afternoon') return hours >= 14 && hours < 18;
-    if (slot === 'evening') return hours >= 18 || hours < 6;
+    if (slot === 'evening') return hours >= 18 && hours <= 23;
+    if (slot === 'night') return hours >= 0 && hours < 7;
     return true;
   }, []);
 
@@ -228,6 +229,16 @@ export default function WorldCupPage() {
       return !isLocked && hasNoPrediction;
     }).length;
   }, [scorePredictions]);
+
+  // Count matches by time slot
+  const timeSlotCounts = useMemo(() => {
+    return (matches as Match[]).reduce((acc, m) => {
+      const [hours] = m.time.split(':').map(Number);
+      if (hours >= 18 && hours <= 23) acc.evening++;
+      else if (hours >= 0 && hours < 7) acc.night++;
+      return acc;
+    }, { evening: 0, night: 0 });
+  }, []);
 
   const filteredMatches = useMemo(() => {
     const now = new Date();
@@ -739,29 +750,7 @@ export default function WorldCupPage() {
 
             <div className="w-px bg-white/20 mx-1 flex-shrink-0" />
 
-            {/* Time slot filters */}
-            <button
-              onClick={() => setFilters(f => ({ ...f, timeSlot: f.timeSlot === 'morning' ? 'all' : 'morning' }))}
-              className={`flex-shrink-0 min-h-[44px] px-4 py-2 rounded-full font-medium transition-all flex items-center gap-2 ${
-                filters.timeSlot === 'morning'
-                  ? 'bg-[#f59e0b] text-black'
-                  : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
-              }`}
-            >
-              <span>🌅</span>
-              <span>Matin</span>
-            </button>
-            <button
-              onClick={() => setFilters(f => ({ ...f, timeSlot: f.timeSlot === 'afternoon' ? 'all' : 'afternoon' }))}
-              className={`flex-shrink-0 min-h-[44px] px-4 py-2 rounded-full font-medium transition-all flex items-center gap-2 ${
-                filters.timeSlot === 'afternoon'
-                  ? 'bg-[#f59e0b] text-black'
-                  : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
-              }`}
-            >
-              <span>☀️</span>
-              <span>Après-midi</span>
-            </button>
+            {/* Time slot filters - based on actual World Cup 2026 schedule */}
             <button
               onClick={() => setFilters(f => ({ ...f, timeSlot: f.timeSlot === 'evening' ? 'all' : 'evening' }))}
               className={`flex-shrink-0 min-h-[44px] px-4 py-2 rounded-full font-medium transition-all flex items-center gap-2 ${
@@ -771,7 +760,28 @@ export default function WorldCupPage() {
               }`}
             >
               <span>🌙</span>
-              <span>Soir</span>
+              <span>Soirée</span>
+              <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                filters.timeSlot === 'evening' ? 'bg-black/20' : 'bg-white/10'
+              }`}>
+                {timeSlotCounts.evening}
+              </span>
+            </button>
+            <button
+              onClick={() => setFilters(f => ({ ...f, timeSlot: f.timeSlot === 'night' ? 'all' : 'night' }))}
+              className={`flex-shrink-0 min-h-[44px] px-4 py-2 rounded-full font-medium transition-all flex items-center gap-2 ${
+                filters.timeSlot === 'night'
+                  ? 'bg-[#6366f1] text-white'
+                  : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
+              }`}
+            >
+              <span>🌃</span>
+              <span>Nuit</span>
+              <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                filters.timeSlot === 'night' ? 'bg-white/20' : 'bg-white/10'
+              }`}>
+                {timeSlotCounts.night}
+              </span>
             </button>
           </div>
 
