@@ -606,8 +606,7 @@ export default function PredictionsPage() {
         <CommunityStats predictions={allPredictions} />
       )}
 
-      {/* All predictions summary - always visible */}
-      {allPredictions.length > 0 && (
+      {/* All predictions summary - ALWAYS visible (14 members × 4 categories) */}
       <section className="max-w-7xl mx-auto px-4 py-8">
         <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
           <span>📊</span>
@@ -668,7 +667,6 @@ export default function PredictionsPage() {
           </table>
         </div>
       </section>
-      )}
     </div>
   );
 }
