@@ -9,6 +9,7 @@ import { useSupabase, MatchParticipation, WatchLocation } from '@/hooks/useSupab
 import { MEMBERS } from '@/data/members';
 import { toast } from 'sonner';
 import confetti from 'canvas-confetti';
+import { TeamInfoButton } from '@/components/TeamFactsSheet';
 
 // Filter types
 type TimeFilter = 'all' | 'today' | 'week';
@@ -966,6 +967,7 @@ export default function WorldCupPage() {
                         <div className="flex items-center gap-2">
                           <span className="text-3xl">{getFlag(team1)}</span>
                           <span className="text-lg sm:text-xl font-bold text-white">{team1}</span>
+                          <TeamInfoButton teamName={team1} />
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleFavorite(team1); }}
                             disabled={loadingFavorite === team1}
@@ -987,6 +989,7 @@ export default function WorldCupPage() {
                           >
                             {favorites.includes(team2) ? '★' : '☆'}
                           </button>
+                          <TeamInfoButton teamName={team2} />
                           <span className="text-lg sm:text-xl font-bold text-white">{team2}</span>
                           <span className="text-3xl">{getFlag(team2)}</span>
                         </div>

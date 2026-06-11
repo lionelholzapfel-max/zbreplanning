@@ -10,6 +10,7 @@ import matches from '@/data/matches.json';
 import { useSupabase, Activity, ActivityParticipation } from '@/hooks/useSupabase';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { FunFactCard } from '@/components/FunFactCard';
 
 interface UpcomingActivity extends Activity {
   participations: ActivityParticipation[];
@@ -338,6 +339,11 @@ export default function HomePage() {
             <p className="text-gray-400 text-sm">Équipes</p>
           </div>
         </div>
+      </section>
+
+      {/* Fun Fact du jour */}
+      <section className="max-w-7xl mx-auto px-4 py-8">
+        <FunFactCard />
       </section>
 
       {/* Countdown to Next Match */}
