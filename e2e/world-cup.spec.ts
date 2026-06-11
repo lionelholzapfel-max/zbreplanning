@@ -7,9 +7,8 @@ test.beforeEach(async ({ page }) => {
   await quickLogin(page, '1');
   await page.goto('/world-cup');
 
-  // Wait for page to load - first the header, then the match content
-  // This handles both fast and slow loading scenarios
-  await expect(page.locator('text=Coupe du Monde')).toBeVisible({ timeout: 30000 });
+  // Wait for page to load - use h1 heading specifically
+  await expect(page.getByRole('heading', { name: 'Coupe du Monde' })).toBeVisible({ timeout: 30000 });
 
   // Scroll down to ensure match cards are in viewport and wait for them
   await page.evaluate(() => window.scrollTo(0, 500));

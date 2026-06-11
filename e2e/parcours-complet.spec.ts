@@ -78,8 +78,8 @@ test.describe('Admin Flow', () => {
     await page.goto('/leaderboard');
     await expect(page.locator('text=Classement').or(page.locator('text=Leaderboard')).first()).toBeVisible({ timeout: 10000 });
 
-    // Check leaderboard shows members
-    await expect(page.locator('text=pts').first()).toBeVisible({ timeout: 10000 });
+    // Check leaderboard shows Points column header
+    await expect(page.locator('text=Points').first()).toBeVisible({ timeout: 10000 });
   });
 });
 

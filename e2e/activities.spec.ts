@@ -5,7 +5,8 @@ import { quickLogin } from './helpers';
 test.beforeEach(async ({ page }) => {
   await quickLogin(page, '1');
   await page.goto('/activities');
-  // Wait for activities page to load (use .first() for strict mode)
+  // Wait for page heading to appear (handles loading state)
+  await expect(page.getByRole('heading', { name: 'Activités' })).toBeVisible({ timeout: 30000 });
   await expect(page.locator('text=Créer une activité').first()).toBeVisible({ timeout: 10000 });
 });
 

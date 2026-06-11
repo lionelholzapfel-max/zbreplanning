@@ -191,7 +191,7 @@ export function useSupabase() {
           }
         } else {
           // Server error - fall back to localStorage temporarily
-          console.warn('[useSupabase] Session validation failed, using localStorage');
+          console.warn('[useSupabase] Session validation failed with status', res.status);
           const localUser = getCurrentUserLocal();
           setCurrentUser(localUser);
         }

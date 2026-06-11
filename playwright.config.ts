@@ -35,11 +35,11 @@ export default defineConfig({
     },
   ],
 
-  // Run local dev server before tests on port 3002
+  // Run production build before tests (no on-demand compilation)
   webServer: {
-    command: 'npm run dev -- --port 3002',
+    command: 'npm run build && npm run start -- --port 3002',
     url: 'http://localhost:3002',
     reuseExistingServer: !process.env.CI,
-    timeout: 120000,
+    timeout: 180000, // Build can take time
   },
 });

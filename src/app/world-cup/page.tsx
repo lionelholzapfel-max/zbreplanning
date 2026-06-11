@@ -574,7 +574,6 @@ export default function WorldCupPage() {
   const daysUntil = Math.ceil((worldCupStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
   // Show loading spinner while validating session
-  // NEVER return null while loading - it causes black screen during compilation
   if (userLoading) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
