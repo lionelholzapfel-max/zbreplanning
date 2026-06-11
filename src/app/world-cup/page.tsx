@@ -730,9 +730,13 @@ export default function WorldCupPage() {
                   ? 'bg-[#fbbf24] text-black'
                   : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
               }`}
+              title={`Matchs du ${new Date().toLocaleDateString('fr-FR')}`}
             >
               <span>📅</span>
               <span>Aujourd&apos;hui</span>
+              {filters.time === 'today' && (
+                <span className="text-xs opacity-75">({new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })})</span>
+              )}
             </button>
             <button
               onClick={() => setFilters(f => ({ ...f, time: 'week' }))}
@@ -741,6 +745,7 @@ export default function WorldCupPage() {
                   ? 'bg-[#fbbf24] text-black'
                   : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
               }`}
+              title={`Du ${new Date().toLocaleDateString('fr-FR')} au ${new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('fr-FR')}`}
             >
               <span>📆</span>
               <span>Cette semaine</span>
@@ -1500,6 +1505,21 @@ export default function WorldCupPage() {
           <div className="text-center py-16">
             <span className="text-6xl mb-4 block">🔍</span>
             <p className="text-gray-500 text-lg">Aucun match trouvé</p>
+            {filters.time !== 'all' && (
+              <p className="text-gray-600 text-sm mt-2">
+                {filters.time === 'today'
+                  ? `Pas de match le ${new Date().toLocaleDateString('fr-FR')}`
+                  : `Pas de match du ${new Date().toLocaleDateString('fr-FR')} au ${new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('fr-FR')}`}
+              </p>
+            )}
+            {filters.time !== 'all' && (
+              <button
+                onClick={() => setFilters(f => ({ ...f, time: 'all' }))}
+                className="mt-4 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition-colors"
+              >
+                Voir tous les matchs
+              </button>
+            )}
           </div>
         )}
       </section>
