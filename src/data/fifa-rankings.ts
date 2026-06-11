@@ -79,6 +79,9 @@ export const FIFA_RANKINGS: Record<string, number> = {
   'Nouvelle-Zélande': 61,
   'Haïti': 70,
   'Corée du Nord': 75,
+  'Jordanie': 87,
+  'Curaçao': 90,
+  'Inde': 126,
 
   // Placeholder for unknown teams (knockout stage placeholders)
   'Vainqueur': 999,
