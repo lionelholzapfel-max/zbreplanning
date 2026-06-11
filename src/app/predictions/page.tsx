@@ -122,12 +122,64 @@ const PLAYERS = [
   'Achraf Hakimi',
   'Theo Hernández',
   'João Cancelo',
-  // Gardiens
+];
+
+// Top scorers candidates - Buteurs potentiels
+const STRIKERS = [
+  'Kylian Mbappé',
+  'Erling Haaland',
+  'Harry Kane',
+  'Vinicius Jr',
+  'Lautaro Martínez',
+  'Victor Osimhen',
+  'Julián Álvarez',
+  'Darwin Núñez',
+  'Randal Kolo Muani',
+  'Marcus Rashford',
+  'Rafael Leão',
+  'Lionel Messi',
+  'Cristiano Ronaldo',
+  'Mohamed Salah',
+  'Romelu Lukaku',
+  'Olivier Giroud',
+  'Dusan Vlahovic',
+  'Alexander Isak',
+  'Ivan Toney',
+  'Cody Gakpo',
+  'Memphis Depay',
+  'Antoine Griezmann',
+  'Kai Havertz',
+  'Rasmus Højlund',
+  'Benjamin Šeško',
+  'Alvaro Morata',
+  'Karim Benzema',
+  'Robert Lewandowski',
+];
+
+// Goalkeepers - Meilleurs gardiens
+const GOALKEEPERS = [
   'Thibaut Courtois',
   'Alisson Becker',
   'Ederson',
   'Mike Maignan',
   'Gianluigi Donnarumma',
+  'Manuel Neuer',
+  'Marc-André ter Stegen',
+  'Jan Oblak',
+  'Emiliano Martínez',
+  'Jordan Pickford',
+  'Yann Sommer',
+  'Kepa Arrizabalaga',
+  'Andriy Lunin',
+  'Gregor Kobel',
+  'David Raya',
+  'Bono (Yassine Bounou)',
+  'Diogo Costa',
+  'Dominik Livakovic',
+  'Wojciech Szczęsny',
+  'Kasper Schmeichel',
+  'Hugo Lloris',
+  'Unai Simón',
 ];
 
 // Young players (U23) - Nés après le 1er janvier 2003
@@ -172,6 +224,8 @@ const YOUNG_PLAYERS = [
 
 const PREDICTION_CATEGORIES: { type: PredictionType; title: string; emoji: string; description: string }[] = [
   { type: 'winner', title: 'Vainqueur', emoji: '🏆', description: 'Qui va soulever la coupe ?' },
+  { type: 'top_scorer', title: 'Meilleur buteur', emoji: '⚽', description: 'Qui va marquer le plus ?' },
+  { type: 'best_goalkeeper', title: 'Meilleur gardien', emoji: '🧤', description: 'Le mur du tournoi' },
   { type: 'best_player', title: 'Meilleur joueur', emoji: '⭐', description: 'MVP du tournoi' },
   { type: 'best_young', title: 'Meilleur jeune', emoji: '🌟', description: 'Révélation U23' },
   { type: 'surprise_team', title: 'Équipe surprise', emoji: '🎯', description: 'Dark horse du tournoi' },
@@ -253,6 +307,8 @@ export default function PredictionsPage() {
     best_young: null,
     surprise_team: null,
     winner: null,
+    top_scorer: null,
+    best_goalkeeper: null,
   });
   const [allPredictions, setAllPredictions] = useState<Prediction[]>([]);
   const [editingType, setEditingType] = useState<PredictionType | null>(null);
@@ -284,7 +340,7 @@ export default function PredictionsPage() {
 
       // Extract my predictions from the list
       const mine: Record<PredictionType, string | null> = {
-        best_player: null, best_young: null, surprise_team: null, winner: null,
+        best_player: null, best_young: null, surprise_team: null, winner: null, top_scorer: null, best_goalkeeper: null,
       };
       (data.myPredictions || []).forEach((p: Prediction) => {
         mine[p.prediction_type as PredictionType] = p.prediction_value;
@@ -345,6 +401,12 @@ export default function PredictionsPage() {
     }
     if (type === 'best_player') {
       return PLAYERS;
+    }
+    if (type === 'top_scorer') {
+      return STRIKERS;
+    }
+    if (type === 'best_goalkeeper') {
+      return GOALKEEPERS;
     }
     return YOUNG_PLAYERS;
   };

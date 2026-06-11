@@ -86,7 +86,7 @@ export interface Notification {
   };
 }
 
-export type PredictionType = 'best_player' | 'best_young' | 'surprise_team' | 'winner';
+export type PredictionType = 'best_player' | 'best_young' | 'surprise_team' | 'winner' | 'top_scorer' | 'best_goalkeeper';
 
 export interface Prediction {
   id: string;
@@ -875,7 +875,7 @@ export function useSupabase() {
   }, [supabase]);
 
   const getMyPredictions = useCallback(async (): Promise<Record<PredictionType, string | null>> => {
-    if (!currentUser) return { best_player: null, best_young: null, surprise_team: null, winner: null };
+    if (!currentUser) return { best_player: null, best_young: null, surprise_team: null, winner: null, top_scorer: null, best_goalkeeper: null };
 
     const { data, error } = await supabase
       .from('predictions')
@@ -884,7 +884,7 @@ export function useSupabase() {
 
     if (error) {
       console.error('[Supabase] Error getting my predictions:', error);
-      return { best_player: null, best_young: null, surprise_team: null, winner: null };
+      return { best_player: null, best_young: null, surprise_team: null, winner: null, top_scorer: null, best_goalkeeper: null };
     }
 
     const result: Record<PredictionType, string | null> = {
@@ -892,6 +892,8 @@ export function useSupabase() {
       best_young: null,
       surprise_team: null,
       winner: null,
+      top_scorer: null,
+      best_goalkeeper: null,
     };
 
     (data || []).forEach(p => {

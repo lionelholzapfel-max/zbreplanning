@@ -3,7 +3,7 @@ import { getSessionUser, getSupabaseAdmin } from '@/lib/auth/session';
 import { areGlobalPredictionsLocked, getTimeUntilGlobalLock, GLOBAL_PREDICTIONS_LOCK } from '@/lib/matches';
 import { MEMBERS } from '@/data/members';
 
-export type GlobalPredictionType = 'winner' | 'best_player' | 'best_young' | 'surprise_team';
+export type GlobalPredictionType = 'winner' | 'best_player' | 'best_young' | 'surprise_team' | 'top_scorer' | 'best_goalkeeper';
 
 // GET /api/predictions/global
 // SECURITY: Predictions are hidden until lock time (2h before first match)
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const validTypes = ['winner', 'best_player', 'best_young', 'surprise_team'];
+    const validTypes = ['winner', 'best_player', 'best_young', 'surprise_team', 'top_scorer', 'best_goalkeeper'];
     if (!validTypes.includes(prediction_type)) {
       return NextResponse.json(
         { error: 'Type de pronostic invalide' },
