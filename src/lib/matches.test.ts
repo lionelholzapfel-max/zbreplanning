@@ -66,23 +66,23 @@ describe('Match Timezone Handling', () => {
     });
   });
 
-  describe('getPredictionLockTime - 2 Hours Before Kickoff', () => {
-    it('Match 1: lock at 17:00 UTC (19:00 Brussels)', () => {
+  describe('getPredictionLockTime', () => {
+    it('Match 1: EXCEPTION - lock at 18:59 UTC (20:59 Brussels)', () => {
       const match = getMatchById(1);
       const lockTime = getPredictionLockTime(match!);
-      // Kickoff 19:00 UTC - 2h = 17:00 UTC
-      expect(lockTime.toISOString()).toBe('2026-06-11T17:00:00.000Z');
+      // Special case: Match 1 locks at 20:59 Brussels = 18:59 UTC
+      expect(lockTime.toISOString()).toBe('2026-06-11T18:59:00.000Z');
     });
 
-    it('Match 2: lock at 00:00 UTC (02:00 Brussels)', () => {
+    it('Match 2: lock at 00:00 UTC (02:00 Brussels) - standard 2h rule', () => {
       const match = getMatchById(2);
       const lockTime = getPredictionLockTime(match!);
       // Kickoff 02:00 UTC - 2h = 00:00 UTC
       expect(lockTime.toISOString()).toBe('2026-06-12T00:00:00.000Z');
     });
 
-    it('lock time should always be exactly 2 hours before kickoff', () => {
-      const match = getMatchById(1);
+    it('Match 3: lock time is exactly 2 hours before kickoff', () => {
+      const match = getMatchById(3);
       const kickoff = getMatchKickoff(match!);
       const lockTime = getPredictionLockTime(match!);
 

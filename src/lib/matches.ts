@@ -28,6 +28,10 @@ export const BELGIUM_TIMEZONE = 'Europe/Brussels';
 // Match 1: Mexique - Afrique du Sud, 11 juin 2026 à 21:00 (Europe/Brussels)
 export const FIRST_MATCH_KICKOFF = new Date('2026-06-11T21:00:00+02:00');
 
+// EXCEPTION: Match 1 locks at 20:59 Brussels (not 2h before)
+// This gives members until the last minute for the opening match
+export const MATCH_1_LOCK_TIME = new Date('2026-06-11T20:59:00+02:00');
+
 // Global predictions (winner, best_player, best_young, surprise_team) lock on June 14 at 23:00 Brussels
 // This gives members more time to make their picks during the first days of the tournament
 export const GLOBAL_PREDICTIONS_LOCK = new Date('2026-06-14T23:00:00+02:00');
@@ -53,9 +57,17 @@ export function getMatchKickoff(match: Match): Date {
 }
 
 /**
- * Get the lock time for predictions (2 hours before kickoff)
+ * Get the lock time for predictions
+ * - Match 1: Special exception - locks at 20:59 Brussels (1 min before kickoff)
+ * - All other matches: 2 hours before kickoff
  */
 export function getPredictionLockTime(match: Match): Date {
+  // Special case: Match 1 locks at 20:59 Brussels
+  if (match.id === 1) {
+    return MATCH_1_LOCK_TIME;
+  }
+
+  // Default: 2 hours before kickoff
   const kickoff = getMatchKickoff(match);
   return new Date(kickoff.getTime() - PREDICTION_LOCK_OFFSET_MS);
 }
