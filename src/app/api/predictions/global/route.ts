@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser, getSupabaseAdmin } from '@/lib/auth/session';
 import { areGlobalPredictionsLocked, getTimeUntilGlobalLock, FIRST_MATCH_KICKOFF } from '@/lib/matches';
+import { MEMBERS } from '@/data/members';
 
 export type GlobalPredictionType = 'winner' | 'best_player' | 'best_young' | 'surprise_team';
 
@@ -22,9 +23,10 @@ export async function GET() {
     const timeUntilLock = getTimeUntilGlobalLock();
 
     // Always return ALL predictions (decision: fun > anti-cheat)
+    // Note: Don't use join syntax - FK relationship may not be in schema cache
     const { data: predictions, error } = await supabase
       .from('predictions')
-      .select('*, user:users!user_id(member_name, member_slug)')
+      .select('*')
       .order('created_at', { ascending: true });
 
     if (error) {
@@ -35,9 +37,21 @@ export async function GET() {
       );
     }
 
+    // Enrich predictions with user info from MEMBERS (since FK join doesn't work)
+    const enrichedPredictions = (predictions || []).map(p => {
+      const member = MEMBERS.find(m => m.id === p.user_id);
+      return {
+        ...p,
+        user: member ? {
+          member_name: member.name,
+          member_slug: member.slug,
+        } : null,
+      };
+    });
+
     // Count predictions per type
     const countByType: Record<string, number> = {};
-    (predictions || []).forEach(p => {
+    enrichedPredictions.forEach(p => {
       countByType[p.prediction_type] = (countByType[p.prediction_type] || 0) + 1;
     });
 
@@ -45,8 +59,8 @@ export async function GET() {
       locked,
       lockDate: FIRST_MATCH_KICKOFF.toISOString(),
       timeUntilLock: locked ? -1 : timeUntilLock,
-      predictions: predictions || [],
-      myPredictions: (predictions || []).filter(p => p.user_id === user.id),
+      predictions: enrichedPredictions,
+      myPredictions: enrichedPredictions.filter(p => p.user_id === user.id),
       totalPredictionsByType: countByType,
     });
   } catch (error) {
