@@ -103,38 +103,62 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
-    // Use UPSERT for atomic operation (based on unique constraint: user_id + prediction_type)
-    const { data: saved, error: upsertError } = await supabase
+    // Check if prediction already exists
+    const { data: existing } = await supabase
       .from('predictions')
-      .upsert(
-        {
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('prediction_type', prediction_type)
+      .single();
+
+    let saved;
+    let saveError;
+
+    if (existing) {
+      // UPDATE existing prediction
+      console.log('[GlobalPredictions] Updating existing prediction:', existing.id);
+      const { data, error } = await supabase
+        .from('predictions')
+        .update({
+          prediction_value,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existing.id)
+        .select()
+        .single();
+      saved = data;
+      saveError = error;
+    } else {
+      // INSERT new prediction
+      console.log('[GlobalPredictions] Creating new prediction');
+      const { data, error } = await supabase
+        .from('predictions')
+        .insert({
           user_id: user.id,
           prediction_type,
           prediction_value,
           updated_at: new Date().toISOString(),
-        },
-        {
-          onConflict: 'user_id,prediction_type',
-          ignoreDuplicates: false,
-        }
-      )
-      .select()
-      .single();
+        })
+        .select()
+        .single();
+      saved = data;
+      saveError = error;
+    }
 
-    console.log('[GlobalPredictions] Upsert result:', {
+    console.log('[GlobalPredictions] Save result:', {
       saved,
-      error: upsertError?.message,
-      code: upsertError?.code,
-      details: upsertError?.details
+      error: saveError?.message,
+      code: saveError?.code,
+      details: saveError?.details
     });
 
-    if (upsertError) {
-      console.error('[GlobalPredictions] Error saving prediction:', upsertError);
+    if (saveError) {
+      console.error('[GlobalPredictions] Error saving prediction:', saveError);
       return NextResponse.json(
         {
-          error: `Erreur sauvegarde: ${upsertError.message}`,
-          code: upsertError.code,
-          details: upsertError.details,
+          error: `Erreur sauvegarde: ${saveError.message}`,
+          code: saveError.code,
+          details: saveError.details,
         },
         { status: 500 }
       );
