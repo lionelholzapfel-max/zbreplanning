@@ -20,9 +20,16 @@ export const matches: Match[] = matchesData as Match[];
 // ============================================================================
 export const PREDICTION_LOCK_OFFSET_MS = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
 
+// Belgium timezone - CEST (UTC+2) in summer, CET (UTC+1) in winter
+// World Cup 2026 is June-July, so always UTC+2
+export const BELGIUM_TIMEZONE = 'Europe/Brussels';
+
 // First match kickoff - used to lock global predictions (winner, best_player, etc.)
 // Match 1: Mexique - Afrique du Sud, 11 juin 2026 à 21:00 (Europe/Brussels)
 export const FIRST_MATCH_KICKOFF = new Date('2026-06-11T21:00:00+02:00');
+
+// Global predictions lock 2 HOURS BEFORE first match kickoff
+export const GLOBAL_PREDICTIONS_LOCK = new Date(FIRST_MATCH_KICKOFF.getTime() - PREDICTION_LOCK_OFFSET_MS);
 
 export function getMatchById(matchId: number): Match | undefined {
   return matches.find(m => m.id === matchId);
@@ -30,18 +37,18 @@ export function getMatchById(matchId: number): Match | undefined {
 
 /**
  * Get the kickoff time for a match as a Date object
- * Assumes times are in Europe/Brussels timezone
+ * CRITICAL: Times in matches.json are in Europe/Brussels timezone
+ * This function converts them to proper UTC timestamps that work on any server
  */
 export function getMatchKickoff(match: Match): Date {
   // Parse date and time (format: "2026-06-11" and "21:00")
-  const [year, month, day] = match.date.split('-').map(Number);
-  const [hours, minutes] = match.time.split(':').map(Number);
+  // These are BELGIUM times (Europe/Brussels = UTC+2 in summer June-July)
 
-  // Create date in local timezone (assumes server is in Europe/Brussels or similar)
-  // For production, you'd want to use a proper timezone library
-  const kickoff = new Date(year, month - 1, day, hours, minutes, 0);
+  // Build ISO string with explicit Brussels offset
+  // World Cup 2026 is entirely in June-July = CEST = UTC+2
+  const isoString = `${match.date}T${match.time}:00+02:00`;
 
-  return kickoff;
+  return new Date(isoString);
 }
 
 /**
@@ -109,11 +116,11 @@ export function getTimeUntilKickoff(matchId: number): number {
 
 /**
  * Check if global predictions (winner, best_player, etc.) are locked
- * They lock at the FIRST MATCH kickoff (11 juin 2026, 21:00)
+ * They lock 2 HOURS BEFORE the first match kickoff (11 juin 2026, 19:00 Brussels)
  */
 export function areGlobalPredictionsLocked(): boolean {
   const now = new Date();
-  return now >= FIRST_MATCH_KICKOFF;
+  return now >= GLOBAL_PREDICTIONS_LOCK;
 }
 
 /**
@@ -121,7 +128,63 @@ export function areGlobalPredictionsLocked(): boolean {
  */
 export function getTimeUntilGlobalLock(): number {
   const now = new Date();
-  return FIRST_MATCH_KICKOFF.getTime() - now.getTime();
+  return GLOBAL_PREDICTIONS_LOCK.getTime() - now.getTime();
+}
+
+// ============================================================================
+// DEBUG UTILITIES - Timezone verification
+// ============================================================================
+
+/**
+ * Format a date in Belgium timezone for display
+ */
+export function formatBelgiumTime(date: Date): string {
+  return date.toLocaleString('fr-BE', {
+    timeZone: BELGIUM_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+}
+
+/**
+ * Get debug info for a match's timezone handling
+ * Use this to verify timezone conversions are correct
+ */
+export function getMatchTimezoneDebug(matchId: number): {
+  matchId: number;
+  rawJson: { date: string; time: string };
+  kickoffUtc: string;
+  kickoffBelgium: string;
+  lockUtc: string;
+  lockBelgium: string;
+  nowUtc: string;
+  nowBelgium: string;
+  isLocked: boolean;
+  msUntilLock: number;
+} | null {
+  const match = getMatchById(matchId);
+  if (!match) return null;
+
+  const kickoff = getMatchKickoff(match);
+  const lockTime = getPredictionLockTime(match);
+  const now = new Date();
+
+  return {
+    matchId,
+    rawJson: { date: match.date, time: match.time },
+    kickoffUtc: kickoff.toISOString(),
+    kickoffBelgium: formatBelgiumTime(kickoff),
+    lockUtc: lockTime.toISOString(),
+    lockBelgium: formatBelgiumTime(lockTime),
+    nowUtc: now.toISOString(),
+    nowBelgium: formatBelgiumTime(now),
+    isLocked: now >= lockTime,
+    msUntilLock: lockTime.getTime() - now.getTime(),
+  };
 }
 
 /**

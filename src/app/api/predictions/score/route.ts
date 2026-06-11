@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser, getSupabaseAdmin } from '@/lib/auth/session';
-import { getMatchById, hasMatchStarted, isPredictionLocked, parseMatchTeams, getTimeUntilLock, PREDICTION_LOCK_OFFSET_MS } from '@/lib/matches';
+import { getMatchById, hasMatchStarted, isPredictionLocked, parseMatchTeams, getTimeUntilLock } from '@/lib/matches';
+import { MEMBERS } from '@/data/members';
 
 // GET /api/predictions/score?match_id=X
-// Always returns ALL predictions (fun > anti-cheat)
-// Lock status still matters for write operations (POST)
+// SECURITY: Scores are hidden until lock time (2h before kickoff)
+// - Before lock: return only {user_id} of predictors + current user's own prediction
+// - After lock: return all predictions with scores
 export async function GET(request: NextRequest) {
   try {
     const user = await getSessionUser();
@@ -46,10 +48,11 @@ export async function GET(request: NextRequest) {
     const predictionLocked = isPredictionLocked(matchId);
     const timeUntilLock = getTimeUntilLock(matchId);
 
-    // Always return ALL predictions (decision: fun > anti-cheat)
+    // Fetch all predictions from database
+    // Note: Don't use FK join - may fail in Supabase schema cache
     const { data: predictions, error } = await supabase
       .from('match_score_predictions')
-      .select('*, user:users!user_id(member_name, member_slug)')
+      .select('*')
       .eq('match_id', matchId)
       .order('created_at', { ascending: true });
 
@@ -61,57 +64,102 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get the actual result if available
-    const { data: result } = await supabase
-      .from('match_results')
-      .select('*')
-      .eq('match_id', matchId)
-      .single();
-
-    // Get points if result exists
-    let pointsMap: Record<string, { total: number; base: number; visionary: number; outsider: number; detail: string }> = {};
-    if (result) {
-      const { data: pointsData } = await supabase
-        .from('points_log')
-        .select('user_id, total_points, base_points, visionary_bonus, outsider_bonus, detail')
-        .eq('match_id', matchId);
-
-      if (pointsData) {
-        pointsData.forEach(p => {
-          pointsMap[p.user_id] = {
-            total: p.total_points,
-            base: p.base_points,
-            visionary: p.visionary_bonus,
-            outsider: p.outsider_bonus,
-            detail: p.detail || '',
-          };
-        });
-      }
-    }
-
-    // Enrich predictions with points
-    const enrichedPredictions = (predictions || []).map(p => ({
-      ...p,
-      points: pointsMap[p.user_id] || null,
-    }));
-
     // Find current user's prediction
-    const myPrediction = enrichedPredictions.find(p => p.user_id === user.id) || null;
+    const myPredictionRaw = (predictions || []).find(p => p.user_id === user.id);
 
-    return NextResponse.json({
-      match: {
-        id: match.id,
-        ...parseMatchTeams(match.match),
-        date: match.dateDisplay,
-        time: match.time,
-      },
-      matchStarted,
-      predictionLocked,
-      timeUntilLock: predictionLocked ? -1 : timeUntilLock,
-      predictions: enrichedPredictions,
-      myPrediction: myPrediction ? { home_score: myPrediction.home_score, away_score: myPrediction.away_score } : null,
-      result: result || null,
-    });
+    // SECURITY: Before lock, HIDE other users' scores from API response
+    // Only return {user_id, user info} for others, full data for current user
+    let publicPredictions;
+
+    if (predictionLocked) {
+      // AFTER LOCK: Return all predictions with scores
+      // Enrich with member info from MEMBERS data
+      const { data: result } = await supabase
+        .from('match_results')
+        .select('*')
+        .eq('match_id', matchId)
+        .single();
+
+      // Get points if result exists
+      let pointsMap: Record<string, { total: number; base: number; visionary: number; outsider: number; detail: string }> = {};
+      if (result) {
+        const { data: pointsData } = await supabase
+          .from('points_log')
+          .select('user_id, total_points, base_points, visionary_bonus, outsider_bonus, detail')
+          .eq('match_id', matchId);
+
+        if (pointsData) {
+          pointsData.forEach(p => {
+            pointsMap[p.user_id] = {
+              total: p.total_points,
+              base: p.base_points,
+              visionary: p.visionary_bonus,
+              outsider: p.outsider_bonus,
+              detail: p.detail || '',
+            };
+          });
+        }
+      }
+
+      // Enrich predictions with member info and points
+      publicPredictions = (predictions || []).map(p => {
+        const member = MEMBERS.find(m => m.id === p.user_id);
+        return {
+          user_id: p.user_id,
+          home_score: p.home_score,
+          away_score: p.away_score,
+          user: member ? { member_name: member.name, member_slug: member.slug } : null,
+          points: pointsMap[p.user_id] || null,
+        };
+      });
+
+      return NextResponse.json({
+        match: {
+          id: match.id,
+          ...parseMatchTeams(match.match),
+          date: match.dateDisplay,
+          time: match.time,
+        },
+        matchStarted,
+        predictionLocked,
+        timeUntilLock: -1,
+        predictions: publicPredictions,
+        predictorCount: publicPredictions.length,
+        myPrediction: myPredictionRaw
+          ? { home_score: myPredictionRaw.home_score, away_score: myPredictionRaw.away_score }
+          : null,
+        result: result || null,
+      });
+    } else {
+      // BEFORE LOCK: Only return who predicted (user_id + avatar info), NOT their scores
+      // Exception: Current user sees their own score
+      publicPredictions = (predictions || []).map(p => {
+        const member = MEMBERS.find(m => m.id === p.user_id);
+        return {
+          user_id: p.user_id,
+          user: member ? { member_name: member.name, member_slug: member.slug } : null,
+          // NO home_score, NO away_score for others
+        };
+      });
+
+      return NextResponse.json({
+        match: {
+          id: match.id,
+          ...parseMatchTeams(match.match),
+          date: match.dateDisplay,
+          time: match.time,
+        },
+        matchStarted,
+        predictionLocked,
+        timeUntilLock,
+        predictions: publicPredictions, // Only user_ids, no scores
+        predictorCount: publicPredictions.length,
+        myPrediction: myPredictionRaw
+          ? { home_score: myPredictionRaw.home_score, away_score: myPredictionRaw.away_score }
+          : null,
+        result: null, // No result before lock anyway
+      });
+    }
   } catch (error) {
     console.error('[Predictions] GET error:', error);
     return NextResponse.json(

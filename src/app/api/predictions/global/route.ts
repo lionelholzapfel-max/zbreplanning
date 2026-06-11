@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser, getSupabaseAdmin } from '@/lib/auth/session';
-import { areGlobalPredictionsLocked, getTimeUntilGlobalLock, FIRST_MATCH_KICKOFF } from '@/lib/matches';
+import { areGlobalPredictionsLocked, getTimeUntilGlobalLock, GLOBAL_PREDICTIONS_LOCK } from '@/lib/matches';
 import { MEMBERS } from '@/data/members';
 
 export type GlobalPredictionType = 'winner' | 'best_player' | 'best_young' | 'surprise_team';
 
 // GET /api/predictions/global
-// Always returns ALL predictions (fun > anti-cheat)
-// Lock status still matters for write operations (POST)
+// SECURITY: Predictions are hidden until lock time (2h before first match)
+// - Before lock: return only {user_id, prediction_type} of predictors + current user's own predictions
+// - After lock: return all predictions with values
 export async function GET() {
   try {
     const user = await getSessionUser();
@@ -22,7 +23,7 @@ export async function GET() {
     const locked = areGlobalPredictionsLocked();
     const timeUntilLock = getTimeUntilGlobalLock();
 
-    // Always return ALL predictions (decision: fun > anti-cheat)
+    // Fetch all predictions from database
     // Note: Don't use join syntax - FK relationship may not be in schema cache
     const { data: predictions, error } = await supabase
       .from('predictions')
@@ -37,32 +38,65 @@ export async function GET() {
       );
     }
 
-    // Enrich predictions with user info from MEMBERS (since FK join doesn't work)
-    const enrichedPredictions = (predictions || []).map(p => {
-      const member = MEMBERS.find(m => m.id === p.user_id);
-      return {
-        ...p,
-        user: member ? {
-          member_name: member.name,
-          member_slug: member.slug,
-        } : null,
-      };
-    });
+    // Get current user's predictions (always visible to them)
+    const myPredictions = (predictions || [])
+      .filter(p => p.user_id === user.id)
+      .map(p => {
+        const member = MEMBERS.find(m => m.id === p.user_id);
+        return {
+          ...p,
+          user: member ? { member_name: member.name, member_slug: member.slug } : null,
+        };
+      });
 
-    // Count predictions per type
+    // Count predictions per type (public info: who has predicted what type)
     const countByType: Record<string, number> = {};
-    enrichedPredictions.forEach(p => {
+    (predictions || []).forEach(p => {
       countByType[p.prediction_type] = (countByType[p.prediction_type] || 0) + 1;
     });
 
-    return NextResponse.json({
-      locked,
-      lockDate: FIRST_MATCH_KICKOFF.toISOString(),
-      timeUntilLock: locked ? -1 : timeUntilLock,
-      predictions: enrichedPredictions,
-      myPredictions: enrichedPredictions.filter(p => p.user_id === user.id),
-      totalPredictionsByType: countByType,
-    });
+    if (locked) {
+      // AFTER LOCK: Return all predictions with values
+      const enrichedPredictions = (predictions || []).map(p => {
+        const member = MEMBERS.find(m => m.id === p.user_id);
+        return {
+          user_id: p.user_id,
+          prediction_type: p.prediction_type,
+          prediction_value: p.prediction_value,
+          user: member ? { member_name: member.name, member_slug: member.slug } : null,
+        };
+      });
+
+      return NextResponse.json({
+        locked,
+        lockDate: GLOBAL_PREDICTIONS_LOCK.toISOString(),
+        timeUntilLock: -1,
+        predictions: enrichedPredictions,
+        myPredictions,
+        totalPredictionsByType: countByType,
+      });
+    } else {
+      // BEFORE LOCK: Only return who predicted what type (no values)
+      // Exception: Current user sees their own predictions
+      const publicPredictions = (predictions || []).map(p => {
+        const member = MEMBERS.find(m => m.id === p.user_id);
+        return {
+          user_id: p.user_id,
+          prediction_type: p.prediction_type,
+          // NO prediction_value for others
+          user: member ? { member_name: member.name, member_slug: member.slug } : null,
+        };
+      });
+
+      return NextResponse.json({
+        locked,
+        lockDate: GLOBAL_PREDICTIONS_LOCK.toISOString(),
+        timeUntilLock,
+        predictions: publicPredictions, // Only user_ids + types, no values
+        myPredictions, // Current user always sees their own
+        totalPredictionsByType: countByType,
+      });
+    }
   } catch (error) {
     console.error('[GlobalPredictions] GET error:', error);
     return NextResponse.json(
@@ -108,9 +142,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if predictions are locked (ANTI-CHEAT)
+    // Global predictions lock 2 HOURS BEFORE first match kickoff
     if (areGlobalPredictionsLocked()) {
       return NextResponse.json(
-        { error: 'Pronos globaux verrouillés 🔒 (depuis le premier match)' },
+        { error: 'Pronos globaux verrouillés 🔒 (2h avant le premier match)' },
         { status: 403 }
       );
     }

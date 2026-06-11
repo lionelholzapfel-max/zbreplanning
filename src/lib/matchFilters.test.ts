@@ -12,7 +12,7 @@ import {
 // Helper to create test matches
 const createMatch = (overrides: Partial<Match> = {}): Match => ({
   id: 1,
-  date: '11/06/2026', // Belgian format: DD/MM/YYYY
+  date: '2026-06-11', // ISO format: YYYY-MM-DD
   time: '21:00',
   match: 'Belgique - Croatie',
   phase: 'PHASE DE GROUPES',
@@ -21,8 +21,8 @@ const createMatch = (overrides: Partial<Match> = {}): Match => ({
 });
 
 describe('getMatchDateTime', () => {
-  test('parses Belgian date format correctly', () => {
-    const match = createMatch({ date: '11/06/2026', time: '21:00' });
+  test('parses ISO date format correctly', () => {
+    const match = createMatch({ date: '2026-06-11', time: '21:00' });
     const dt = getMatchDateTime(match);
     expect(dt.getFullYear()).toBe(2026);
     expect(dt.getMonth()).toBe(5); // June = 5 (0-indexed)
@@ -32,7 +32,7 @@ describe('getMatchDateTime', () => {
   });
 
   test('handles midnight correctly', () => {
-    const match = createMatch({ date: '12/06/2026', time: '00:00' });
+    const match = createMatch({ date: '2026-06-12', time: '00:00' });
     const dt = getMatchDateTime(match);
     expect(dt.getDate()).toBe(12);
     expect(dt.getHours()).toBe(0);
@@ -47,31 +47,31 @@ describe('isMatchInTimeRange', () => {
 
   test('"today" filter matches match on same day', () => {
     const now = new Date(2026, 5, 11, 10, 0); // June 11, 2026, 10:00
-    const match = createMatch({ date: '11/06/2026', time: '21:00' });
+    const match = createMatch({ date: '2026-06-11', time: '21:00' });
     expect(isMatchInTimeRange(match, 'today', now)).toBe(true);
   });
 
   test('"today" filter excludes match on different day', () => {
     const now = new Date(2026, 5, 11, 10, 0); // June 11, 2026
-    const match = createMatch({ date: '12/06/2026', time: '21:00' }); // June 12
+    const match = createMatch({ date: '2026-06-12', time: '21:00' }); // June 12
     expect(isMatchInTimeRange(match, 'today', now)).toBe(false);
   });
 
   test('"week" filter matches match within 7 days', () => {
     const now = new Date(2026, 5, 11, 10, 0); // June 11, 2026
-    const match = createMatch({ date: '15/06/2026', time: '21:00' }); // June 15 (4 days later)
+    const match = createMatch({ date: '2026-06-15', time: '21:00' }); // June 15 (4 days later)
     expect(isMatchInTimeRange(match, 'week', now)).toBe(true);
   });
 
   test('"week" filter excludes match beyond 7 days', () => {
     const now = new Date(2026, 5, 11, 10, 0); // June 11, 2026
-    const match = createMatch({ date: '20/06/2026', time: '21:00' }); // June 20 (9 days later)
+    const match = createMatch({ date: '2026-06-20', time: '21:00' }); // June 20 (9 days later)
     expect(isMatchInTimeRange(match, 'week', now)).toBe(false);
   });
 
   test('"week" filter excludes past matches', () => {
     const now = new Date(2026, 5, 11, 10, 0); // June 11, 2026
-    const match = createMatch({ date: '10/06/2026', time: '21:00' }); // June 10 (yesterday)
+    const match = createMatch({ date: '2026-06-10', time: '21:00' }); // June 10 (yesterday)
     expect(isMatchInTimeRange(match, 'week', now)).toBe(false);
   });
 
@@ -79,7 +79,7 @@ describe('isMatchInTimeRange', () => {
     // Match at 03:00 on June 12 (North American evening match)
     // If user is checking on June 12, it should show as "today"
     const now = new Date(2026, 5, 12, 1, 0); // June 12, 2026, 01:00
-    const match = createMatch({ date: '12/06/2026', time: '03:00' });
+    const match = createMatch({ date: '2026-06-12', time: '03:00' });
     expect(isMatchInTimeRange(match, 'today', now)).toBe(true);
   });
 });
