@@ -24,12 +24,13 @@ export const PREDICTION_LOCK_OFFSET_MS = 2 * 60 * 60 * 1000; // 2 hours in milli
 // World Cup 2026 is June-July, so always UTC+2
 export const BELGIUM_TIMEZONE = 'Europe/Brussels';
 
-// First match kickoff - used to lock global predictions (winner, best_player, etc.)
+// First match kickoff - used for reference
 // Match 1: Mexique - Afrique du Sud, 11 juin 2026 à 21:00 (Europe/Brussels)
 export const FIRST_MATCH_KICKOFF = new Date('2026-06-11T21:00:00+02:00');
 
-// Global predictions lock 2 HOURS BEFORE first match kickoff
-export const GLOBAL_PREDICTIONS_LOCK = new Date(FIRST_MATCH_KICKOFF.getTime() - PREDICTION_LOCK_OFFSET_MS);
+// Global predictions (winner, best_player, best_young, surprise_team) lock on June 14 at 23:00 Brussels
+// This gives members more time to make their picks during the first days of the tournament
+export const GLOBAL_PREDICTIONS_LOCK = new Date('2026-06-14T23:00:00+02:00');
 
 export function getMatchById(matchId: number): Match | undefined {
   return matches.find(m => m.id === matchId);

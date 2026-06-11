@@ -25,9 +25,9 @@ describe('Match Timezone Handling', () => {
       expect(FIRST_MATCH_KICKOFF.toISOString()).toBe('2026-06-11T19:00:00.000Z');
     });
 
-    it('should be 2 hours before match 1 kickoff for global lock', () => {
-      // Global lock = kickoff - 2h = 19:00 UTC - 2h = 17:00 UTC
-      expect(GLOBAL_PREDICTIONS_LOCK.toISOString()).toBe('2026-06-11T17:00:00.000Z');
+    it('should lock global predictions on June 14 at 21:00 UTC (23:00 Brussels)', () => {
+      // 2026-06-14T23:00:00+02:00 = 2026-06-14T21:00:00Z
+      expect(GLOBAL_PREDICTIONS_LOCK.toISOString()).toBe('2026-06-14T21:00:00.000Z');
     });
   });
 
