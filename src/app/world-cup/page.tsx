@@ -842,16 +842,6 @@ export default function WorldCupPage() {
           </div>
 
           {/* Active filters summary */}
-          {/* Debug info - remove after fixing */}
-          {filters.time !== 'all' && (
-            <div className="mt-2 p-2 bg-red-900/50 rounded text-xs font-mono">
-              <div>Browser date: {new Date().toISOString()}</div>
-              <div>First match: 2026-06-11T21:00</div>
-              <div>Filter: {filters.time}</div>
-              <div>Matches found: {filteredMatches.length}</div>
-            </div>
-          )}
-
           {(filters.time !== 'all' || filters.myTeams || filters.toPredictOnly || filters.timeSlot !== 'all') && (
             <div className="flex items-center justify-between mt-2 text-sm">
               <span className="text-gray-400">
