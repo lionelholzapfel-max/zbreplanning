@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -39,6 +39,8 @@ export default function Navbar() {
   } = useSupabase();
   const [showMenu, setShowMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const notificationRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!loading && !currentUser && pathname !== '/login') {
@@ -57,9 +59,14 @@ export default function Navbar() {
 
   // Close dropdowns when clicking outside
   useEffect(() => {
-    const handleClickOutside = () => {
-      setShowMenu(false);
-      setShowNotifications(false);
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (notificationRef.current && !notificationRef.current.contains(target)) {
+        setShowNotifications(false);
+      }
+      if (menuRef.current && !menuRef.current.contains(target)) {
+        setShowMenu(false);
+      }
     };
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
@@ -126,7 +133,7 @@ export default function Navbar() {
           {/* Right side: Notifications + User Menu */}
           <div className="flex items-center gap-2">
             {/* Notification Bell */}
-            <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <div className="relative" ref={notificationRef}>
               <button
                 onClick={() => {
                   setShowNotifications(!showNotifications);
@@ -198,7 +205,7 @@ export default function Navbar() {
             </div>
 
             {/* User Menu */}
-            <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <div className="relative" ref={menuRef}>
               <button
                 onClick={() => {
                   setShowMenu(!showMenu);
