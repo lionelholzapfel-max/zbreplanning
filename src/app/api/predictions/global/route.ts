@@ -63,7 +63,10 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const user = await getSessionUser();
+    console.log('[GlobalPredictions] POST - User:', user?.id, user?.member_name);
+
     if (!user) {
+      console.log('[GlobalPredictions] POST - No user session');
       return NextResponse.json(
         { error: 'Non connecté' },
         { status: 401 }
@@ -72,6 +75,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { prediction_type, prediction_value } = body;
+    console.log('[GlobalPredictions] POST - Input:', { prediction_type, prediction_value });
 
     // Validate input
     if (!prediction_type || !prediction_value) {
@@ -100,49 +104,60 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseAdmin();
 
     // Check if prediction exists
-    const { data: existing } = await supabase
+    const { data: existing, error: selectError } = await supabase
       .from('predictions')
       .select('id')
       .eq('user_id', user.id)
       .eq('prediction_type', prediction_type)
       .single();
 
+    console.log('[GlobalPredictions] Existing check:', { existing, selectError: selectError?.message });
+
     if (existing) {
       // Update existing prediction
-      const { error: updateError } = await supabase
+      const { data: updated, error: updateError } = await supabase
         .from('predictions')
         .update({
           prediction_value,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', existing.id);
+        .eq('id', existing.id)
+        .select()
+        .single();
+
+      console.log('[GlobalPredictions] Update result:', { updated, updateError: updateError?.message });
 
       if (updateError) {
         console.error('[GlobalPredictions] Error updating prediction:', updateError);
         return NextResponse.json(
-          { error: 'Erreur lors de la mise à jour' },
+          { error: `Erreur mise à jour: ${updateError.message}` },
           { status: 500 }
         );
       }
     } else {
       // Create new prediction
-      const { error: insertError } = await supabase
+      const { data: inserted, error: insertError } = await supabase
         .from('predictions')
         .insert({
           user_id: user.id,
           prediction_type,
           prediction_value,
-        });
+        })
+        .select()
+        .single();
+
+      console.log('[GlobalPredictions] Insert result:', { inserted, insertError: insertError?.message });
 
       if (insertError) {
         console.error('[GlobalPredictions] Error creating prediction:', insertError);
         return NextResponse.json(
-          { error: 'Erreur lors de la création' },
+          { error: `Erreur création: ${insertError.message}` },
           { status: 500 }
         );
       }
     }
 
+    console.log('[GlobalPredictions] Success!');
     return NextResponse.json({
       success: true,
       prediction: {

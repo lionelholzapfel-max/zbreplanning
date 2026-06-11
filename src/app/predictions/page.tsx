@@ -242,6 +242,7 @@ export default function PredictionsPage() {
   const handleSelectPrediction = async (type: PredictionType, value: string) => {
     setSaving(true);
     try {
+      console.log('[Predictions] Saving:', { type, value });
       const res = await fetch('/api/predictions/global', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -249,9 +250,10 @@ export default function PredictionsPage() {
       });
 
       const data = await res.json();
+      console.log('[Predictions] Response:', { status: res.status, data });
 
       if (!res.ok) {
-        toast.error(data.error || 'Erreur lors de l\'enregistrement');
+        toast.error(data.error || `Erreur ${res.status}: ${JSON.stringify(data)}`);
         return;
       }
 
@@ -263,8 +265,8 @@ export default function PredictionsPage() {
       // Reload data to get updated counts
       await loadData();
     } catch (err) {
-      console.error('Error saving prediction:', err);
-      toast.error('Erreur de connexion');
+      console.error('[Predictions] Error saving:', err);
+      toast.error(`Erreur de connexion: ${err instanceof Error ? err.message : 'Unknown'}`);
     } finally {
       setSaving(false);
     }
