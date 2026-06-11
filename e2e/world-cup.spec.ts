@@ -6,8 +6,14 @@ import { testLocationName } from './test-constants';
 test.beforeEach(async ({ page }) => {
   await quickLogin(page, '1');
   await page.goto('/world-cup');
-  // Wait for world cup page to load - wait for filter buttons (use .first() for strict mode)
-  await expect(page.locator('button:has-text("Oui !")').first()).toBeVisible({ timeout: 10000 });
+
+  // Wait for page to load - first the header, then the match content
+  // This handles both fast and slow loading scenarios
+  await expect(page.locator('text=Coupe du Monde')).toBeVisible({ timeout: 30000 });
+
+  // Scroll down to ensure match cards are in viewport and wait for them
+  await page.evaluate(() => window.scrollTo(0, 500));
+  await expect(page.locator('button:has-text("Oui !")').first()).toBeVisible({ timeout: 15000 });
 });
 
 test.describe('World Cup Page', () => {
@@ -59,10 +65,14 @@ test.describe('World Cup Page', () => {
     // Type location
     const locationInput = page.locator('input[placeholder="Proposer un lieu..."]').first();
     await expect(locationInput).toBeVisible({ timeout: 5000 });
-    await locationInput.fill(testLocationName(Date.now().toString()));
+    const locationName = testLocationName(Date.now().toString());
+    await locationInput.fill(locationName);
 
     // Click propose button
     await page.locator('button:has-text("Proposer")').first().click();
+
+    // Wait for success toast to appear (indicates API completed)
+    await expect(page.locator('text=Lieu proposé !')).toBeVisible({ timeout: 10000 });
 
     // Input should be cleared after proposal
     await expect(locationInput).toHaveValue('', { timeout: 5000 });

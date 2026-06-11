@@ -299,7 +299,19 @@ export default function PredictionsPage() {
     return team?.flag || '⚽';
   };
 
-  if (loading || !currentUser) return null;
+  // Show loading spinner while validating session
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-[#6366f1] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">Chargement...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentUser) return null;
 
   return (
     <div className="min-h-screen bg-[#0a0a0f]">

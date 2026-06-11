@@ -5,7 +5,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Limit workers locally to avoid overwhelming the dev server
+  // CI uses 1 worker, local uses 2 (enough for speed without compilation issues)
+  workers: process.env.CI ? 1 : 2,
   reporter: 'html',
   timeout: 30000,
 
