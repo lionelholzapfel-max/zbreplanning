@@ -8,10 +8,13 @@ export interface LeaderboardEntry {
   member_name: string;
   member_slug: string;
   total_points: number;
+  match_points: number; // Points from match predictions
+  global_points: number; // Points from global predictions (+20 each)
   exact_scores: number;
   visionary_count: number;
   outsider_count: number;
   matches_predicted: number;
+  global_correct: number; // Number of correct global predictions (0-4)
   crown_count: number;
   is_drere_today: boolean;
   rank_change: number; // positive = up, negative = down, 0 = same
@@ -38,10 +41,23 @@ export async function GET() {
     const today = new Date().toISOString().split('T')[0];
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
-    // Get all points
+    // Get all match points
     const { data: pointsData } = await supabase
       .from('points_log')
       .select('user_id, total_points, base_points, visionary_bonus, outsider_bonus');
+
+    // Get global prediction points (+20 per correct)
+    let globalPointsData: Array<{ user_id: string; points_awarded: number }> = [];
+    try {
+      const { data, error } = await supabase
+        .from('global_prediction_points')
+        .select('user_id, points_awarded');
+      if (!error && data) {
+        globalPointsData = data;
+      }
+    } catch {
+      // Table might not exist yet - that's ok
+    }
 
     // Get crown counts
     const { data: crownsData } = await supabase
@@ -60,30 +76,42 @@ export async function GET() {
 
     // Calculate user stats
     const userStats: Record<string, {
-      total_points: number;
+      match_points: number;
+      global_points: number;
       exact_scores: number;
       visionary_count: number;
       outsider_count: number;
       matches_predicted: number;
+      global_correct: number;
     }> = {};
 
     for (const member of MEMBERS) {
       userStats[member.id] = {
-        total_points: 0,
+        match_points: 0,
+        global_points: 0,
         exact_scores: 0,
         visionary_count: 0,
         outsider_count: 0,
         matches_predicted: 0,
+        global_correct: 0,
       };
     }
 
+    // Add match points
     for (const p of pointsData || []) {
       if (!userStats[p.user_id]) continue;
-      userStats[p.user_id].total_points += p.total_points;
+      userStats[p.user_id].match_points += p.total_points;
       userStats[p.user_id].matches_predicted += 1;
       if (p.base_points === 3) userStats[p.user_id].exact_scores += 1;
       if (p.visionary_bonus === 1) userStats[p.user_id].visionary_count += 1;
       if (p.outsider_bonus === 1) userStats[p.user_id].outsider_count += 1;
+    }
+
+    // Add global prediction points
+    for (const g of globalPointsData) {
+      if (!userStats[g.user_id]) continue;
+      userStats[g.user_id].global_points += g.points_awarded;
+      userStats[g.user_id].global_correct += 1;
     }
 
     // Count crowns
@@ -93,20 +121,29 @@ export async function GET() {
     }
 
     // Build leaderboard
-    const entries: LeaderboardEntry[] = MEMBERS.map(member => ({
-      rank: 0,
-      user_id: member.id,
-      member_name: member.name,
-      member_slug: member.slug,
-      total_points: userStats[member.id]?.total_points || 0,
-      exact_scores: userStats[member.id]?.exact_scores || 0,
-      visionary_count: userStats[member.id]?.visionary_count || 0,
-      outsider_count: userStats[member.id]?.outsider_count || 0,
-      matches_predicted: userStats[member.id]?.matches_predicted || 0,
-      crown_count: crownCounts[member.id] || 0,
-      is_drere_today: todayDrereIds.has(member.id),
-      rank_change: 0, // TODO: Calculate from yesterday's ranking
-    }));
+    const entries: LeaderboardEntry[] = MEMBERS.map(member => {
+      const stats = userStats[member.id] || {
+        match_points: 0, global_points: 0, exact_scores: 0,
+        visionary_count: 0, outsider_count: 0, matches_predicted: 0, global_correct: 0
+      };
+      return {
+        rank: 0,
+        user_id: member.id,
+        member_name: member.name,
+        member_slug: member.slug,
+        total_points: stats.match_points + stats.global_points,
+        match_points: stats.match_points,
+        global_points: stats.global_points,
+        exact_scores: stats.exact_scores,
+        visionary_count: stats.visionary_count,
+        outsider_count: stats.outsider_count,
+        matches_predicted: stats.matches_predicted,
+        global_correct: stats.global_correct,
+        crown_count: crownCounts[member.id] || 0,
+        is_drere_today: todayDrereIds.has(member.id),
+        rank_change: 0, // TODO: Calculate from yesterday's ranking
+      };
+    });
 
     // Sort by points, then exact scores, then name
     entries.sort((a, b) => {

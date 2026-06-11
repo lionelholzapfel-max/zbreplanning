@@ -177,6 +177,73 @@ const PREDICTION_CATEGORIES: { type: PredictionType; title: string; emoji: strin
   { type: 'surprise_team', title: 'Équipe surprise', emoji: '🎯', description: 'Dark horse du tournoi' },
 ];
 
+// Community Stats Component
+function CommunityStats({ predictions }: { predictions: Prediction[] }) {
+  // Calculate most popular prediction for each category
+  const stats = PREDICTION_CATEGORIES.map(cat => {
+    const catPreds = predictions.filter(p => p.prediction_type === cat.type);
+    if (catPreds.length === 0) return null;
+
+    // Count occurrences
+    const counts: Record<string, number> = {};
+    catPreds.forEach(p => {
+      counts[p.prediction_value] = (counts[p.prediction_value] || 0) + 1;
+    });
+
+    // Find the most popular
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    if (sorted.length === 0) return null;
+
+    const [topValue, topCount] = sorted[0];
+    const totalPredictions = catPreds.length;
+
+    return {
+      type: cat.type,
+      emoji: cat.emoji,
+      title: cat.title,
+      topValue,
+      topCount,
+      total: totalPredictions,
+      percentage: Math.round((topCount / MEMBERS.length) * 100),
+    };
+  }).filter(Boolean);
+
+  if (stats.length === 0) return null;
+
+  // Get team flags for display
+  const getFlag = (name: string) => {
+    const team = TEAMS.find(t => t.name === name);
+    return team?.flag || '';
+  };
+
+  return (
+    <section className="max-w-7xl mx-auto px-4 py-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {stats.map(stat => stat && (
+          <div
+            key={stat.type}
+            className="p-4 rounded-xl bg-gradient-to-br from-[#1a472a]/30 to-[#12121a] border border-[#fbbf24]/20"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-2xl">{stat.emoji}</span>
+              <span className="text-xs text-gray-400">{stat.title}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {(stat.type === 'winner' || stat.type === 'surprise_team') && (
+                <span className="text-xl">{getFlag(stat.topValue)}</span>
+              )}
+              <span className="font-bold text-white truncate">{stat.topValue}</span>
+            </div>
+            <div className="text-xs text-[#fbbf24] mt-1">
+              {stat.topCount}/{MEMBERS.length} ({stat.percentage}%)
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function PredictionsPage() {
   const router = useRouter();
   const { currentUser, loading } = useSupabase();
@@ -325,6 +392,7 @@ export default function PredictionsPage() {
               <span className="text-5xl">🔮</span>
             </div>
             <p className="text-gray-400 text-lg">Qui va briller à la Coupe du Monde 2026 ?</p>
+            <p className="text-sm text-[#fbbf24] mt-2">💰 Chaque prono correct = +20 points</p>
 
             {/* Lock status banner */}
             {isLocked ? (
@@ -533,12 +601,17 @@ export default function PredictionsPage() {
         </div>
       </section>
 
+      {/* Community Stats */}
+      {allPredictions.length > 0 && (
+        <CommunityStats predictions={allPredictions} />
+      )}
+
       {/* All predictions summary - always visible */}
       {allPredictions.length > 0 && (
       <section className="max-w-7xl mx-auto px-4 py-8">
         <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
           <span>📊</span>
-          Récapitulatif de la team
+          Les pronos du groupe
         </h2>
 
         <div className="overflow-x-auto">

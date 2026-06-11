@@ -407,6 +407,168 @@ export default function AdminResultsPage() {
           <p className="text-gray-500">Revenez après le début du tournoi</p>
         </section>
       )}
+
+      {/* Tournament Results Section */}
+      <TournamentResultsSection />
     </div>
+  );
+}
+
+// Tournament Results Component
+function TournamentResultsSection() {
+  const [results, setResults] = useState<Record<string, string>>({});
+  const [editing, setEditing] = useState<string | null>(null);
+  const [inputValue, setInputValue] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const categories = [
+    { type: 'winner', title: 'Vainqueur', emoji: '🏆', description: 'Équipe championne du monde' },
+    { type: 'best_player', title: 'Meilleur joueur', emoji: '⭐', description: 'MVP du tournoi (Ballon d\'Or)' },
+    { type: 'best_young', title: 'Meilleur jeune', emoji: '🌟', description: 'Meilleur joueur U23' },
+    { type: 'surprise_team', title: 'Équipe surprise', emoji: '🎯', description: 'Dark horse officiel' },
+  ];
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch('/api/admin/tournament-results');
+        if (res.ok) {
+          const data = await res.json();
+          const map: Record<string, string> = {};
+          (data.results || []).forEach((r: { prediction_type: string; result_value: string }) => {
+            map[r.prediction_type] = r.result_value;
+          });
+          setResults(map);
+        }
+      } catch (err) {
+        console.error('Error loading tournament results:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  const handleSave = async (type: string) => {
+    if (!inputValue.trim()) return;
+
+    setSaving(true);
+    try {
+      const res = await fetch('/api/admin/tournament-results', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prediction_type: type, result_value: inputValue.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || 'Erreur');
+        return;
+      }
+
+      toast.success(
+        `${categories.find(c => c.type === type)?.title} enregistré ! ${data.winners?.length || 0} membre(s) ont gagné +20 pts`,
+        { icon: '🎉', duration: 5000 }
+      );
+
+      setResults(prev => ({ ...prev, [type]: inputValue.trim() }));
+      setEditing(null);
+      setInputValue('');
+    } catch (err) {
+      console.error('Error saving:', err);
+      toast.error('Erreur de connexion');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <section className="max-w-4xl mx-auto px-4 py-8">
+        <div className="animate-pulse text-center text-gray-500">Chargement...</div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="max-w-4xl mx-auto px-4 py-8">
+      <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+        <span>🏆</span>
+        Résultats du tournoi
+        <span className="text-sm font-normal text-gray-400">(+20 pts par prono correct)</span>
+      </h2>
+
+      <div className="grid gap-4">
+        {categories.map(cat => {
+          const value = results[cat.type];
+          const isEditing = editing === cat.type;
+
+          return (
+            <div
+              key={cat.type}
+              className="p-4 rounded-xl border border-white/10 bg-[#1e1e2e] flex items-center gap-4"
+            >
+              <span className="text-3xl">{cat.emoji}</span>
+
+              <div className="flex-1">
+                <h3 className="font-bold text-white">{cat.title}</h3>
+                <p className="text-xs text-gray-500">{cat.description}</p>
+              </div>
+
+              {isEditing ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    placeholder={value || 'Entrer le résultat...'}
+                    className="px-3 py-2 bg-black/30 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-[#fbbf24]"
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => handleSave(cat.type)}
+                    disabled={saving || !inputValue.trim()}
+                    className="px-3 py-2 bg-[#22c55e] hover:bg-[#16a34a] text-white rounded-lg font-medium disabled:opacity-50"
+                  >
+                    {saving ? '...' : '✓'}
+                  </button>
+                  <button
+                    onClick={() => { setEditing(null); setInputValue(''); }}
+                    className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : value ? (
+                <div className="flex items-center gap-3">
+                  <span className="px-3 py-1.5 bg-[#22c55e]/20 border border-[#22c55e]/30 rounded-lg text-[#22c55e] font-medium">
+                    {value}
+                  </span>
+                  <button
+                    onClick={() => { setEditing(cat.type); setInputValue(value); }}
+                    className="text-gray-400 hover:text-white"
+                  >
+                    ✏️
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setEditing(cat.type)}
+                  className="px-4 py-2 bg-[#fbbf24]/20 hover:bg-[#fbbf24]/30 border border-[#fbbf24]/30 rounded-lg text-[#fbbf24] text-sm"
+                >
+                  + Entrer
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="mt-4 text-xs text-gray-500 text-center">
+        💡 À chaque saisie, les membres ayant pronostiqué correctement reçoivent automatiquement +20 points
+      </p>
+    </section>
   );
 }
