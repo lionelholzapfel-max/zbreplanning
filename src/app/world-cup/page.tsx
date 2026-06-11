@@ -1088,6 +1088,14 @@ export default function WorldCupPage() {
                             Saisis le score que tu prédis !
                           </p>
                         )}
+
+                        {/* Hint about when predictions are revealed */}
+                        {!isLocked && !hasResult && (
+                          <p className="text-center text-xs text-gray-500 mt-2 flex items-center justify-center gap-1">
+                            <span>🙈</span>
+                            <span>Pronos des autres révélés 2h avant le match</span>
+                          </p>
+                        )}
                       </div>
 
                       {/* Auvio Button - visible 30min before to 2h30 after kickoff */}
@@ -1342,17 +1350,22 @@ export default function WorldCupPage() {
                                       )}
                                     </div>
                                   </div>
-                                  <button
-                                    onClick={() => handleVoteLocation(loc.id, match.id, loc.votes || [])}
-                                    className={`px-4 py-2 rounded-xl font-bold transition-all flex items-center gap-2 ${
-                                      hasVoted
-                                        ? 'bg-[#fbbf24] text-black'
-                                        : 'bg-[#fbbf24]/20 text-[#fbbf24] hover:bg-[#fbbf24]/30 border border-[#fbbf24]/30'
-                                    }`}
-                                  >
-                                    <span>{hasVoted ? '✓' : '👍'}</span>
-                                    <span>{loc.votes?.length || 0}</span>
-                                  </button>
+                                  <div className="flex items-center gap-2">
+                                    {hasVoted && (
+                                      <span className="text-xs text-[#fbbf24] font-medium">Tu as voté</span>
+                                    )}
+                                    <button
+                                      onClick={() => handleVoteLocation(loc.id, match.id, loc.votes || [])}
+                                      className={`px-4 py-2 rounded-xl font-bold transition-all flex items-center gap-2 ${
+                                        hasVoted
+                                          ? 'bg-[#fbbf24] text-black'
+                                          : 'bg-[#fbbf24]/20 text-[#fbbf24] hover:bg-[#fbbf24]/30 border border-[#fbbf24]/30'
+                                      }`}
+                                    >
+                                      <span>{hasVoted ? '✓' : '👍'}</span>
+                                      <span>{loc.votes?.length || 0}</span>
+                                    </button>
+                                  </div>
                                 </div>
                                 {voters.length > 0 && (
                                   <div className="flex items-center gap-2 pt-2 border-t border-white/5">
