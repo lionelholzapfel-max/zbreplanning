@@ -14,39 +14,43 @@ const PROD_SUPABASE_URLS = [
 
 export default async function globalSetup(config: FullConfig) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const isCI = !!process.env.CI;
+  const isLocalDev = !isCI && config.webServer?.command?.includes('npm run dev');
 
   // Check if this is a production Supabase instance
   const isProdSupabase = PROD_SUPABASE_URLS.some(prodUrl =>
     supabaseUrl.includes(prodUrl)
   );
 
-  if (isProdSupabase && process.env.ALLOW_PROD_TESTS !== '1') {
+  // In CI with production Supabase: BLOCK unless explicitly allowed
+  // In local dev: WARN but allow (developer knows what they're doing)
+  if (isProdSupabase && isCI && process.env.ALLOW_PROD_TESTS !== '1') {
     console.error('\n');
     console.error('╔══════════════════════════════════════════════════════════════╗');
-    console.error('║  🚫 TESTS BLOCKED: Production Supabase Detected!             ║');
+    console.error('║  🚫 CI TESTS BLOCKED: Production Supabase Detected!          ║');
     console.error('╠══════════════════════════════════════════════════════════════╣');
     console.error('║                                                              ║');
-    console.error('║  The Supabase URL points to PRODUCTION database.             ║');
-    console.error('║  Running tests would pollute production data.                ║');
+    console.error('║  CI is attempting to run tests against PRODUCTION database.  ║');
+    console.error('║  This would pollute production data.                         ║');
     console.error('║                                                              ║');
     console.error('║  Options:                                                    ║');
-    console.error('║  1. Use a local Supabase instance for testing                ║');
-    console.error('║  2. Create a separate test project in Supabase               ║');
-    console.error('║  3. Set ALLOW_PROD_TESTS=1 if you really need this           ║');
+    console.error('║  1. Use a separate test Supabase project for CI              ║');
+    console.error('║  2. Set ALLOW_PROD_TESTS=1 in CI env (not recommended)       ║');
     console.error('║                                                              ║');
     console.error('╚══════════════════════════════════════════════════════════════╝');
     console.error('\n');
 
     throw new Error(
-      'E2E tests refused to run against production Supabase. ' +
-      'Set ALLOW_PROD_TESTS=1 to override (not recommended).'
+      'CI tests refused to run against production Supabase. ' +
+      'Configure a test Supabase project or set ALLOW_PROD_TESTS=1.'
     );
   }
 
-  if (isProdSupabase && process.env.ALLOW_PROD_TESTS === '1') {
+  if (isProdSupabase && isLocalDev) {
     console.warn('\n');
-    console.warn('⚠️  WARNING: Running tests against PRODUCTION Supabase!');
-    console.warn('    Test data will be prefixed with [E2E-TEST] for cleanup.');
+    console.warn('⚠️  Local dev testing against PRODUCTION Supabase');
+    console.warn('   Test data will be prefixed with [E2E-TEST] for easy cleanup.');
+    console.warn('   Run supabase-cleanup-test-data.sql periodically to clean up.');
     console.warn('\n');
   }
 

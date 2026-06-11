@@ -23,7 +23,7 @@ const MEMBERS = [
  * This ensures cookies are properly set in the browser context
  */
 export async function quickLogin(page: Page, memberId: string = '1') {
-  // Go to login page
+  // Go to login page first to establish browser context
   await page.goto('/login');
 
   // Wait for login page to be ready - look for member avatars

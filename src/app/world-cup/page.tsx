@@ -656,8 +656,8 @@ export default function WorldCupPage() {
         )}
       </section>
 
-      {/* Sticky Filter Bar */}
-      <section className="sticky top-0 z-40 bg-[#0a0a0f]/95 backdrop-blur-sm border-b border-white/10 py-3 px-4">
+      {/* Sticky Filter Bar - positioned below navbar */}
+      <section className="sticky top-[7.5rem] md:top-16 z-30 bg-[#0a0a0f] border-b border-white/10 py-3 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             {/* Time filters */}
