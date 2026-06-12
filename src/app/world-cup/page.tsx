@@ -10,6 +10,7 @@ import { MEMBERS } from '@/data/members';
 import { toast } from 'sonner';
 import confetti from 'canvas-confetti';
 import { TeamInfoButton } from '@/components/TeamFactsSheet';
+import { PHASES, PHASE_DISPLAY, PHASE_ORDER, GROUPS, isKnockoutPhase, getPhaseBadge, Phase } from '@/lib/constants';
 
 // Filter types
 type TimeFilter = 'all' | 'today' | 'week';
@@ -53,15 +54,14 @@ interface MatchPredictionState {
   totalPredictions: number;
 }
 
-const phases = [
-  { id: 'PHASE DE GROUPES', label: 'Groupes', icon: '🏟️' },
-  { id: 'HUITIÈMES DE FINALE', label: '8e', icon: '⚔️' },
-  { id: 'QUARTS DE FINALE', label: 'Quarts', icon: '🔥' },
-  { id: 'DEMI-FINALES', label: 'Demis', icon: '⭐' },
-  { id: 'FINALE', label: 'Finale', icon: '🏆' },
-];
+// Use shared phase constants - builds array from PHASE_ORDER
+const phases = PHASE_ORDER.map(phase => ({
+  id: phase,
+  label: PHASE_DISPLAY[phase].shortLabel,
+  icon: PHASE_DISPLAY[phase].icon,
+}));
 
-const groups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+const groups = [...GROUPS];
 
 const getFlag = (country: string): string => {
   const flags: Record<string, string> = {
@@ -252,13 +252,8 @@ export default function WorldCupPage() {
     const now = new Date();
 
     let result = (matches as Match[]).filter(m => {
-      // Phase filter
-      const phaseMatch = m.phase.includes(selectedPhase) ||
-        (selectedPhase === 'PHASE DE GROUPES' && m.phase === 'PHASE DE GROUPES') ||
-        (selectedPhase === 'HUITIÈMES DE FINALE' && (m.phase.includes('HUITIÈME') || m.phase.includes('8E'))) ||
-        (selectedPhase === 'QUARTS DE FINALE' && m.phase.includes('QUART')) ||
-        (selectedPhase === 'DEMI-FINALES' && m.phase.includes('DEMI')) ||
-        (selectedPhase === 'FINALE' && m.phase === 'FINALE');
+      // Phase filter - exact match only (phases are unique values from constants)
+      const phaseMatch = m.phase === selectedPhase;
 
       const groupMatch = !selectedGroup || m.group === `GROUPE ${selectedGroup}`;
 
@@ -930,8 +925,18 @@ export default function WorldCupPage() {
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-3 flex-wrap">
-                        {match.group && (
+                        {match.group ? (
                           <span className="px-3 py-1 bg-[#fbbf24]/20 text-[#fbbf24] rounded-lg text-xs font-bold">{match.group}</span>
+                        ) : (
+                          // Show phase badge for knockout matches
+                          (() => {
+                            const badge = getPhaseBadge(match.phase);
+                            return badge ? (
+                              <span className={`px-3 py-1 rounded-lg text-xs font-bold ${badge.color}`}>
+                                {badge.label}
+                              </span>
+                            ) : null;
+                          })()
                         )}
                         <span className="px-3 py-1 bg-white/10 text-white/70 rounded-lg text-xs">Match #{match.id}</span>
                         {predState?.totalPredictions > 0 && (

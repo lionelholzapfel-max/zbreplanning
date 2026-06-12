@@ -3,12 +3,14 @@ import { getSupabaseAdmin } from '@/lib/auth/session';
 import { getMatchById, parseMatchTeams } from '@/lib/matches';
 import { calculateMatchPoints, Prediction, MatchResult, PointsBreakdown } from '@/lib/scoring';
 import { MEMBERS } from '@/data/members';
+import { isKnockoutPhase } from '@/lib/constants';
 import {
   fetchWorldCupMatches,
   findOurMatchId,
   getFinalScore,
   testApiConnection,
   ApiMatch,
+  MatchScore,
 } from '@/lib/football-api';
 import matches from '@/data/matches.json';
 
@@ -24,8 +26,10 @@ function verifyCronSecret(request: NextRequest): boolean {
 interface SyncResult {
   matchId: number;
   matchName: string;
-  homeScore: number;
-  awayScore: number;
+  homeScore90: number;
+  awayScore90: number;
+  qualifier?: 'home' | 'away';
+  hadExtraTime: boolean;
   source: 'auto';
   pointsCalculated: number;
 }
@@ -134,7 +138,7 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Get final score
+      // Get final score (includes 90min score and qualifier for knockout)
       const score = getFinalScore(apiMatch);
       if (!score) {
         response.errors.push(`Match ${ourMatchId}: Could not get final score`);
@@ -143,20 +147,25 @@ export async function POST(request: NextRequest) {
 
       // Record the result using the same logic as admin entry
       try {
+        const match = getMatchById(ourMatchId);
+        const isKnockout = match ? isKnockoutPhase(match.phase) : false;
+
         await recordMatchResult(
           supabase,
           ourMatchId,
-          score.home,
-          score.away,
-          'auto'
+          score.home90,
+          score.away90,
+          'auto',
+          isKnockout ? score.qualifier : undefined
         );
 
-        const match = getMatchById(ourMatchId);
         response.newResultsSynced.push({
           matchId: ourMatchId,
           matchName: match?.match || `Match #${ourMatchId}`,
-          homeScore: score.home,
-          awayScore: score.away,
+          homeScore90: score.home90,
+          awayScore90: score.away90,
+          qualifier: isKnockout ? score.qualifier : undefined,
+          hadExtraTime: score.hadExtraTime,
           source: 'auto',
           pointsCalculated: MEMBERS.length,
         });
@@ -195,13 +204,15 @@ export async function POST(request: NextRequest) {
 /**
  * Record a match result and calculate points
  * Same logic as admin entry but with source tracking
+ * @param qualifier - For knockout matches: 'home' or 'away' indicating who advanced
  */
 async function recordMatchResult(
   supabase: ReturnType<typeof getSupabaseAdmin>,
   matchId: number,
   homeScore: number,
   awayScore: number,
-  source: 'auto' | 'admin'
+  source: 'auto' | 'admin',
+  qualifier?: 'home' | 'away'
 ) {
   const match = getMatchById(matchId);
   if (!match) {
@@ -209,14 +220,19 @@ async function recordMatchResult(
   }
 
   const teams = parseMatchTeams(match.match);
+  const isKnockout = isKnockoutPhase(match.phase);
 
   // Insert result with source tracking
+  // For knockout: store 90min score + qualifier
   const { error: insertError } = await supabase
     .from('match_results')
     .insert({
       match_id: matchId,
       home_score: homeScore,
       away_score: awayScore,
+      home_score_90min: homeScore,  // For knockout, this is the 90min score
+      away_score_90min: awayScore,
+      qualifier: isKnockout ? qualifier : null,
       source,
       entered_at: new Date().toISOString(),
     });
@@ -225,17 +241,27 @@ async function recordMatchResult(
     throw new Error(`DB insert error: ${insertError.message}`);
   }
 
-  // Get all predictions for this match
+  // Get all predictions for this match (including qualifier_pick for knockout)
   const { data: predictionsData } = await supabase
     .from('match_score_predictions')
-    .select('user_id, home_score, away_score')
+    .select('user_id, home_score, away_score, qualifier_pick')
     .eq('match_id', matchId);
 
-  const predictions: Prediction[] = predictionsData || [];
-  const result: MatchResult = { home_score: homeScore, away_score: awayScore };
+  const predictions: Prediction[] = (predictionsData || []).map(p => ({
+    user_id: p.user_id,
+    home_score: p.home_score,
+    away_score: p.away_score,
+    qualifier_pick: p.qualifier_pick as 'home' | 'away' | undefined,
+  }));
 
-  // Calculate points for all predictions
-  const pointsMap = calculateMatchPoints(predictions, result, teams.home, teams.away);
+  const result: MatchResult = {
+    home_score: homeScore,
+    away_score: awayScore,
+    qualifier: isKnockout ? qualifier : undefined,
+  };
+
+  // Calculate points for all predictions (with knockout flag)
+  const pointsMap = calculateMatchPoints(predictions, result, teams.home, teams.away, isKnockout);
 
   // Delete existing points log for this match (safety)
   await supabase
@@ -249,6 +275,7 @@ async function recordMatchResult(
     match_id: number;
     base_points: number;
     visionary_bonus: number;
+    qualifier_bonus: number;
     total_points: number;
     detail: string;
   }> = [];
@@ -259,6 +286,7 @@ async function recordMatchResult(
       match_id: matchId,
       base_points: breakdown.base,
       visionary_bonus: breakdown.visionary,
+      qualifier_bonus: breakdown.qualifier,
       total_points: breakdown.total,
       detail: breakdown.detail,
     });

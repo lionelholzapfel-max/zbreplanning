@@ -77,7 +77,7 @@ describe('Football API Integration', () => {
   });
 
   describe('getFinalScore', () => {
-    it('returns score for FINISHED match', () => {
+    it('returns score for FINISHED group stage match', () => {
       const apiMatch: ApiMatch = {
         id: 1,
         utcDate: '2026-06-11T19:00:00Z',
@@ -96,7 +96,12 @@ describe('Football API Integration', () => {
       };
 
       const score = getFinalScore(apiMatch);
-      expect(score).toEqual({ home: 2, away: 1 });
+      expect(score).not.toBeNull();
+      expect(score?.home90).toBe(2);
+      expect(score?.away90).toBe(1);
+      expect(score?.qualifier).toBe('home');
+      expect(score?.hadExtraTime).toBe(false);
+      expect(score?.hadPenalties).toBe(false);
     });
 
     it('returns null for non-FINISHED match', () => {
@@ -119,6 +124,63 @@ describe('Football API Integration', () => {
 
       const score = getFinalScore(apiMatch);
       expect(score).toBeNull();
+    });
+
+    it('extracts 90min score from extra time match', () => {
+      const apiMatch: ApiMatch = {
+        id: 1,
+        utcDate: '2026-07-10T19:00:00Z',
+        status: 'FINISHED',
+        matchday: 6,
+        stage: 'QUARTER_FINALS',
+        group: null,
+        homeTeam: { id: 1, name: 'France', shortName: 'France', tla: 'FRA' },
+        awayTeam: { id: 2, name: 'Germany', shortName: 'Germany', tla: 'GER' },
+        score: {
+          winner: 'HOME_TEAM',
+          duration: 'EXTRA_TIME',
+          fullTime: { home: 3, away: 2 },  // Final score after extra time
+          halfTime: { home: 1, away: 1 },
+          extraTime: { home: 1, away: 0 }, // Goals scored in extra time
+        },
+      };
+
+      const score = getFinalScore(apiMatch);
+      expect(score?.home90).toBe(2);  // 3 - 1 = 2
+      expect(score?.away90).toBe(2);  // 2 - 0 = 2
+      expect(score?.homeFinal).toBe(3);
+      expect(score?.awayFinal).toBe(2);
+      expect(score?.qualifier).toBe('home');
+      expect(score?.hadExtraTime).toBe(true);
+      expect(score?.hadPenalties).toBe(false);
+    });
+
+    it('handles penalty shootout match', () => {
+      const apiMatch: ApiMatch = {
+        id: 1,
+        utcDate: '2026-07-12T19:00:00Z',
+        status: 'FINISHED',
+        matchday: 7,
+        stage: 'SEMI_FINALS',
+        group: null,
+        homeTeam: { id: 1, name: 'Brazil', shortName: 'Brazil', tla: 'BRA' },
+        awayTeam: { id: 2, name: 'Argentina', shortName: 'Argentina', tla: 'ARG' },
+        score: {
+          winner: 'AWAY_TEAM',  // Argentina wins
+          duration: 'PENALTY_SHOOTOUT',
+          fullTime: { home: 2, away: 2 },   // 2-2 after extra time
+          halfTime: { home: 1, away: 1 },
+          extraTime: { home: 1, away: 1 },  // 1-1 in extra time
+          penalties: { home: 3, away: 5 },  // Argentina wins shootout
+        },
+      };
+
+      const score = getFinalScore(apiMatch);
+      expect(score?.home90).toBe(1);  // 2 - 1 = 1 (90min score)
+      expect(score?.away90).toBe(1);  // 2 - 1 = 1
+      expect(score?.qualifier).toBe('away');  // Argentina
+      expect(score?.hadExtraTime).toBe(true);
+      expect(score?.hadPenalties).toBe(true);
     });
   });
 

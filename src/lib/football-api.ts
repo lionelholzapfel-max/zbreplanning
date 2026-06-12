@@ -278,18 +278,70 @@ export function findOurMatchId(
 }
 
 /**
- * Get final score from API match (handles extra time and penalties)
+ * Score result for a match
  */
-export function getFinalScore(apiMatch: ApiMatch): { home: number; away: number } | null {
+export interface MatchScore {
+  home90: number;        // Score at 90 minutes
+  away90: number;        // Score at 90 minutes
+  homeFinal: number;     // Final score (including extra time)
+  awayFinal: number;     // Final score (including extra time)
+  qualifier?: 'home' | 'away';  // Who qualified (knockout only)
+  hadExtraTime: boolean;
+  hadPenalties: boolean;
+}
+
+/**
+ * Get match score from API match (handles extra time and penalties)
+ * Returns 90-minute score for predictions + qualifier for knockout
+ */
+export function getFinalScore(apiMatch: ApiMatch): MatchScore | null {
   if (apiMatch.status !== 'FINISHED') return null;
 
   const ft = apiMatch.score.fullTime;
   if (ft.home === null || ft.away === null) return null;
 
-  // For knockout matches with extra time or penalties,
-  // use the final score (which includes extra time goals)
-  // Penalty shootout doesn't add to the score
-  return { home: ft.home, away: ft.away };
+  const duration = apiMatch.score.duration;
+  const hadExtraTime = duration === 'EXTRA_TIME' || duration === 'PENALTY_SHOOTOUT';
+  const hadPenalties = duration === 'PENALTY_SHOOTOUT';
+
+  // Calculate 90-minute score
+  let home90 = ft.home;
+  let away90 = ft.away;
+
+  if (hadExtraTime && apiMatch.score.extraTime) {
+    const et = apiMatch.score.extraTime;
+    if (et.home !== null && et.away !== null) {
+      // Subtract extra time goals to get 90-minute score
+      home90 = ft.home - et.home;
+      away90 = ft.away - et.away;
+    }
+  }
+
+  // Determine qualifier for knockout matches
+  let qualifier: 'home' | 'away' | undefined;
+
+  if (apiMatch.score.winner === 'HOME_TEAM') {
+    qualifier = 'home';
+  } else if (apiMatch.score.winner === 'AWAY_TEAM') {
+    qualifier = 'away';
+  } else if (hadPenalties && apiMatch.score.penalties) {
+    // In penalty shootout, winner from penalties
+    const pens = apiMatch.score.penalties;
+    if (pens.home !== null && pens.away !== null) {
+      qualifier = pens.home > pens.away ? 'home' : 'away';
+    }
+  }
+  // Note: If score.winner is 'DRAW' and no penalties, it's a group stage match
+
+  return {
+    home90,
+    away90,
+    homeFinal: ft.home,
+    awayFinal: ft.away,
+    qualifier,
+    hadExtraTime,
+    hadPenalties,
+  };
 }
 
 /**
