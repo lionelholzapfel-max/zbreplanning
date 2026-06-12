@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser, getSupabaseAdmin } from '@/lib/auth/session';
 import { getMatchById, hasMatchStarted, isPredictionLocked, parseMatchTeams, getTimeUntilLock } from '@/lib/matches';
 import { MEMBERS } from '@/data/members';
-import { isKnockoutPhase } from '@/lib/constants';
 
 // GET /api/predictions/score?match_id=X
 // SECURITY: Scores are hidden until lock time (2h before kickoff)
@@ -82,11 +81,11 @@ export async function GET(request: NextRequest) {
         .single();
 
       // Get points if result exists
-      let pointsMap: Record<string, { total: number; base: number; visionary: number; qualifier: number; detail: string }> = {};
+      let pointsMap: Record<string, { total: number; base: number; visionary: number; detail: string }> = {};
       if (result) {
         const { data: pointsData } = await supabase
           .from('points_log')
-          .select('user_id, total_points, base_points, visionary_bonus, qualifier_bonus, detail')
+          .select('user_id, total_points, base_points, visionary_bonus, detail')
           .eq('match_id', matchId);
 
         if (pointsData) {
@@ -95,14 +94,11 @@ export async function GET(request: NextRequest) {
               total: p.total_points,
               base: p.base_points,
               visionary: p.visionary_bonus,
-              qualifier: p.qualifier_bonus || 0,
               detail: p.detail || '',
             };
           });
         }
       }
-
-      const isKnockout = isKnockoutPhase(match.phase);
 
       // Enrich predictions with member info and points
       publicPredictions = (predictions || []).map(p => {
@@ -111,7 +107,6 @@ export async function GET(request: NextRequest) {
           user_id: p.user_id,
           home_score: p.home_score,
           away_score: p.away_score,
-          qualifier_pick: isKnockout ? p.qualifier_pick : undefined,
           user: member ? { member_name: member.name, member_slug: member.slug } : null,
           points: pointsMap[p.user_id] || null,
         };
@@ -124,7 +119,6 @@ export async function GET(request: NextRequest) {
           date: match.dateDisplay,
           time: match.time,
           phase: match.phase,
-          isKnockout,
         },
         matchStarted,
         predictionLocked,
@@ -135,19 +129,13 @@ export async function GET(request: NextRequest) {
           ? {
               home_score: myPredictionRaw.home_score,
               away_score: myPredictionRaw.away_score,
-              qualifier_pick: isKnockout ? myPredictionRaw.qualifier_pick : undefined,
             }
           : null,
-        result: result ? {
-          ...result,
-          qualifier: isKnockout ? result.qualifier : undefined,
-        } : null,
+        result: result || null,
       });
     } else {
       // BEFORE LOCK: Only return who predicted (user_id + avatar info), NOT their scores
       // Exception: Current user sees their own score
-      const isKnockout = isKnockoutPhase(match.phase);
-
       publicPredictions = (predictions || []).map(p => {
         const member = MEMBERS.find(m => m.id === p.user_id);
         return {
@@ -164,7 +152,6 @@ export async function GET(request: NextRequest) {
           date: match.dateDisplay,
           time: match.time,
           phase: match.phase,
-          isKnockout,
         },
         matchStarted,
         predictionLocked,
@@ -175,7 +162,6 @@ export async function GET(request: NextRequest) {
           ? {
               home_score: myPredictionRaw.home_score,
               away_score: myPredictionRaw.away_score,
-              qualifier_pick: isKnockout ? myPredictionRaw.qualifier_pick : undefined,
             }
           : null,
         result: null, // No result before lock anyway
@@ -203,7 +189,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { match_id, home_score, away_score, qualifier_pick } = body;
+    const { match_id, home_score, away_score } = body;
 
     // Validate input
     if (match_id === undefined || home_score === undefined || away_score === undefined) {
@@ -231,31 +217,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate qualifier_pick for knockout matches
-    if (qualifier_pick !== undefined && qualifier_pick !== null &&
-        qualifier_pick !== 'home' && qualifier_pick !== 'away') {
-      return NextResponse.json(
-        { error: 'qualifier_pick invalide (home ou away)' },
-        { status: 400 }
-      );
-    }
-
     // Check if match exists
     const match = getMatchById(matchId);
     if (!match) {
       return NextResponse.json(
         { error: 'Match non trouvé' },
         { status: 404 }
-      );
-    }
-
-    const isKnockout = isKnockoutPhase(match.phase);
-
-    // For knockout matches, qualifier_pick is required
-    if (isKnockout && !qualifier_pick) {
-      return NextResponse.json(
-        { error: 'Choix du qualifié requis pour les matchs à élimination directe' },
-        { status: 400 }
       );
     }
 
@@ -285,7 +252,6 @@ export async function POST(request: NextRequest) {
         .update({
           home_score: homeScore,
           away_score: awayScore,
-          qualifier_pick: isKnockout ? qualifier_pick : null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', existing.id);
@@ -306,7 +272,6 @@ export async function POST(request: NextRequest) {
           match_id: matchId,
           home_score: homeScore,
           away_score: awayScore,
-          qualifier_pick: isKnockout ? qualifier_pick : null,
         });
 
       if (insertError) {
@@ -326,7 +291,6 @@ export async function POST(request: NextRequest) {
         match_id: matchId,
         home_score: homeScore,
         away_score: awayScore,
-        qualifier_pick: isKnockout ? qualifier_pick : undefined,
         match: `${teams.home} ${homeScore} - ${awayScore} ${teams.away}`,
       },
     });

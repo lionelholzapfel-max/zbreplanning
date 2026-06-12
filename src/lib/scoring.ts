@@ -15,19 +15,16 @@ export interface Prediction {
   user_id: string;
   home_score: number;
   away_score: number;
-  qualifier_pick?: 'home' | 'away' | null;  // For knockout matches
 }
 
 export interface MatchResult {
-  home_score: number;       // 90-minute score (or final for group stage)
-  away_score: number;       // 90-minute score (or final for group stage)
-  qualifier?: 'home' | 'away' | null;  // Who advanced (knockout only)
+  home_score: number;       // Final score (includes extra time for knockout)
+  away_score: number;       // Final score (includes extra time for knockout)
 }
 
 export interface PointsBreakdown {
   base: number;          // 0, 1, 2, or 3
   visionary: number;     // 0 or 1 (solo exact score)
-  qualifier: number;     // 0 or 1 (correct qualifier for knockout)
   total: number;
   detail: string;        // Human-readable explanation
 }
@@ -121,34 +118,19 @@ export function hasVisionaryBonus(
 }
 
 /**
- * Check if qualifier prediction is correct (knockout only)
- */
-export function hasCorrectQualifier(
-  prediction: Prediction,
-  result: MatchResult
-): boolean {
-  if (!result.qualifier || !prediction.qualifier_pick) {
-    return false;
-  }
-  return prediction.qualifier_pick === result.qualifier;
-}
-
-/**
  * Calculate full points breakdown for a prediction
- * @param isKnockout - Whether this is a knockout match (for qualifier bonus)
+ * Same scoring for group stage and knockout matches
  */
 export function calculatePoints(
   prediction: Prediction,
   result: MatchResult,
   allPredictions: Prediction[],
   homeTeam: string,
-  awayTeam: string,
-  isKnockout: boolean = false
+  awayTeam: string
 ): PointsBreakdown {
   const base = calculateBasePoints(prediction, result);
   const visionary = hasVisionaryBonus(prediction, result, allPredictions) ? 1 : 0;
-  const qualifier = isKnockout && hasCorrectQualifier(prediction, result) ? 1 : 0;
-  const total = base + visionary + qualifier;
+  const total = base + visionary;
 
   // Build detail string
   const details: string[] = [];
@@ -167,16 +149,9 @@ export function calculatePoints(
     details.push('Visionnaire (+1)');
   }
 
-  if (qualifier) {
-    details.push('Bon qualifié (+1)');
-  } else if (isKnockout && prediction.qualifier_pick && !hasCorrectQualifier(prediction, result)) {
-    details.push('Mauvais qualifié');
-  }
-
   return {
     base,
     visionary,
-    qualifier,
     total,
     detail: details.join(', '),
   };
@@ -184,19 +159,17 @@ export function calculatePoints(
 
 /**
  * Calculate points for all predictions of a match
- * @param isKnockout - Whether this is a knockout match (for qualifier bonus)
  */
 export function calculateMatchPoints(
   predictions: Prediction[],
   result: MatchResult,
   homeTeam: string,
-  awayTeam: string,
-  isKnockout: boolean = false
+  awayTeam: string
 ): Map<string, PointsBreakdown> {
   const results = new Map<string, PointsBreakdown>();
 
   for (const prediction of predictions) {
-    const points = calculatePoints(prediction, result, predictions, homeTeam, awayTeam, isKnockout);
+    const points = calculatePoints(prediction, result, predictions, homeTeam, awayTeam);
     results.set(prediction.user_id, points);
   }
 
