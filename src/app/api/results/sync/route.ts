@@ -216,6 +216,7 @@ async function recordMatchResult(
   const teams = parseMatchTeams(match.match);
 
   // Insert result with source tracking
+  // entered_by: 'system' for auto-sync (not a real user)
   const { error: insertError } = await supabase
     .from('match_results')
     .insert({
@@ -223,6 +224,7 @@ async function recordMatchResult(
       home_score: homeScore,
       away_score: awayScore,
       source,
+      entered_by: 'system',
       entered_at: new Date().toISOString(),
     });
 
