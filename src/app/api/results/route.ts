@@ -219,7 +219,6 @@ export async function POST(request: NextRequest) {
       match_id: number;
       base_points: number;
       visionary_bonus: number;
-      outsider_bonus: number;
       total_points: number;
       detail: string;
     }> = [];
@@ -232,7 +231,6 @@ export async function POST(request: NextRequest) {
         match_id: matchId,
         base_points: breakdown.base,
         visionary_bonus: breakdown.visionary,
-        outsider_bonus: breakdown.outsider,
         total_points: breakdown.total,
         detail: breakdown.detail,
       });

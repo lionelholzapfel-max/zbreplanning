@@ -12,7 +12,6 @@ import {
   isExactScore,
   calculateBasePoints,
   hasVisionaryBonus,
-  hasOutsiderBonus,
   calculatePoints,
   calculateMatchPoints,
   type Prediction,
@@ -198,7 +197,6 @@ describe('Scoring Engine', () => {
 
       expect(breakdown.base).toBe(3);      // exact score
       expect(breakdown.visionary).toBe(1); // only one exact
-      expect(breakdown.outsider).toBe(0);  // France not outsider
       expect(breakdown.total).toBe(4);
       expect(breakdown.detail).toContain('Score exact');
       expect(breakdown.detail).toContain('Visionnaire');
@@ -213,60 +211,7 @@ describe('Scoring Engine', () => {
 
       expect(breakdown.base).toBe(0);
       expect(breakdown.visionary).toBe(0);
-      expect(breakdown.outsider).toBe(0);
       expect(breakdown.total).toBe(0);
-    });
-  });
-
-  describe('hasOutsiderBonus', () => {
-    it('returns true when predicting underdog win and they win', () => {
-      // Jordanie (rank 87) vs Argentine (rank 1)
-      // Predicting Jordanie 1-0 and they win 2-1
-      const prediction: Prediction = { user_id: '1', home_score: 1, away_score: 0 };
-      const result: MatchResult = { home_score: 2, away_score: 1 };
-      expect(hasOutsiderBonus(prediction, result, 'Jordanie', 'Argentine')).toBe(true);
-    });
-
-    it('returns false when predicting favorite win', () => {
-      // Argentine (rank 1) vs Jordanie (rank 87)
-      // Predicting Argentine 2-0 (favorite)
-      const prediction: Prediction = { user_id: '1', home_score: 2, away_score: 0 };
-      const result: MatchResult = { home_score: 3, away_score: 0 };
-      expect(hasOutsiderBonus(prediction, result, 'Argentine', 'Jordanie')).toBe(false);
-    });
-
-    it('returns false when predicting draw', () => {
-      const prediction: Prediction = { user_id: '1', home_score: 1, away_score: 1 };
-      const result: MatchResult = { home_score: 2, away_score: 1 }; // Underdog wins
-      expect(hasOutsiderBonus(prediction, result, 'Jordanie', 'Argentine')).toBe(false);
-    });
-
-    it('returns false when result is draw', () => {
-      const prediction: Prediction = { user_id: '1', home_score: 1, away_score: 0 };
-      const result: MatchResult = { home_score: 1, away_score: 1 }; // Draw result
-      expect(hasOutsiderBonus(prediction, result, 'Jordanie', 'Argentine')).toBe(false);
-    });
-
-    it('returns false when prediction is wrong (underdog predicted but favorite wins)', () => {
-      const prediction: Prediction = { user_id: '1', home_score: 1, away_score: 0 }; // Jordanie wins
-      const result: MatchResult = { home_score: 0, away_score: 2 }; // Argentine wins
-      expect(hasOutsiderBonus(prediction, result, 'Jordanie', 'Argentine')).toBe(false);
-    });
-
-    it('returns false for teams with same ranking', () => {
-      // If both teams have same ranking (e.g., both unknown → 100)
-      const prediction: Prediction = { user_id: '1', home_score: 2, away_score: 0 };
-      const result: MatchResult = { home_score: 2, away_score: 0 };
-      // Two unknown teams both get rank 100
-      expect(hasOutsiderBonus(prediction, result, 'TeamX', 'TeamY')).toBe(false);
-    });
-
-    it('handles away team as underdog correctly', () => {
-      // Argentine (home, rank 1) vs Jordanie (away, rank 87)
-      // Predicting Jordanie away win (0-1)
-      const prediction: Prediction = { user_id: '1', home_score: 0, away_score: 1 };
-      const result: MatchResult = { home_score: 0, away_score: 2 };
-      expect(hasOutsiderBonus(prediction, result, 'Argentine', 'Jordanie')).toBe(true);
     });
   });
 

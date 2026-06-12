@@ -12,9 +12,8 @@ export interface LeaderboardEntry {
   global_points: number; // Points from global predictions (+20 each)
   exact_scores: number;
   visionary_count: number;
-  outsider_count: number;
   matches_predicted: number;
-  global_correct: number; // Number of correct global predictions (0-4)
+  global_correct: number; // Number of correct global predictions (0-5)
   crown_count: number;
   is_drere_today: boolean;
   rank_change: number; // positive = up, negative = down, 0 = same
@@ -80,7 +79,6 @@ export async function GET() {
       global_points: number;
       exact_scores: number;
       visionary_count: number;
-      outsider_count: number;
       matches_predicted: number;
       global_correct: number;
     }> = {};
@@ -91,7 +89,6 @@ export async function GET() {
         global_points: 0,
         exact_scores: 0,
         visionary_count: 0,
-        outsider_count: 0,
         matches_predicted: 0,
         global_correct: 0,
       };
@@ -104,7 +101,6 @@ export async function GET() {
       userStats[p.user_id].matches_predicted += 1;
       if (p.base_points === 3) userStats[p.user_id].exact_scores += 1;
       if (p.visionary_bonus === 1) userStats[p.user_id].visionary_count += 1;
-      if (p.outsider_bonus === 1) userStats[p.user_id].outsider_count += 1;
     }
 
     // Add global prediction points
@@ -124,7 +120,7 @@ export async function GET() {
     const entries: LeaderboardEntry[] = MEMBERS.map(member => {
       const stats = userStats[member.id] || {
         match_points: 0, global_points: 0, exact_scores: 0,
-        visionary_count: 0, outsider_count: 0, matches_predicted: 0, global_correct: 0
+        visionary_count: 0, matches_predicted: 0, global_correct: 0
       };
       return {
         rank: 0,
@@ -136,7 +132,6 @@ export async function GET() {
         global_points: stats.global_points,
         exact_scores: stats.exact_scores,
         visionary_count: stats.visionary_count,
-        outsider_count: stats.outsider_count,
         matches_predicted: stats.matches_predicted,
         global_correct: stats.global_correct,
         crown_count: crownCounts[member.id] || 0,

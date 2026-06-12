@@ -3,8 +3,6 @@
  * Pure functions for calculating prediction points
  */
 
-import { isOutsider } from '@/data/fifa-rankings';
-
 export interface Prediction {
   user_id: string;
   home_score: number;
@@ -19,7 +17,6 @@ export interface MatchResult {
 export interface PointsBreakdown {
   base: number;          // 0, 1, 2, or 3
   visionary: number;     // 0 or 1 (solo exact score)
-  outsider: number;      // 0 or 1 (predicted outsider win)
   total: number;
   detail: string;        // Human-readable explanation
 }
@@ -113,35 +110,6 @@ export function hasVisionaryBonus(
 }
 
 /**
- * Check if this prediction qualifies for outsider bonus
- * (predicted outsider to win, and outsider actually won)
- */
-export function hasOutsiderBonus(
-  prediction: Prediction,
-  result: MatchResult,
-  homeTeam: string,
-  awayTeam: string
-): boolean {
-  // Must have predicted a win (not a draw)
-  const predictedOutcome = getOutcome(prediction.home_score, prediction.away_score);
-  if (predictedOutcome === 'draw') {
-    return false;
-  }
-
-  // Must be correct outcome
-  const actualOutcome = getOutcome(result.home_score, result.away_score);
-  if (actualOutcome === 'draw' || predictedOutcome !== actualOutcome) {
-    return false;
-  }
-
-  // Determine which team won
-  const winner = actualOutcome === 'home' ? homeTeam : awayTeam;
-
-  // Check if winner is the outsider
-  return isOutsider(homeTeam, awayTeam, winner);
-}
-
-/**
  * Calculate full points breakdown for a prediction
  */
 export function calculatePoints(
@@ -153,8 +121,7 @@ export function calculatePoints(
 ): PointsBreakdown {
   const base = calculateBasePoints(prediction, result);
   const visionary = hasVisionaryBonus(prediction, result, allPredictions) ? 1 : 0;
-  const outsider = hasOutsiderBonus(prediction, result, homeTeam, awayTeam) ? 1 : 0;
-  const total = base + visionary + outsider;
+  const total = base + visionary;
 
   // Build detail string
   const details: string[] = [];
@@ -173,14 +140,9 @@ export function calculatePoints(
     details.push('Visionnaire (+1)');
   }
 
-  if (outsider) {
-    details.push('Outsider (+1)');
-  }
-
   return {
     base,
     visionary,
-    outsider,
     total,
     detail: details.join(', '),
   };
