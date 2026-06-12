@@ -3,6 +3,7 @@ import { getSessionUser, getSupabaseAdmin, requireAdmin } from '@/lib/auth/sessi
 import { getMatchById, parseMatchTeams } from '@/lib/matches';
 import { calculateMatchPoints, Prediction, MatchResult, PointsBreakdown } from '@/lib/scoring';
 import { MEMBERS } from '@/data/members';
+import matches from '@/data/matches.json';
 
 // GET /api/results?match_id=X
 // Get result for a specific match (public)
@@ -267,8 +268,9 @@ export async function POST(request: NextRequest) {
 
     await supabase.from('notifications').insert(notifications);
 
-    // Check for Drère de la journée
-    await updateDailyAwards(supabase, match.date);
+    // Check for Drère de la journée (using competition day: 06:00 to 05:59 next day)
+    const competitionDay = getCompetitionDay(match.date, match.time);
+    await updateDailyAwards(supabase, competitionDay);
 
     return NextResponse.json({
       success: true,
@@ -290,24 +292,49 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/**
+ * Get the "competition day" for a match
+ * Matches between 06:00 day N and 05:59 day N+1 belong to day N
+ * This groups late-night matches (e.g., 03:00) with the previous evening's matches
+ */
+function getCompetitionDay(date: string, time: string): string {
+  const hour = parseInt(time.split(':')[0], 10);
+
+  // If match is before 06:00, it belongs to the previous day's competition
+  if (hour < 6) {
+    const d = new Date(date + 'T00:00:00');
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().split('T')[0];
+  }
+
+  return date;
+}
+
 // Helper to update daily awards
 async function updateDailyAwards(supabase: ReturnType<typeof getSupabaseAdmin>, dateStr: string) {
-  // Get all points for matches on this date
-  const { data: matchesData } = await supabase
+  // Get all matches that belong to this competition day
+  const matchesOnCompetitionDay = (matches as any[]).filter(m =>
+    getCompetitionDay(m.date, m.time) === dateStr
+  );
+  if (matchesOnCompetitionDay.length === 0) return;
+
+  const matchIds = matchesOnCompetitionDay.map(m => m.id);
+
+  // Check which of these matches have results
+  const { data: resultsData } = await supabase
     .from('match_results')
     .select('match_id')
-    .gte('entered_at', `${dateStr}T00:00:00`)
-    .lt('entered_at', `${dateStr}T23:59:59`);
+    .in('match_id', matchIds);
 
-  if (!matchesData || matchesData.length === 0) return;
+  if (!resultsData || resultsData.length === 0) return;
 
-  const matchIds = matchesData.map(m => m.match_id);
+  const completedMatchIds = resultsData.map(r => r.match_id);
 
-  // Get points for these matches
+  // Get points for completed matches on this competition day
   const { data: pointsData } = await supabase
     .from('points_log')
     .select('user_id, total_points')
-    .in('match_id', matchIds);
+    .in('match_id', completedMatchIds);
 
   if (!pointsData || pointsData.length === 0) return;
 

@@ -301,23 +301,45 @@ async function recordMatchResult(
 
   await supabase.from('notifications').insert(notifications);
 
-  // Update daily awards
-  await updateDailyAwards(supabase, match.date);
+  // Update daily awards (using competition day: 06:00 to 05:59 next day)
+  const competitionDay = getCompetitionDay(match.date, match.time);
+  await updateDailyAwards(supabase, competitionDay);
+}
+
+/**
+ * Get the "competition day" for a match
+ * Matches between 06:00 day N and 05:59 day N+1 belong to day N
+ * This groups late-night matches (e.g., 03:00) with the previous evening's matches
+ */
+function getCompetitionDay(date: string, time: string): string {
+  const hour = parseInt(time.split(':')[0], 10);
+
+  // If match is before 06:00, it belongs to the previous day's competition
+  if (hour < 6) {
+    const d = new Date(date + 'T00:00:00');
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().split('T')[0];
+  }
+
+  return date;
 }
 
 /**
  * Update daily Drère award
- * Awards the user(s) with most points for matches on a given date
+ * Awards the user(s) with most points for matches on a given competition day
+ * Competition day: 06:00 to 05:59 next day (groups evening + late night matches)
  */
 async function updateDailyAwards(
   supabase: ReturnType<typeof getSupabaseAdmin>,
   dateStr: string
 ) {
-  // Get match IDs for this date from our match data
-  const matchesOnDate = (matches as any[]).filter(m => m.date === dateStr);
-  if (matchesOnDate.length === 0) return;
+  // Get all matches that belong to this competition day
+  const matchesOnCompetitionDay = (matches as any[]).filter(m =>
+    getCompetitionDay(m.date, m.time) === dateStr
+  );
+  if (matchesOnCompetitionDay.length === 0) return;
 
-  const matchIds = matchesOnDate.map(m => m.id);
+  const matchIds = matchesOnCompetitionDay.map(m => m.id);
 
   // Check which of these matches have results
   const { data: resultsData } = await supabase
