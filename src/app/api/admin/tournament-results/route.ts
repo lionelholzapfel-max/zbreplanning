@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser, getSupabaseAdmin } from '@/lib/auth/session';
 
-export type TournamentPredictionType = 'winner' | 'best_player' | 'best_young' | 'surprise_team' | 'top_scorer' | 'best_goalkeeper';
+export type TournamentPredictionType = 'winner' | 'best_player' | 'best_young' | 'top_scorer' | 'best_goalkeeper';
 
-const VALID_TYPES: TournamentPredictionType[] = ['winner', 'best_player', 'best_young', 'surprise_team', 'top_scorer', 'best_goalkeeper'];
+const VALID_TYPES: TournamentPredictionType[] = ['winner', 'best_player', 'best_young', 'top_scorer', 'best_goalkeeper'];
 const POINTS_PER_CORRECT = 20;
 
 interface TournamentResult {
