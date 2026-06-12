@@ -9,18 +9,11 @@ ALTER TABLE match_score_predictions
 ADD COLUMN IF NOT EXISTS qualifier_pick TEXT
 CHECK (qualifier_pick IS NULL OR qualifier_pick IN ('home', 'away'));
 
--- Add 90-minute score tracking for knockout (stored separately from final score)
--- For group stage matches, these are the same as home_score/away_score
+-- Add qualifier to match_results (who advanced for knockout matches)
+-- Note: home_score/away_score = fullTime score (includes extra time, NOT penalties)
+-- For knockout: draw is possible if match goes to penalties (e.g., 2-2 ap)
 ALTER TABLE match_results
-ADD COLUMN IF NOT EXISTS home_score_90min INTEGER,
-ADD COLUMN IF NOT EXISTS away_score_90min INTEGER,
 ADD COLUMN IF NOT EXISTS qualifier TEXT CHECK (qualifier IS NULL OR qualifier IN ('home', 'away'));
-
--- Backfill: For existing results (group stage), 90min score = final score
-UPDATE match_results
-SET home_score_90min = home_score,
-    away_score_90min = away_score
-WHERE home_score_90min IS NULL;
 
 -- Table to store actual teams for knockout matches (overrides placeholders)
 CREATE TABLE IF NOT EXISTS match_team_overrides (

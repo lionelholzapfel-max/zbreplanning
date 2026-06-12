@@ -281,18 +281,21 @@ export function findOurMatchId(
  * Score result for a match
  */
 export interface MatchScore {
-  home90: number;        // Score at 90 minutes
-  away90: number;        // Score at 90 minutes
-  homeFinal: number;     // Final score (including extra time)
-  awayFinal: number;     // Final score (including extra time)
-  qualifier?: 'home' | 'away';  // Who qualified (knockout only)
+  home: number;          // Score for predictions (fullTime = includes extra time)
+  away: number;          // Score for predictions (fullTime = includes extra time)
+  qualifier?: 'home' | 'away';  // Who qualified (knockout only, for +1 bonus)
   hadExtraTime: boolean;
   hadPenalties: boolean;
 }
 
 /**
  * Get match score from API match (handles extra time and penalties)
- * Returns 90-minute score for predictions + qualifier for knockout
+ *
+ * For predictions:
+ * - Group stage: 90 min score
+ * - Knockout: Score at end of play (90 min or 120 min if extra time)
+ *   - Draw is possible if match goes to penalties (e.g., 1-1 after extra time)
+ *   - Qualifier bonus (+1) is separate from score prediction
  */
 export function getFinalScore(apiMatch: ApiMatch): MatchScore | null {
   if (apiMatch.status !== 'FINISHED') return null;
@@ -304,18 +307,10 @@ export function getFinalScore(apiMatch: ApiMatch): MatchScore | null {
   const hadExtraTime = duration === 'EXTRA_TIME' || duration === 'PENALTY_SHOOTOUT';
   const hadPenalties = duration === 'PENALTY_SHOOTOUT';
 
-  // Calculate 90-minute score
-  let home90 = ft.home;
-  let away90 = ft.away;
-
-  if (hadExtraTime && apiMatch.score.extraTime) {
-    const et = apiMatch.score.extraTime;
-    if (et.home !== null && et.away !== null) {
-      // Subtract extra time goals to get 90-minute score
-      home90 = ft.home - et.home;
-      away90 = ft.away - et.away;
-    }
-  }
+  // Use fullTime score (includes extra time goals, NOT penalty shootout)
+  // This is what users predict: the score at end of play
+  const home = ft.home;
+  const away = ft.away;
 
   // Determine qualifier for knockout matches
   let qualifier: 'home' | 'away' | undefined;
@@ -334,10 +329,8 @@ export function getFinalScore(apiMatch: ApiMatch): MatchScore | null {
   // Note: If score.winner is 'DRAW' and no penalties, it's a group stage match
 
   return {
-    home90,
-    away90,
-    homeFinal: ft.home,
-    awayFinal: ft.away,
+    home,
+    away,
     qualifier,
     hadExtraTime,
     hadPenalties,

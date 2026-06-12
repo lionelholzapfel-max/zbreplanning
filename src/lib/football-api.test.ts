@@ -97,8 +97,8 @@ describe('Football API Integration', () => {
 
       const score = getFinalScore(apiMatch);
       expect(score).not.toBeNull();
-      expect(score?.home90).toBe(2);
-      expect(score?.away90).toBe(1);
+      expect(score?.home).toBe(2);
+      expect(score?.away).toBe(1);
       expect(score?.qualifier).toBe('home');
       expect(score?.hadExtraTime).toBe(false);
       expect(score?.hadPenalties).toBe(false);
@@ -126,7 +126,9 @@ describe('Football API Integration', () => {
       expect(score).toBeNull();
     });
 
-    it('extracts 90min score from extra time match', () => {
+    it('uses fullTime score for extra time match (120 min)', () => {
+      // Knockout match that went to extra time
+      // Prediction should be on the 120-min score (fullTime)
       const apiMatch: ApiMatch = {
         id: 1,
         utcDate: '2026-07-10T19:00:00Z',
@@ -146,16 +148,17 @@ describe('Football API Integration', () => {
       };
 
       const score = getFinalScore(apiMatch);
-      expect(score?.home90).toBe(2);  // 3 - 1 = 2
-      expect(score?.away90).toBe(2);  // 2 - 0 = 2
-      expect(score?.homeFinal).toBe(3);
-      expect(score?.awayFinal).toBe(2);
+      // Prediction is on fullTime (120 min score)
+      expect(score?.home).toBe(3);
+      expect(score?.away).toBe(2);
       expect(score?.qualifier).toBe('home');
       expect(score?.hadExtraTime).toBe(true);
       expect(score?.hadPenalties).toBe(false);
     });
 
-    it('handles penalty shootout match', () => {
+    it('handles penalty shootout match (draw after 120 min)', () => {
+      // Match ends 2-2 after extra time, decided by penalties
+      // Prediction is on fullTime (2-2), qualifier is from penalties
       const apiMatch: ApiMatch = {
         id: 1,
         utcDate: '2026-07-12T19:00:00Z',
@@ -166,9 +169,9 @@ describe('Football API Integration', () => {
         homeTeam: { id: 1, name: 'Brazil', shortName: 'Brazil', tla: 'BRA' },
         awayTeam: { id: 2, name: 'Argentina', shortName: 'Argentina', tla: 'ARG' },
         score: {
-          winner: 'AWAY_TEAM',  // Argentina wins
+          winner: 'AWAY_TEAM',  // Argentina wins on penalties
           duration: 'PENALTY_SHOOTOUT',
-          fullTime: { home: 2, away: 2 },   // 2-2 after extra time
+          fullTime: { home: 2, away: 2 },   // 2-2 after extra time (draw!)
           halfTime: { home: 1, away: 1 },
           extraTime: { home: 1, away: 1 },  // 1-1 in extra time
           penalties: { home: 3, away: 5 },  // Argentina wins shootout
@@ -176,9 +179,11 @@ describe('Football API Integration', () => {
       };
 
       const score = getFinalScore(apiMatch);
-      expect(score?.home90).toBe(1);  // 2 - 1 = 1 (90min score)
-      expect(score?.away90).toBe(1);  // 2 - 1 = 1
-      expect(score?.qualifier).toBe('away');  // Argentina
+      // Prediction is on fullTime (2-2 draw)
+      expect(score?.home).toBe(2);
+      expect(score?.away).toBe(2);
+      // Qualifier is Argentina (away) who won on penalties
+      expect(score?.qualifier).toBe('away');
       expect(score?.hadExtraTime).toBe(true);
       expect(score?.hadPenalties).toBe(true);
     });

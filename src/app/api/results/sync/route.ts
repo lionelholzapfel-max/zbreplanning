@@ -26,8 +26,8 @@ function verifyCronSecret(request: NextRequest): boolean {
 interface SyncResult {
   matchId: number;
   matchName: string;
-  homeScore90: number;
-  awayScore90: number;
+  homeScore: number;
+  awayScore: number;
   qualifier?: 'home' | 'away';
   hadExtraTime: boolean;
   source: 'auto';
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Get final score (includes 90min score and qualifier for knockout)
+      // Get final score (fullTime = includes extra time, NOT penalties)
       const score = getFinalScore(apiMatch);
       if (!score) {
         response.errors.push(`Match ${ourMatchId}: Could not get final score`);
@@ -153,8 +153,8 @@ export async function POST(request: NextRequest) {
         await recordMatchResult(
           supabase,
           ourMatchId,
-          score.home90,
-          score.away90,
+          score.home,
+          score.away,
           'auto',
           isKnockout ? score.qualifier : undefined
         );
@@ -162,8 +162,8 @@ export async function POST(request: NextRequest) {
         response.newResultsSynced.push({
           matchId: ourMatchId,
           matchName: match?.match || `Match #${ourMatchId}`,
-          homeScore90: score.home90,
-          awayScore90: score.away90,
+          homeScore: score.home,
+          awayScore: score.away,
           qualifier: isKnockout ? score.qualifier : undefined,
           hadExtraTime: score.hadExtraTime,
           source: 'auto',
@@ -223,15 +223,13 @@ async function recordMatchResult(
   const isKnockout = isKnockoutPhase(match.phase);
 
   // Insert result with source tracking
-  // For knockout: store 90min score + qualifier
+  // Score = fullTime (90min for group stage, 120min if extra time for knockout)
   const { error: insertError } = await supabase
     .from('match_results')
     .insert({
       match_id: matchId,
       home_score: homeScore,
       away_score: awayScore,
-      home_score_90min: homeScore,  // For knockout, this is the 90min score
-      away_score_90min: awayScore,
       qualifier: isKnockout ? qualifier : null,
       source,
       entered_at: new Date().toISOString(),
