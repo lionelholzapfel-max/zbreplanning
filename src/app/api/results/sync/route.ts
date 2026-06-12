@@ -307,27 +307,33 @@ async function recordMatchResult(
 
 /**
  * Update daily Drère award
+ * Awards the user(s) with most points for matches on a given date
  */
 async function updateDailyAwards(
   supabase: ReturnType<typeof getSupabaseAdmin>,
   dateStr: string
 ) {
-  // Get all points for matches on this date
-  const { data: matchesData } = await supabase
+  // Get match IDs for this date from our match data
+  const matchesOnDate = (matches as any[]).filter(m => m.date === dateStr);
+  if (matchesOnDate.length === 0) return;
+
+  const matchIds = matchesOnDate.map(m => m.id);
+
+  // Check which of these matches have results
+  const { data: resultsData } = await supabase
     .from('match_results')
     .select('match_id')
-    .gte('entered_at', `${dateStr}T00:00:00`)
-    .lt('entered_at', `${dateStr}T23:59:59`);
+    .in('match_id', matchIds);
 
-  if (!matchesData || matchesData.length === 0) return;
+  if (!resultsData || resultsData.length === 0) return;
 
-  const matchIds = matchesData.map(m => m.match_id);
+  const completedMatchIds = resultsData.map(r => r.match_id);
 
-  // Get points for these matches
+  // Get points for completed matches on this date
   const { data: pointsData } = await supabase
     .from('points_log')
     .select('user_id, total_points')
-    .in('match_id', matchIds);
+    .in('match_id', completedMatchIds);
 
   if (!pointsData || pointsData.length === 0) return;
 
