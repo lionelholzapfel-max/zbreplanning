@@ -8,6 +8,7 @@ const PUBLIC_PATHS = [
   '/api/auth/me',
   '/api/auth/logout',
   '/api/debug/timezone', // Temporary: public debug endpoint
+  '/api/results/sync', // Cron job (protected by CRON_SECRET)
 ];
 
 export async function middleware(request: NextRequest) {
