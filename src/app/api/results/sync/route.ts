@@ -13,13 +13,21 @@ import {
 } from '@/lib/football-api';
 import matches from '@/data/matches.json';
 
-// Verify cron secret for security
+// Verify cron secret for security (supports both header and Vercel cron)
 function verifyCronSecret(request: NextRequest): boolean {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) return false;
 
+  // Check Authorization header (manual calls)
   const authHeader = request.headers.get('authorization');
-  return authHeader === `Bearer ${cronSecret}`;
+  if (authHeader === `Bearer ${cronSecret}`) return true;
+
+  // Check Vercel cron header (automatic cron calls)
+  // Vercel sets this header for cron jobs
+  const vercelCron = request.headers.get('x-vercel-cron');
+  if (vercelCron) return true;
+
+  return false;
 }
 
 interface SyncResult {
@@ -42,8 +50,19 @@ interface SyncResponse {
   errors: string[];
 }
 
-// GET /api/results/sync - Get sync status (public for admin dashboard)
-export async function GET() {
+// GET /api/results/sync - Vercel cron calls this with GET
+// If x-vercel-cron header is present, run the sync
+// Otherwise return sync status (for admin dashboard)
+export async function GET(request: NextRequest) {
+  // Check if this is a Vercel cron call
+  const isVercelCron = request.headers.get('x-vercel-cron');
+
+  if (isVercelCron) {
+    // Run the actual sync
+    return runSync();
+  }
+
+  // Otherwise return sync status
   const supabase = getSupabaseAdmin();
 
   // Get last sync info
@@ -69,15 +88,21 @@ export async function GET() {
   });
 }
 
-// POST /api/results/sync - Run sync (protected by CRON_SECRET)
+// POST /api/results/sync - Run sync (protected by CRON_SECRET for manual calls)
 export async function POST(request: NextRequest) {
-  // Verify cron secret
+  // Verify cron secret for manual POST calls
   if (!verifyCronSecret(request)) {
     return NextResponse.json(
       { error: 'Unauthorized - invalid CRON_SECRET' },
       { status: 401 }
     );
   }
+
+  return runSync();
+}
+
+// Shared sync logic for both GET (cron) and POST (manual)
+async function runSync() {
 
   const response: SyncResponse = {
     success: true,
