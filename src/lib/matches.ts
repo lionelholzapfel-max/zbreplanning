@@ -16,9 +16,9 @@ export const matches: Match[] = matchesData as Match[];
 
 // ============================================================================
 // PREDICTION LOCK CONFIGURATION
-// Predictions lock 2 hours BEFORE kickoff to prevent last-minute copying
+// Predictions lock 1 minute BEFORE kickoff
 // ============================================================================
-export const PREDICTION_LOCK_OFFSET_MS = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
+export const PREDICTION_LOCK_OFFSET_MS = 1 * 60 * 1000; // 1 minute in milliseconds
 
 // Belgium timezone - CEST (UTC+2) in summer, CET (UTC+1) in winter
 // World Cup 2026 is June-July, so always UTC+2
@@ -28,8 +28,7 @@ export const BELGIUM_TIMEZONE = 'Europe/Brussels';
 // Match 1: Mexique - Afrique du Sud, 11 juin 2026 à 21:00 (Europe/Brussels)
 export const FIRST_MATCH_KICKOFF = new Date('2026-06-11T21:00:00+02:00');
 
-// EXCEPTION: Match 1 locks at 20:59 Brussels (not 2h before)
-// This gives members until the last minute for the opening match
+// Match 1 lock time (kept for backwards compatibility)
 export const MATCH_1_LOCK_TIME = new Date('2026-06-11T20:59:00+02:00');
 
 // Global predictions (winner, best_player, best_young, surprise_team) lock on June 14 at 23:00 Brussels
@@ -58,23 +57,16 @@ export function getMatchKickoff(match: Match): Date {
 
 /**
  * Get the lock time for predictions
- * - Match 1: Special exception - locks at 20:59 Brussels (1 min before kickoff)
- * - All other matches: 2 hours before kickoff
+ * All matches lock 1 minute before kickoff
  */
 export function getPredictionLockTime(match: Match): Date {
-  // Special case: Match 1 locks at 20:59 Brussels
-  if (match.id === 1) {
-    return MATCH_1_LOCK_TIME;
-  }
-
-  // Default: 2 hours before kickoff
   const kickoff = getMatchKickoff(match);
   return new Date(kickoff.getTime() - PREDICTION_LOCK_OFFSET_MS);
 }
 
 /**
  * Check if predictions are locked for a match
- * Predictions lock 2 HOURS BEFORE kickoff (not at kickoff)
+ * Predictions lock 1 MINUTE BEFORE kickoff
  * This is the SINGLE SOURCE OF TRUTH for lock status
  */
 export function isPredictionLocked(matchId: number): boolean {
