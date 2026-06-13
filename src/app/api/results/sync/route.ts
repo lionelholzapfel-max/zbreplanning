@@ -51,41 +51,9 @@ interface SyncResponse {
 }
 
 // GET /api/results/sync - Vercel cron calls this with GET
-// If x-vercel-cron header is present, run the sync
-// Otherwise return sync status (for admin dashboard)
-export async function GET(request: NextRequest) {
-  // Check if this is a Vercel cron call
-  const isVercelCron = request.headers.get('x-vercel-cron');
-
-  if (isVercelCron) {
-    // Run the actual sync
-    return runSync();
-  }
-
-  // Otherwise return sync status
-  const supabase = getSupabaseAdmin();
-
-  // Get last sync info
-  const { data: lastSync } = await supabase
-    .from('sync_log')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(5);
-
-  // Get auto-synced results count
-  const { count: autoSyncedCount } = await supabase
-    .from('match_results')
-    .select('*', { count: 'exact', head: true })
-    .eq('source', 'auto');
-
-  // Test API connection
-  const apiStatus = await testApiConnection();
-
-  return NextResponse.json({
-    lastSyncs: lastSync || [],
-    autoSyncedCount: autoSyncedCount || 0,
-    apiStatus,
-  });
+// Always run the sync (idempotent - safe to call multiple times)
+export async function GET() {
+  return runSync();
 }
 
 // POST /api/results/sync - Run sync (protected by CRON_SECRET for manual calls)
