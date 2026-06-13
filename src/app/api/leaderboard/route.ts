@@ -37,8 +37,23 @@ export async function GET() {
     }
 
     const supabase = getSupabaseAdmin();
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+    // Get the "display date" for Drère - use previous competition day
+    // Competition day: 06:00 to 05:59 next day
+    // Show yesterday's Drère so it displays for a full day
+    const now = new Date();
+    const hour = now.getUTCHours();
+    let drereDisplayDate: string;
+
+    if (hour < 6) {
+      // Before 06:00 UTC - show 2 days ago's Drère (yesterday's competition day ended)
+      const twoDaysAgo = new Date(now.getTime() - 2 * 86400000);
+      drereDisplayDate = twoDaysAgo.toISOString().split('T')[0];
+    } else {
+      // After 06:00 UTC - show yesterday's Drère
+      const yesterday = new Date(now.getTime() - 86400000);
+      drereDisplayDate = yesterday.toISOString().split('T')[0];
+    }
 
     // Get all match points
     const { data: pointsData } = await supabase
@@ -64,11 +79,11 @@ export async function GET() {
       .select('user_id')
       .eq('award_type', 'drere');
 
-    // Get today's Drère(s)
+    // Get Drère for display (previous competition day)
     const { data: todayDrere } = await supabase
       .from('daily_awards')
       .select('user_id')
-      .eq('award_date', today)
+      .eq('award_date', drereDisplayDate)
       .eq('award_type', 'drere');
 
     const todayDrereIds = new Set((todayDrere || []).map(d => d.user_id));
