@@ -35,6 +35,7 @@ export default function LeaderboardPage() {
   const [stats, setStats] = useState<LeaderboardStats | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [totalMatchesWithResults, setTotalMatchesWithResults] = useState(0);
+  const [drereDayPoints, setDrereDayPoints] = useState(0);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
@@ -55,6 +56,7 @@ export default function LeaderboardPage() {
         setStats(data.stats);
         setCurrentUserId(data.current_user_id);
         setTotalMatchesWithResults(data.total_matches_with_results || 0);
+        setDrereDayPoints(data.drere_day_points || 0);
       } catch (error) {
         console.error('Error loading leaderboard:', error);
       } finally {
@@ -136,8 +138,8 @@ export default function LeaderboardPage() {
                 <p className="text-gray-400">Meilleur score du jour</p>
               </div>
               <div className="ml-auto text-right">
-                <p className="text-3xl font-black text-[#fbbf24]">{drereToday.total_points}</p>
-                <p className="text-sm text-gray-400">points total</p>
+                <p className="text-3xl font-black text-[#fbbf24]">{drereDayPoints}</p>
+                <p className="text-sm text-gray-400">points du jour</p>
               </div>
             </div>
           </div>

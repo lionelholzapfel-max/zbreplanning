@@ -79,14 +79,15 @@ export async function GET() {
       .select('user_id')
       .eq('award_type', 'drere');
 
-    // Get Drère for display (previous competition day)
+    // Get Drère for display (previous competition day) with points earned
     const { data: todayDrere } = await supabase
       .from('daily_awards')
-      .select('user_id')
+      .select('user_id, points_earned')
       .eq('award_date', drereDisplayDate)
       .eq('award_type', 'drere');
 
     const todayDrereIds = new Set((todayDrere || []).map(d => d.user_id));
+    const drerePoints = (todayDrere || [])[0]?.points_earned || 0;
 
     // Calculate user stats
     const userStats: Record<string, {
@@ -180,6 +181,7 @@ export async function GET() {
       stats,
       current_user_id: user.id,
       total_matches_with_results: totalMatchesWithResults || 0,
+      drere_day_points: drerePoints,
     });
   } catch (error) {
     console.error('[Leaderboard] GET error:', error);
