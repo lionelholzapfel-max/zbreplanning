@@ -134,16 +134,13 @@ export default function LeaderboardPage() {
         setDrereDayPoints(data.drere_day_points || 0);
 
         // Check if current user is Drère du jour and hasn't seen celebration today
-        // TEMP TEST: Force Lionel as Drère - REMOVE AFTER TEST
-        const TEST_MODE = true;
-        const TEST_USER_ID = '7'; // Lionel
-
         const drereEntry = data.leaderboard.find((e: LeaderboardEntry) => e.is_drere_today);
-        const isTestDrere = TEST_MODE && data.current_user_id === TEST_USER_ID;
-
-        if ((drereEntry && drereEntry.user_id === data.current_user_id) || isTestDrere) {
-          // TEMP: Skip localStorage check for testing
-          setShowDrereCelebration(true);
+        if (drereEntry && drereEntry.user_id === data.current_user_id) {
+          const today = new Date().toISOString().split('T')[0];
+          const lastSeen = localStorage.getItem('drere-celebration-seen');
+          if (lastSeen !== today) {
+            setShowDrereCelebration(true);
+          }
         }
       } catch (error) {
         console.error('Error loading leaderboard:', error);
