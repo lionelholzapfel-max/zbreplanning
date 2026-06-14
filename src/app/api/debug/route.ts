@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/auth/session';
 import matches from '@/data/matches.json';
 
@@ -69,6 +69,43 @@ export async function GET() {
         .map(([userId]) => userId)
     : [];
 
+  // Try to insert mzi awards now and capture the result
+  let insertResult = null;
+  if (mziUserIds.length > 0) {
+    // First delete existing
+    const { error: deleteError } = await supabase
+      .from('daily_awards')
+      .delete()
+      .eq('award_date', drereDisplayDate)
+      .eq('award_type', 'mzi');
+
+    const mziAwardsToInsert = mziUserIds.map(userId => ({
+      user_id: userId,
+      award_date: drereDisplayDate,
+      award_type: 'mzi' as const,
+      points_earned: minPoints,
+    }));
+
+    const { data: insertedData, error: insertError } = await supabase
+      .from('daily_awards')
+      .insert(mziAwardsToInsert)
+      .select();
+
+    insertResult = {
+      deleteError: deleteError ? deleteError.message : null,
+      insertError: insertError ? { message: insertError.message, code: insertError.code, details: insertError.details } : null,
+      insertedData,
+      attempted: mziAwardsToInsert,
+    };
+  }
+
+  // Re-fetch mzi awards after insert attempt
+  const { data: mziAwardsAfter } = await supabase
+    .from('daily_awards')
+    .select('*')
+    .eq('award_type', 'mzi')
+    .order('award_date', { ascending: false });
+
   return NextResponse.json({
     now: now.toISOString(),
     utcHour: hour,
@@ -80,7 +117,8 @@ export async function GET() {
     minPoints,
     wouldHaveMzi: minPoints < maxPoints,
     expectedMziUserIds: mziUserIds,
+    insertResult,
     allDrereAwards: allAwards?.filter(a => a.award_type === 'drere').slice(0, 10),
-    allMziAwards: mziAwards?.slice(0, 10) || [],
+    allMziAwards: mziAwardsAfter?.slice(0, 10) || [],
   });
 }
