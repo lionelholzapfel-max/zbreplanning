@@ -142,11 +142,8 @@ export default function LeaderboardPage() {
         const isTestDrere = TEST_MODE && data.current_user_id === TEST_USER_ID;
 
         if ((drereEntry && drereEntry.user_id === data.current_user_id) || isTestDrere) {
-          const today = new Date().toISOString().split('T')[0];
-          const lastSeen = localStorage.getItem('drere-celebration-seen');
-          if (lastSeen !== today) {
-            setShowDrereCelebration(true);
-          }
+          // TEMP: Skip localStorage check for testing
+          setShowDrereCelebration(true);
         }
       } catch (error) {
         console.error('Error loading leaderboard:', error);
