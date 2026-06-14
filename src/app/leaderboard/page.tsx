@@ -44,6 +44,7 @@ export default function LeaderboardPage() {
   const [showDrereCelebration, setShowDrereCelebration] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fire confetti burst
   const fireConfetti = useCallback(() => {
@@ -73,31 +74,48 @@ export default function LeaderboardPage() {
     frame();
   }, []);
 
-  // Play/pause celebration music
+  // Play/pause celebration music (max 30 seconds)
   const toggleMusic = useCallback(() => {
+    // If already playing, just pause
+    if (isPlaying && audioRef.current) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+      if (audioTimeoutRef.current) {
+        clearTimeout(audioTimeoutRef.current);
+      }
+      return;
+    }
+
+    // If paused but audio exists, resume
+    if (audioRef.current && audioRef.current.paused) {
+      audioRef.current.play();
+      setIsPlaying(true);
+      fireConfetti();
+      return;
+    }
+
+    // Create new audio only if none exists
     if (!audioRef.current) {
       audioRef.current = new Audio('/sounds/drere.mp3');
       audioRef.current.volume = 0.7;
       audioRef.current.onended = () => setIsPlaying(false);
-    }
-
-    if (isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    } else {
       audioRef.current.play();
       setIsPlaying(true);
       fireConfetti();
+
+      // Auto-stop after 30 seconds
+      audioTimeoutRef.current = setTimeout(() => {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+          setIsPlaying(false);
+        }
+      }, 30000);
     }
   }, [isPlaying, fireConfetti]);
 
-  // Close celebration modal
+  // Close celebration modal - music continues but can be paused
   const closeCelebration = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
-    setIsPlaying(false);
     setShowDrereCelebration(false);
 
     // Mark as seen today
@@ -125,11 +143,19 @@ export default function LeaderboardPage() {
         setDrereDayPoints(data.drere_day_points || 0);
 
         // Check if current user is Drère du jour and hasn't seen celebration today
+        // TEST MODE: Force Lionel (user_id: 7) as Drère for testing
+        const TEST_MODE = true;
+        const TEST_USER_ID = '7'; // Lionel
+
         const drereEntry = data.leaderboard.find((e: LeaderboardEntry) => e.is_drere_today);
-        if (drereEntry && drereEntry.user_id === data.current_user_id) {
+        const isTestDrere = TEST_MODE && data.current_user_id === TEST_USER_ID;
+
+        if ((drereEntry && drereEntry.user_id === data.current_user_id) || isTestDrere) {
+          // TEST: Always show celebration (skip localStorage check)
+          const SKIP_LOCALSTORAGE_CHECK = true;
           const today = new Date().toISOString().split('T')[0];
           const lastSeen = localStorage.getItem('drere-celebration-seen');
-          if (lastSeen !== today) {
+          if (SKIP_LOCALSTORAGE_CHECK || lastSeen !== today) {
             setShowDrereCelebration(true);
           }
         }
@@ -149,6 +175,9 @@ export default function LeaderboardPage() {
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
+      }
+      if (audioTimeoutRef.current) {
+        clearTimeout(audioTimeoutRef.current);
       }
     };
   }, []);
@@ -179,12 +208,17 @@ export default function LeaderboardPage() {
 
   const currentUserEntry = leaderboard.find(e => e.user_id === currentUserId);
 
+  // TEST MODE: Use current user as drere for celebration modal
+  const TEST_MODE_DISPLAY = true;
+  const celebrationEntry = TEST_MODE_DISPLAY ? currentUserEntry : leaderboard.find(e => e.is_drere_today && e.user_id === currentUserId);
+  const celebrationPoints = TEST_MODE_DISPLAY ? (drereDayPoints || 99) : drereDayPoints; // 99 for test
+
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
       <Navbar />
 
       {/* Drère Celebration Modal */}
-      {showDrereCelebration && currentUserEntry && (
+      {showDrereCelebration && celebrationEntry && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="relative w-full max-w-md bg-gradient-to-br from-[#1a1a2e] to-[#0a0a0f] rounded-3xl border-2 border-[#fbbf24] p-8 text-center animate-bounce-in">
             {/* Crown animation */}
@@ -199,8 +233,8 @@ export default function LeaderboardPage() {
               {/* Avatar */}
               <div className="w-24 h-24 mx-auto mb-4 rounded-full overflow-hidden ring-4 ring-[#fbbf24] shadow-lg shadow-[#fbbf24]/50">
                 <Image
-                  src={`/members/${currentUserEntry.member_slug}.png`}
-                  alt={currentUserEntry.member_name}
+                  src={`/members/${celebrationEntry.member_slug}.png`}
+                  alt={celebrationEntry.member_name}
                   width={96}
                   height={96}
                   className="object-cover"
@@ -215,27 +249,27 @@ export default function LeaderboardPage() {
                 Tu es le Drère du jour !
               </p>
               <p className="text-gray-400 mb-6">
-                Avec <span className="text-[#fbbf24] font-bold">{drereDayPoints} points</span> aujourd&apos;hui
+                Avec <span className="text-[#fbbf24] font-bold">{celebrationPoints} points</span> aujourd&apos;hui
               </p>
 
-              {/* Music button */}
+              {/* Music button - big and prominent */}
               <button
                 onClick={toggleMusic}
-                className={`w-full py-4 rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-3 mb-4 ${
+                className={`w-full py-5 rounded-2xl font-bold text-xl transition-all flex items-center justify-center gap-3 mb-4 ${
                   isPlaying
                     ? 'bg-[#ef4444] text-white animate-pulse'
-                    : 'bg-gradient-to-r from-[#fbbf24] to-[#f59e0b] text-black hover:scale-105'
+                    : 'bg-gradient-to-r from-[#fbbf24] to-[#f59e0b] text-black hover:scale-105 animate-bounce'
                 }`}
               >
                 {isPlaying ? (
                   <>
-                    <span className="text-2xl">⏸️</span>
-                    <span>Arrêter la musique</span>
+                    <span className="text-3xl">⏸️</span>
+                    <span>Pause</span>
                   </>
                 ) : (
                   <>
-                    <span className="text-2xl">🎵</span>
-                    <span>Jouer &quot;1er Gaou&quot; 🎶</span>
+                    <span className="text-3xl">🎵</span>
+                    <span>C&apos;est la fête !</span>
                   </>
                 )}
               </button>
@@ -250,11 +284,22 @@ export default function LeaderboardPage() {
 
               {/* Fun text */}
               <p className="mt-4 text-sm text-gray-500 italic">
-                &quot;Premier gaou n&apos;est pas gaou...&quot; 🎤
+                La victoire te va si bien ! 🏆
               </p>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Floating music control - shows when music playing but modal closed */}
+      {isPlaying && !showDrereCelebration && (
+        <button
+          onClick={toggleMusic}
+          className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-[#fbbf24] rounded-full shadow-lg shadow-[#fbbf24]/30 flex items-center justify-center text-2xl hover:scale-110 transition-transform animate-pulse"
+          title="Arrêter la musique"
+        >
+          ⏸️
+        </button>
       )}
 
       {/* Hero */}
