@@ -163,7 +163,18 @@ async function runSync() {
       }
     }
 
-    // 4. Log the sync
+    // 4. Recalculate all daily awards (Drère + Mzi) for all completed days
+    const allCompetitionDays = new Set<string>();
+    for (const m of matches as any[]) {
+      const compDay = getCompetitionDay(m.date, m.time);
+      allCompetitionDays.add(compDay);
+    }
+
+    for (const dateStr of allCompetitionDays) {
+      await updateDailyAwards(supabase, dateStr);
+    }
+
+    // 5. Log the sync
     await supabase.from('sync_log').insert({
       success: response.errors.length === 0,
       matches_synced: response.newResultsSynced.length,
