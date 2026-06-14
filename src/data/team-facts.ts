@@ -24,24 +24,24 @@ export const TEAM_FACTS: Record<string, TeamFacts> = {
     football: "Leur meilleur résultat en Coupe du Monde reste... la toute première, en 1930 : demi-finale.",
   },
   'Mexique': {
-    funny: "La tequila n'a légalement le droit de s'appeler tequila que si l'agave vient de régions précises — sinon c'est de la contrefaçon de cactus.",
+    funny: "1% du PIB de la Belgique est représenté par la vente de mexicanos dans les snacks.",
     smart: "Mexico est construite sur un ancien lac et s'enfonce de plusieurs dizaines de centimètres par an.",
     football: "L'Estadio Azteca est le seul stade au monde à avoir accueilli deux finales de Coupe du Monde (1970, 1986) — et il ouvre celle-ci avec Mexique–Afrique du Sud.",
   },
 
   // === EUROPE ===
   'Allemagne': {
-    funny: "Le mot allemand le plus long (63 lettres, une loi sur l'étiquetage de la viande bovine) a été supprimé du dictionnaire quand la loi a été abrogée.",
+    funny: "Comment s'appellent les niars de la capitale ? Les Berlin gos.",
     smart: "L'Allemagne compte environ 25 000 châteaux.",
     football: "Auteur de la plus grande humiliation de l'histoire moderne : 7-1 contre le Brésil, chez lui, en demi-finale 2014.",
   },
   'Angleterre': {
-    funny: "Le monarque britannique possède légalement tous les cygnes non marqués de la Tamise.",
+    funny: "Antoine Dupont a zbré une femme de ce pays, Jenny Garrity (Histoire vraie).",
     smart: "Le Royaume-Uni n'a pas de constitution écrite codifiée — tout repose sur des textes éparpillés et des traditions.",
     football: "Inventeurs du football, un seul titre (1966, à domicile) — et 60 ans de « It's coming home » depuis.",
   },
   'Autriche': {
-    funny: "Un village autrichien au nom très célèbre sur internet a fini par se rebaptiser « Fugging » en 2021, lassé des vols de panneaux.",
+    funny: "Mozzar e lla ?",
     smart: "Vienne est régulièrement élue ville la plus agréable à vivre du monde.",
     football: "Le « Miracle de Cordoue » (1978) : l'Autriche bat l'Allemagne 3-2, événement quasi férié dans la mémoire nationale.",
   },
@@ -51,17 +51,17 @@ export const TEAM_FACTS: Record<string, TeamFacts> = {
     football: "La génération dorée est partie sans trophée — 3e place en 2018, meilleur résultat de l'histoire. À cette génération de faire mieux.",
   },
   'Bosnie-Herzégovine': {
-    funny: "Mostar a érigé une statue de Bruce Lee comme symbole d'unité nationale — seule figure sur laquelle tout le monde était d'accord.",
+    funny: "Selon une rumeur, Edin Džeko est un reptilien et son vrai nom serait Edin Gekko.",
     smart: "Le pays a trois présidents en même temps (présidence tripartite tournante).",
     football: "Qualifiée en éliminant l'Italie aux tirs au but en barrage — l'Italie manque ainsi sa 3e CDM consécutive.",
   },
   'Croatie': {
-    funny: "Le dalmatien vient de Dalmatie, et la cravate vient des cavaliers croates (« hrvat » → cravate). Pays de 3,8 M d'habitants, influence mondiale.",
+    funny: "Seul pays où les grenouilles ont un système de gouvernement : la démocroatie.",
     smart: "La plage de Zlatni Rat change littéralement de forme selon le vent et les courants.",
     football: "Finale 2018 + demi-finale 2022 avec moins d'habitants que la Wallonie. Modrić, Ballon d'Or 2018, encore là à 40 ans.",
   },
   'Écosse': {
-    funny: "L'animal national officiel de l'Écosse est la licorne. Vraiment.",
+    funny: "Le mystère du monstre du Loch Ness a été résolu. Il se trouve simplement dans le pantalon de Ramzi.",
     smart: "L'Écosse compte environ 790 îles.",
     football: "Première qualification depuis 1998 — et c'est l'Écosse qui a disputé le tout premier match international de l'histoire (0-0 contre l'Angleterre, 1872).",
   },
@@ -71,7 +71,7 @@ export const TEAM_FACTS: Record<string, TeamFacts> = {
     football: "Championne d'Europe 2024 et seule nation à avoir gagné trois grands tournois d'affilée (Euro 2008, CDM 2010, Euro 2012). Favorite avec Yamal.",
   },
   'France': {
-    funny: "Plus de 1 200 variétés de fromages, et toujours un seul Mbappé.",
+    funny: "Emmanuel Macron a décidé de rebaptiser Alba-la-Romaine en Alba-la-Oueg.",
     smart: "La France est le pays avec le plus de fuseaux horaires au monde (12, grâce aux territoires d'outre-mer).",
     football: "Championne 2018, finaliste 2022 à un cheveu — vise une 3e étoile en trois éditions.",
   },
@@ -101,7 +101,7 @@ export const TEAM_FACTS: Record<string, TeamFacts> = {
     football: "12 participations, jamais une demi-finale. Mais l'élimination de la France à l'Euro 2021 (penalty de Mbappé sorti) reste un classique.",
   },
   'République tchèque': {
-    funny: "La Tchéquie a refusé d'admettre que Jan Vomacka vient de ce pays. (Et sinon : les Tchèques sont les plus gros buveurs de bière au monde, ~180 L/an par habitant.)",
+    funny: "C'est là où les joueurs NBA ont appris à se saluer. Et tout le monde paye en Tchèque repas dans ce pays.",
     smart: "Le château de Prague est le plus grand ensemble castral ancien du monde.",
     football: "La panenka s'appelle panenka parce qu'Antonín Panenka, tchèque, l'a inventée en finale de l'Euro 1976.",
   },
@@ -113,22 +113,22 @@ export const TEAM_FACTS: Record<string, TeamFacts> = {
 
   // === AMÉRIQUE DU SUD ===
   'Argentine': {
-    funny: "L'Église Maradonienne existe vraiment : des milliers de fidèles, leur propre calendrier (l'an 1 = naissance de Diego), et des mariages célébrés.",
+    funny: "Buenos Aires est la ville avec les gens qui ont les meilleures coupes de cheveux.",
     smart: "En décembre 2001, l'Argentine a eu 5 présidents en moins de deux semaines.",
     football: "Championne en titre. Messi, 39 ans, pour la der des ders.",
   },
   'Brésil': {
-    funny: "Une île brésilienne (Ilha da Queimada Grande) est interdite aux humains : jusqu'à un serpent venimeux par mètre carré.",
+    funny: "Le Brésil ne s'est pas toujours appelé le Brésil. En effet, à l'époque antique il était appelé le Zbrésil. Et le Brésil a Ronaldinho, la France a Rhône-Alpes Dinho.",
     smart: "Le Brésil partage une frontière avec tous les pays d'Amérique du Sud sauf deux (Chili et Équateur).",
     football: "Seul pays présent à TOUTES les Coupes du Monde, 5 étoiles — et désormais un sélectionneur italien, Ancelotti.",
   },
   'Colombie': {
-    funny: "Les hippopotames échappés du zoo de Pablo Escobar prolifèrent toujours dans les rivières colombiennes — plus de 150 aujourd'hui.",
+    funny: "La Colombie a Pablo Escobar et la Belgique a Pablo presque-au-bar.",
     smart: "La Colombie est le pays avec le plus d'espèces d'oiseaux au monde.",
     football: "James Rodríguez, meilleur buteur de la CDM 2014 avec LE but volé de plein fouet contre l'Uruguay.",
   },
   'Équateur': {
-    funny: "Le pays s'appelle littéralement « la ligne imaginaire » (l'équateur), et il a construit un monument dessus... légèrement au mauvais endroit (240 m à côté).",
+    funny: "Il est quelle heure ? Il est É-quateur et demi.",
     smart: "Le sommet du Chimborazo est le point de la Terre le plus éloigné de son centre — plus que l'Everest.",
     football: "En 2022, l'Équateur est devenu la première équipe de l'histoire à battre le pays hôte en match d'ouverture (2-0 contre le Qatar).",
   },
@@ -138,19 +138,19 @@ export const TEAM_FACTS: Record<string, TeamFacts> = {
     football: "José Luis Chilavert, gardien de but légendaire, tirait les coups francs et penaltys : 8 buts en sélection.",
   },
   'Uruguay': {
-    funny: "L'ex-président Mujica donnait 90 % de son salaire à des œuvres et venait au palais présidentiel dans sa vieille Coccinelle.",
+    funny: "Comment appelle-t-on un uruk hai homosexuel dans Le Seigneur des Anneaux ? Un Uruguay.",
     smart: "Premier pays au monde à avoir légalisé entièrement le cannabis (2013).",
     football: "3,4 millions d'habitants, premier champion du monde (1930), auteur du Maracanazo (1950) — et ils revendiquent 4 étoiles sur le maillot.",
   },
 
   // === AFRIQUE ===
   'Afrique du Sud': {
-    funny: "Des manchots vivent sur les plages du Cap, entre les serviettes des touristes (Boulders Beach).",
+    funny: "Pour demander à quelqu'un s'il est dans une pièce, en Afrique du Sud on dit : « Vou vou êtes là ? »",
     smart: "Le pays a trois capitales : Pretoria (exécutif), Le Cap (législatif), Bloemfontein (judiciaire).",
     football: "Premier hôte africain de l'histoire (2010)... et premier hôte éliminé dès le 1er tour. Elle ouvre cette CDM contre le Mexique à l'Azteca.",
   },
   'Algérie': {
-    funny: "Vu les origines de la moitié des Bleus historiques (Zidane, Benzema...), l'Algérie aurait pu aligner deux équipes de France.",
+    funny: "Pays natal de Chiheb, père de Ramzi.",
     smart: "Plus grand pays d'Afrique — plus de 80 % de son territoire est dans le Sahara.",
     football: "La « honte de Gijón » (1982) : l'arrangement Allemagne-Autriche qui élimina l'Algérie a forcé la FIFA à inventer les matchs simultanés en fin de poule.",
   },
@@ -160,27 +160,27 @@ export const TEAM_FACTS: Record<string, TeamFacts> = {
     football: "Première Coupe du Monde de son histoire — ~525 000 habitants, deuxième plus petite nation qualifiée de tous les temps.",
   },
   "Côte d'Ivoire": {
-    funny: "Lionel y a habité pendant 4 mois.",
+    funny: "Pourquoi les Ivoiriens n'ont jamais de point de côté ? Car ils ont des côtes d'Ivoire. (Et Lionel y a habité pendant 4 mois.)",
     smart: "Premier producteur mondial de cacao : environ 40 % du chocolat de la planète commence ici.",
     football: "En 2005, l'appel de Didier Drogba à genoux après la qualification a contribué à un cessez-le-feu dans la guerre civile.",
   },
   'Égypte': {
-    funny: "Les Égyptiens anciens vénéraient les chats. Les Égyptiens modernes vénèrent Salah. Le progrès est discutable.",
+    funny: "Plat favori des personnes au régime en Égypte : une Mohammed Salade. Et hier soir j'ai vu une meuf, elle m'a montré ses Néfertitis.",
     smart: "La grande pyramide de Gizeh a été le plus haut bâtiment du monde pendant 3 800 ans.",
     football: "Adversaire de la Belgique en poules ! Salah pour sa 2e CDM — la première s'était finie en larmes d'épaule (Ramos, 2018).",
   },
   'Ghana': {
-    funny: "Au Ghana, on enterre les gens dans des cercueils fantaisie : en forme de poisson, d'avion, de bouteille de Coca — selon la passion du défunt.",
+    funny: "Quel est le burger le plus mangé au Ghana ? Asamoah Gyant. Et qui de la Zbreteam est sorti le plus longtemps avec une africaine ? Edu — parce qu'il est sorti avec Ghanna Kay.",
     smart: "Le lac Volta est le plus grand lac artificiel du monde en superficie.",
     football: "La main de Suárez sur la ligne (2010) a privé le Ghana d'une demi-finale historique. La vengeance de 2022 a raté aussi. La rancune est éternelle.",
   },
   'Maroc': {
-    funny: "Ian y habite pour le moment.",
+    funny: "Où a été inventé le Rock and Roll ? Au Maroc. (Et Ian y habite pour le moment.)",
     smart: "L'université Al Quaraouiyine de Fès (fondée en 859) est la plus ancienne université du monde encore en activité.",
     football: "Premier pays africain de l'histoire en demi-finale de Coupe du Monde (2022).",
   },
   'RD Congo': {
-    funny: "Lionel devait naître à Kinshasa mais a dû ziar à cause de la guerre.",
+    funny: "Le seul pays où il n'y a que les avions qui ne volent pas. (Et Lionel devait naître à Kinshasa mais a dû ziar à cause de la guerre.)",
     smart: "Le fleuve Congo est le plus profond du monde : plus de 220 mètres par endroits.",
     football: "Le plus grand club du pays est le TP Mazembe. Le Zaïre de 1974 reste célèbre pour Mwepu Ilunga sortant du mur dégager un coup franc avant le coup de sifflet — retour en CDM après 52 ans d'absence.",
   },
@@ -197,7 +197,7 @@ export const TEAM_FACTS: Record<string, TeamFacts> = {
 
   // === ASIE ===
   'Arabie Saoudite': {
-    funny: "Le pays construit une ville en ligne droite de 170 km de long (The Line). Personne ne sait si c'est génial ou complètement fou.",
+    funny: "Un fonds saoudien est apparemment intéressé pour l'achat de Hector Chicken.",
     smart: "L'Arabie saoudite n'a aucune rivière permanente sur tout son territoire.",
     football: "Auteure du plus gros choc de 2022 : victoire contre l'Argentine — la seule défaite des futurs champions.",
   },
@@ -207,27 +207,27 @@ export const TEAM_FACTS: Record<string, TeamFacts> = {
     football: "Record mondial de la plus large victoire internationale : Australie 31-0 Samoa américaines (2001), 13 buts pour Archie Thompson.",
   },
   'Corée du Sud': {
-    funny: "Jusqu'en 2023, les bébés coréens naissaient avec « 1 an » : le pays a aboli son système d'âge et tout le monde a rajeuni d'un coup.",
+    funny: "Le seul Sud-Coréen à avoir été à l'EEB3 s'appelait Son Lee Lafrontière.",
     smart: "L'alphabet coréen (hangul) a été inventé au XVe siècle par un roi pour que le peuple puisse apprendre à lire en quelques jours.",
     football: "Demi-finale 2002 à domicile : toujours le meilleur résultat asiatique de l'histoire. Son Heung-min en capitaine crépusculaire.",
   },
   'Irak': {
-    funny: "Pour son barrage décisif au Mexique, l'équipe a voyagé TROIS JOURS depuis Bagdad, en commençant par la route jusqu'en Jordanie. Et elle a gagné.",
+    funny: "Destination Zbrebactrip 2032.",
     smart: "La Mésopotamie, c'est ici : l'écriture est née sur ce territoire il y a 5 000 ans.",
     football: "Retour en Coupe du Monde 40 ans après 1986 — et un groupe avec la France et la Norvège. Bon courage.",
   },
   'Iran': {
-    funny: "En Iran, le week-end c'est jeudi-vendredi. Le dimanche est un jour de travail comme un autre.",
+    funny: "Selon les rumeurs, le nouvel ayatollah s'appellerait Irangeli.",
     smart: "Les échecs et le polo trouvent leurs origines dans la Perse antique.",
     football: "Adversaire de la Belgique en poules ! Six CDM, jamais un 2e tour — mais une victoire mythique contre les USA en 1998, le match le plus politique de l'histoire.",
   },
   'Japon': {
-    funny: "Le Japon compte environ un distributeur automatique pour 25 habitants. On y vend à peu près tout.",
+    funny: "Ben a failli mourir à cause d'un pingouin en pomme de 2,5 cm.",
     smart: "Le retard moyen du Shinkansen se compte en secondes — et la compagnie s'excuse publiquement au-delà d'une minute.",
     football: "A battu l'Allemagne ET l'Espagne en 2022. Et ses supporters nettoient les tribunes après chaque match, victoire ou défaite.",
   },
   'Jordanie': {
-    funny: "Dans la mer Morte, il est physiquement impossible de couler. Le selfie en lisant le journal est obligatoire.",
+    funny: "Le jeu de cartes le plus joué en Jordanie, c'est le Jordanish.",
     smart: "Pétra, la cité taillée dans la roche, est l'une des sept nouvelles merveilles du monde.",
     football: "Première Coupe du Monde de l'histoire du pays.",
   },
@@ -249,19 +249,19 @@ export const TEAM_FACTS: Record<string, TeamFacts> = {
     football: "Qualifiée sous Dick Advocaat, doyen des sélectionneurs du tournoi — et première CDM de son histoire.",
   },
   'Haïti': {
-    funny: "Haïti et le Liechtenstein ont découvert aux JO de 1936 qu'ils avaient exactement le même drapeau, sans le savoir. Les deux ont ajouté un emblème depuis.",
+    funny: "C'est le pays avec le plus d'informaticiens dans le monde.",
     smart: "Première république noire indépendante de l'histoire (1804).",
     football: "Retour 52 ans après 1974 — qualifiée sans pouvoir jouer un seul match à domicile pendant les éliminatoires.",
   },
   'Panama': {
-    funny: "Le canal de Panama fait gagner ~13 000 km aux bateaux — et le pays encaisse un péage qui peut dépasser le million de dollars par passage.",
+    funny: "50% de la population est descendante de Aristides Ureña, le grand-père de Ian.",
     smart: "Le Panama est le seul endroit au monde où l'on peut voir le soleil se lever sur le Pacifique et se coucher sur l'Atlantique (grâce à la forme en S de l'isthme).",
     football: "Son premier but en CDM (2018, contre l'Angleterre à 6-0) a été fêté comme un titre mondial : jour quasi férié.",
   },
 
   // === OCÉANIE ===
   'Nouvelle-Zélande': {
-    funny: "Le pays a employé un sorcier officiel (\"Wizard of New Zealand\"), payé par l'État, jusqu'en 2021.",
+    funny: "Are you all all right? Non, you are all all black.",
     smart: "Premier pays au monde à accorder le droit de vote aux femmes (1893).",
     football: "Seule équipe INVAINCUE de la CDM 2010 (3 nuls)... éliminée quand même au 1er tour. Adversaire de la Belgique en poules !",
   },
