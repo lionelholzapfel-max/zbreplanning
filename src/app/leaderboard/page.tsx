@@ -194,8 +194,9 @@ export default function LeaderboardPage() {
   const activePlayers = leaderboard.filter(e => e.matches_predicted > 0);
   const inactivePlayers = leaderboard.filter(e => e.matches_predicted === 0);
 
-  const drereToday = leaderboard.find(e => e.is_drere_today);
-  const mziToday = leaderboard.find(e => e.is_mzi_today);
+  // Get ALL drères and mzis (handles ties)
+  const dreresToday = leaderboard.filter(e => e.is_drere_today);
+  const mzisToday = leaderboard.filter(e => e.is_mzi_today);
 
   const currentUserEntry = leaderboard.find(e => e.user_id === currentUserId);
 
@@ -309,48 +310,74 @@ export default function LeaderboardPage() {
 
       {/* Drère du jour & Type mzi du jour */}
       <section className="max-w-4xl mx-auto px-4 pb-8 grid md:grid-cols-2 gap-4">
-        {/* Drère du jour */}
-        {drereToday && (
+        {/* Drère(s) du jour */}
+        {dreresToday.length > 0 && (
           <div className="relative overflow-hidden rounded-3xl border-2 border-[#fbbf24] bg-gradient-to-br from-[#fbbf24]/20 to-[#f59e0b]/10 p-6">
             <div className="absolute top-0 right-0 w-40 h-40 bg-[#fbbf24]/20 rounded-full blur-3xl" />
             <div className="absolute -top-2 -left-2 text-5xl">👑</div>
 
             <div className="relative flex items-center gap-4 pl-10">
-              <div className="relative w-16 h-16 rounded-full overflow-hidden ring-4 ring-[#fbbf24]">
-                <Image
-                  src={`/members/${drereToday.member_slug}.png`}
-                  alt={drereToday.member_name}
-                  fill
-                  className="object-cover"
-                />
+              {/* Stacked avatars for ties */}
+              <div className="flex -space-x-3">
+                {dreresToday.map((drere, idx) => (
+                  <div
+                    key={drere.user_id}
+                    className="relative w-14 h-14 rounded-full overflow-hidden ring-4 ring-[#fbbf24] bg-[#0a0a0f]"
+                    style={{ zIndex: dreresToday.length - idx }}
+                  >
+                    <Image
+                      src={`/members/${drere.member_slug}.png`}
+                      alt={drere.member_name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                ))}
               </div>
               <div className="flex-1">
-                <p className="text-[#fbbf24] text-xs font-bold uppercase tracking-wide">Drère du jour</p>
-                <h2 className="text-xl font-black text-white">{drereToday.member_name}</h2>
+                <p className="text-[#fbbf24] text-xs font-bold uppercase tracking-wide">
+                  {dreresToday.length > 1 ? 'Drères du jour' : 'Drère du jour'}
+                </p>
+                <h2 className="text-xl font-black text-white">
+                  {dreresToday.map(d => d.member_name).join(' & ')}
+                </h2>
                 <p className="text-[#fbbf24] font-bold">{drereDayPoints} pts</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Type mzi du jour */}
-        {mziToday && (
+        {/* Type(s) mzi du jour */}
+        {mzisToday.length > 0 && (
           <div className="relative overflow-hidden rounded-3xl border-2 border-[#ef4444]/50 bg-gradient-to-br from-[#ef4444]/10 to-[#0a0a0f] p-6">
             <div className="absolute top-0 right-0 w-40 h-40 bg-[#ef4444]/10 rounded-full blur-3xl" />
             <div className="absolute -top-2 -left-2 text-5xl">💀</div>
 
             <div className="relative flex items-center gap-4 pl-10">
-              <div className="relative w-16 h-16 rounded-full overflow-hidden ring-4 ring-[#ef4444]/50 grayscale">
-                <Image
-                  src={`/members/${mziToday.member_slug}.png`}
-                  alt={mziToday.member_name}
-                  fill
-                  className="object-cover"
-                />
+              {/* Stacked avatars for ties */}
+              <div className="flex -space-x-3">
+                {mzisToday.map((mzi, idx) => (
+                  <div
+                    key={mzi.user_id}
+                    className="relative w-14 h-14 rounded-full overflow-hidden ring-4 ring-[#ef4444]/50 bg-[#0a0a0f] grayscale"
+                    style={{ zIndex: mzisToday.length - idx }}
+                  >
+                    <Image
+                      src={`/members/${mzi.member_slug}.png`}
+                      alt={mzi.member_name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                ))}
               </div>
               <div className="flex-1">
-                <p className="text-[#ef4444] text-xs font-bold uppercase tracking-wide">Type mzi du jour</p>
-                <h2 className="text-xl font-black text-white">{mziToday.member_name}</h2>
+                <p className="text-[#ef4444] text-xs font-bold uppercase tracking-wide">
+                  {mzisToday.length > 1 ? 'Types mzi du jour' : 'Type mzi du jour'}
+                </p>
+                <h2 className="text-xl font-black text-white">
+                  {mzisToday.map(m => m.member_name).join(' & ')}
+                </h2>
                 <p className="text-[#ef4444] font-bold">{mziDayPoints ?? 0} pts</p>
               </div>
             </div>
