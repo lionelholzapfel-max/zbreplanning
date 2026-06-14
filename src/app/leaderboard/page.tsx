@@ -224,7 +224,7 @@ export default function LeaderboardPage() {
                   alt={currentUserEntry.member_name}
                   width={96}
                   height={96}
-                  className="object-cover"
+                  className="object-cover object-top"
                 />
               </div>
 
@@ -329,7 +329,7 @@ export default function LeaderboardPage() {
                       src={`/members/${drere.member_slug}.png`}
                       alt={drere.member_name}
                       fill
-                      className="object-cover"
+                      className="object-cover object-top"
                     />
                   </div>
                 ))}
@@ -366,7 +366,7 @@ export default function LeaderboardPage() {
                       src={`/members/${mzi.member_slug}.png`}
                       alt={mzi.member_name}
                       fill
-                      className="object-cover"
+                      className="object-cover object-top"
                     />
                   </div>
                 ))}
@@ -431,7 +431,7 @@ export default function LeaderboardPage() {
                         src={`/members/${entry.member_slug}.png`}
                         alt={entry.member_name}
                         fill
-                        className="object-cover"
+                        className="object-cover object-top"
                       />
                     </div>
                     {entry.is_drere_today && (
@@ -524,7 +524,7 @@ export default function LeaderboardPage() {
                       src={`/members/${player.member_slug}.png`}
                       alt={player.member_name}
                       fill
-                      className="object-cover"
+                      className="object-cover object-top"
                     />
                   </div>
                   <span className="text-gray-500 text-sm">{player.member_name.split(' ')[0]}</span>

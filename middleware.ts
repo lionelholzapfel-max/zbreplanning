@@ -8,7 +8,6 @@ const PUBLIC_PATHS = [
   '/api/auth/me',
   '/api/auth/logout',
   '/api/results/sync', // Cron job (protected by CRON_SECRET)
-  '/api/check-mzi', // Temporary debug
 ];
 
 export async function middleware(request: NextRequest) {

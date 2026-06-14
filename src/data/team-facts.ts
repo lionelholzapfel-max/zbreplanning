@@ -222,7 +222,7 @@ export const TEAM_FACTS: Record<string, TeamFacts> = {
     football: "Adversaire de la Belgique en poules ! Six CDM, jamais un 2e tour — mais une victoire mythique contre les USA en 1998, le match le plus politique de l'histoire.",
   },
   'Japon': {
-    funny: "Ben a failli mourir à cause d'un pingouin en pomme de 2,5 cm.",
+    funny: "À Tokyo, Ben a failli mourir à cause d'un pingouin en pomme de 2,5 cm.",
     smart: "Le retard moyen du Shinkansen se compte en secondes — et la compagnie s'excuse publiquement au-delà d'une minute.",
     football: "A battu l'Allemagne ET l'Espagne en 2022. Et ses supporters nettoient les tribunes après chaque match, victoire ou défaite.",
   },
