@@ -103,13 +103,14 @@ export async function GET() {
     // Get Mzi for display (previous competition day)
     const { data: todayMzi } = await supabase
       .from('daily_awards')
-      .select('user_id')
+      .select('user_id, points_earned')
       .eq('award_date', drereDisplayDate)
       .eq('award_type', 'mzi');
 
     const todayDrereIds = new Set((todayDrere || []).map(d => d.user_id));
     const todayMziIds = new Set((todayMzi || []).map(d => d.user_id));
     const drerePoints = (todayDrere || [])[0]?.points_earned || 0;
+    const mziPoints = (todayMzi || [])[0]?.points_earned ?? null;
 
     // Calculate user stats
     const userStats: Record<string, {
@@ -212,6 +213,7 @@ export async function GET() {
       current_user_id: user.id,
       total_matches_with_results: totalMatchesWithResults || 0,
       drere_day_points: drerePoints,
+      mzi_day_points: mziPoints,
     });
   } catch (error) {
     console.error('[Leaderboard] GET error:', error);

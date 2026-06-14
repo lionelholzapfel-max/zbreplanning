@@ -39,6 +39,7 @@ export default function LeaderboardPage() {
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [totalMatchesWithResults, setTotalMatchesWithResults] = useState(0);
   const [drereDayPoints, setDrereDayPoints] = useState(0);
+  const [mziDayPoints, setMziDayPoints] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
@@ -134,6 +135,7 @@ export default function LeaderboardPage() {
         setCurrentUserId(data.current_user_id);
         setTotalMatchesWithResults(data.total_matches_with_results || 0);
         setDrereDayPoints(data.drere_day_points || 0);
+        setMziDayPoints(data.mzi_day_points ?? null);
 
         // Check if current user is Drère du jour and hasn't seen celebration today
         const drereEntry = data.leaderboard.find((e: LeaderboardEntry) => e.is_drere_today);
@@ -349,7 +351,7 @@ export default function LeaderboardPage() {
               <div className="flex-1">
                 <p className="text-[#ef4444] text-xs font-bold uppercase tracking-wide">Type mzi du jour</p>
                 <h2 className="text-xl font-black text-white">{mziToday.member_name}</h2>
-                <p className="text-[#ef4444] font-bold">0 pts</p>
+                <p className="text-[#ef4444] font-bold">{mziDayPoints ?? 0} pts</p>
               </div>
             </div>
           </div>

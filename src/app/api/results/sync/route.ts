@@ -392,10 +392,15 @@ async function updateDailyAwards(
     .filter(([, points]) => points === maxPoints)
     .map(([userId]) => userId);
 
-  // Find users with 0 points who made predictions (Type mzi)
-  const mziUsers = Object.entries(userPoints)
-    .filter(([, points]) => points === 0)
-    .map(([userId]) => userId);
+  // Find min points (Type mzi = celui qui a le moins de points)
+  const minPoints = Math.min(...Object.values(userPoints));
+
+  // Find users with min points (Type mzi) - exclude if same as max (everyone tied)
+  const mziUsers = minPoints < maxPoints
+    ? Object.entries(userPoints)
+        .filter(([, points]) => points === minPoints)
+        .map(([userId]) => userId)
+    : [];
 
   // Create Drère daily awards
   await supabase
@@ -425,7 +430,7 @@ async function updateDailyAwards(
       user_id: userId,
       award_date: dateStr,
       award_type: 'mzi' as const,
-      points_earned: 0,
+      points_earned: minPoints,
     }));
 
     await supabase.from('daily_awards').insert(mziAwards);
