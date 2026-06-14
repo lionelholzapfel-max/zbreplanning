@@ -301,7 +301,6 @@ export default function LeaderboardPage() {
               <span className="text-5xl">🏆</span>
             </div>
             <p className="text-gray-400 text-lg">Classement des pronostics CDM 2026</p>
-            <p className="text-red-500 text-xs mt-2">v2.0 - DEBUG</p>
           </div>
         </div>
       </section>
