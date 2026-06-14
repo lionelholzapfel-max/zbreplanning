@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
-import confetti from 'canvas-confetti';
+// import confetti from 'canvas-confetti'; // Temporarily disabled for mobile debugging
 
 interface LeaderboardEntry {
   rank: number;
@@ -46,32 +46,10 @@ export default function LeaderboardPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Fire confetti burst
+  // Fire confetti burst - disabled for mobile debugging
   const fireConfetti = useCallback(() => {
-    const duration = 3000;
-    const end = Date.now() + duration;
-
-    const frame = () => {
-      confetti({
-        particleCount: 5,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0 },
-        colors: ['#fbbf24', '#f59e0b', '#22c55e', '#6366f1'],
-      });
-      confetti({
-        particleCount: 5,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1 },
-        colors: ['#fbbf24', '#f59e0b', '#22c55e', '#6366f1'],
-      });
-
-      if (Date.now() < end) {
-        requestAnimationFrame(frame);
-      }
-    };
-    frame();
+    // Confetti temporarily disabled
+    console.log('Confetti would fire here');
   }, []);
 
   // Play/pause celebration music (max 30 seconds)
