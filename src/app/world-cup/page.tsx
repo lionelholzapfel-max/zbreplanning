@@ -970,41 +970,37 @@ export default function WorldCupPage() {
                       {/* Team names row - Mobile optimized */}
                       <div className="flex items-center justify-between gap-2 sm:gap-4 mb-2">
                         {/* Home team */}
-                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                        <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1">
                           <span className="text-2xl sm:text-3xl flex-shrink-0">{getFlag(team1)}</span>
+                          <TeamInfoButton teamName={team1} />
                           <span className="text-sm sm:text-xl font-bold text-white truncate">{team1}</span>
-                          <div className="hidden sm:flex items-center gap-1">
-                            <TeamInfoButton teamName={team1} />
-                            <button
-                              onClick={(e) => { e.stopPropagation(); toggleFavorite(team1); }}
-                              disabled={loadingFavorite === team1}
-                              className={`min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full transition-all text-lg ${
-                                favorites.includes(team1) ? 'text-[#fbbf24]' : 'text-gray-500 hover:text-gray-300'
-                              }`}
-                            >
-                              {favorites.includes(team1) ? '★' : '☆'}
-                            </button>
-                          </div>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleFavorite(team1); }}
+                            disabled={loadingFavorite === team1}
+                            className={`hidden sm:flex min-w-[36px] min-h-[36px] items-center justify-center rounded-full transition-all text-lg flex-shrink-0 ${
+                              favorites.includes(team1) ? 'text-[#fbbf24]' : 'text-gray-500 hover:text-gray-300'
+                            }`}
+                          >
+                            {favorites.includes(team1) ? '★' : '☆'}
+                          </button>
                         </div>
 
                         {/* VS */}
                         <span className="text-gray-500 text-base sm:text-xl font-bold flex-shrink-0 px-1">VS</span>
 
                         {/* Away team */}
-                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 justify-end">
-                          <div className="hidden sm:flex items-center gap-1">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); toggleFavorite(team2); }}
-                              disabled={loadingFavorite === team2}
-                              className={`min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full transition-all text-lg ${
-                                favorites.includes(team2) ? 'text-[#fbbf24]' : 'text-gray-500 hover:text-gray-300'
-                              }`}
-                            >
-                              {favorites.includes(team2) ? '★' : '☆'}
-                            </button>
-                            <TeamInfoButton teamName={team2} />
-                          </div>
+                        <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1 justify-end">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleFavorite(team2); }}
+                            disabled={loadingFavorite === team2}
+                            className={`hidden sm:flex min-w-[36px] min-h-[36px] items-center justify-center rounded-full transition-all text-lg flex-shrink-0 ${
+                              favorites.includes(team2) ? 'text-[#fbbf24]' : 'text-gray-500 hover:text-gray-300'
+                            }`}
+                          >
+                            {favorites.includes(team2) ? '★' : '☆'}
+                          </button>
                           <span className="text-sm sm:text-xl font-bold text-white truncate text-right">{team2}</span>
+                          <TeamInfoButton teamName={team2} />
                           <span className="text-2xl sm:text-3xl flex-shrink-0">{getFlag(team2)}</span>
                         </div>
                       </div>
