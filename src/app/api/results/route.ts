@@ -293,15 +293,27 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Get the "competition day" for a match
- * Matches between 06:00 day N and 05:59 day N+1 belong to day N
- * This groups late-night matches (e.g., 03:00) with the previous evening's matches
+ * Get the "competition day" (session) for a match
+ * Session = soirée foot belge: 18h00 jour N → 08h59 jour N+1
+ * Nouvelle session à 09h00
+ *
+ * Exemple session "15 juin":
+ * - 15 juin 18h ✓
+ * - 15 juin 21h ✓
+ * - 16 juin 00h ✓
+ * - 16 juin 03h ✓
+ * - 16 juin 06h ✓
+ * - 16 juin 08h ✓
+ * - 16 juin 09h → nouvelle session "16 juin"
+ *
+ * Drère calculé à 09h01 chaque jour
  */
 function getCompetitionDay(date: string, time: string): string {
   const hour = parseInt(time.split(':')[0], 10);
 
-  // If match is before 06:00, it belongs to the previous day's competition
-  if (hour < 6) {
+  // If match is before 09:00 Belgian time, it belongs to the previous day's session
+  // (late night matches are part of the previous evening's session)
+  if (hour < 9) {
     const d = new Date(date + 'T00:00:00');
     d.setDate(d.getDate() - 1);
     return d.toISOString().split('T')[0];

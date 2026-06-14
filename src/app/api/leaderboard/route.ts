@@ -38,19 +38,25 @@ export async function GET() {
 
     const supabase = getSupabaseAdmin();
 
-    // Get the "display date" for Drère - use previous competition day
-    // Competition day: 06:00 to 05:59 next day
-    // Show yesterday's Drère so it displays for a full day
+    // Get the "display date" for Drère - based on Belgian viewing sessions
+    // Session = 18h00 jour N → 08h59 jour N+1 (heure belge)
+    // Nouvelle session à 09h00 belge = 07:00 UTC (summer time, UTC+2)
+    // Drère calculé et affiché à 09h01 chaque jour
+    //
+    // Exemple: on est le 16 juin à 10h belge (session "16 juin" a commencé à 09h)
+    // → on affiche le Drère de la session "15 juin" (qui s'est terminée à 08h59)
     const now = new Date();
     const hour = now.getUTCHours();
     let drereDisplayDate: string;
 
-    if (hour < 6) {
-      // Before 06:00 UTC - show 2 days ago's Drère (yesterday's competition day ended)
+    if (hour < 7) {
+      // Before 07:00 UTC (09:00 Belgian) - still in "yesterday's" session
+      // Show 2 days ago's Drère (last completed session)
       const twoDaysAgo = new Date(now.getTime() - 2 * 86400000);
       drereDisplayDate = twoDaysAgo.toISOString().split('T')[0];
     } else {
-      // After 06:00 UTC - show yesterday's Drère
+      // After 07:00 UTC (09:00 Belgian) - new session started
+      // Show yesterday's Drère (just completed session)
       const yesterday = new Date(now.getTime() - 86400000);
       drereDisplayDate = yesterday.toISOString().split('T')[0];
     }
