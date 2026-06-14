@@ -46,7 +46,7 @@ export const TEAM_FACTS: Record<string, TeamFacts> = {
     football: "Le « Miracle de Cordoue » (1978) : l'Autriche bat l'Allemagne 3-2, événement quasi férié dans la mémoire nationale.",
   },
   'Belgique': {
-    funny: "La Belgique a inventé les frites et passe le reste de son existence à devoir le prouver aux Français.",
+    funny: "Benjamin Oyowe connaît toutes les adresses de chacun via leur proximité aux Hector Chicken les plus proches.",
     smart: "Record du monde : 541 jours sans gouvernement fédéral (2010-2011), et le pays a continué à tourner.",
     football: "La génération dorée est partie sans trophée — 3e place en 2018, meilleur résultat de l'histoire. À cette génération de faire mieux.",
   },
@@ -86,7 +86,7 @@ export const TEAM_FACTS: Record<string, TeamFacts> = {
     football: "Trois finales de Coupe du Monde (1974, 1978, 2010), trois défaites : la meilleure équipe à n'avoir jamais été championne.",
   },
   'Portugal': {
-    funny: "Cristiano Ronaldo a un musée entièrement dédié à sa gloire, ouvert de son vivant, par lui-même.",
+    funny: "La célébration Suiii de Cristiano Ronaldo a en fait été volée au Pionnn de Philippe Arendt.",
     smart: "La frontière Portugal-Espagne est la plus vieille frontière quasi inchangée d'Europe (traité de 1297).",
     football: "Ronaldo, 41 ans, devient le premier joueur de l'histoire à disputer 6 Coupes du Monde.",
   },
