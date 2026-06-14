@@ -55,6 +55,20 @@ export async function GET() {
   const maxPoints = pointsValues.length > 0 ? Math.max(...pointsValues) : 0;
   const minPoints = pointsValues.length > 0 ? Math.min(...pointsValues) : 0;
 
+  // Get mzi awards specifically
+  const { data: mziAwards } = await supabase
+    .from('daily_awards')
+    .select('*')
+    .eq('award_type', 'mzi')
+    .order('award_date', { ascending: false });
+
+  // Calculate who should be mzi
+  const mziUserIds = minPoints < maxPoints
+    ? Object.entries(userPoints)
+        .filter(([, points]) => points === minPoints)
+        .map(([userId]) => userId)
+    : [];
+
   return NextResponse.json({
     now: now.toISOString(),
     utcHour: hour,
@@ -65,6 +79,8 @@ export async function GET() {
     maxPoints,
     minPoints,
     wouldHaveMzi: minPoints < maxPoints,
-    allAwards: allAwards?.slice(0, 20),
+    expectedMziUserIds: mziUserIds,
+    allDrereAwards: allAwards?.filter(a => a.award_type === 'drere').slice(0, 10),
+    allMziAwards: mziAwards?.slice(0, 10) || [],
   });
 }

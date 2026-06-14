@@ -433,6 +433,11 @@ async function updateDailyAwards(
       points_earned: minPoints,
     }));
 
-    await supabase.from('daily_awards').insert(mziAwards);
+    const { error: mziError } = await supabase.from('daily_awards').insert(mziAwards);
+    if (mziError) {
+      console.error(`[Sync] Failed to insert mzi awards for ${dateStr}:`, mziError);
+    } else {
+      console.log(`[Sync] Inserted ${mziAwards.length} mzi awards for ${dateStr}`);
+    }
   }
 }
