@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "ZbrePlanning - La team au complet",
+  title: "ZbrePlanning - La team au complet v2026.06.14",
   description: "Plateforme de planning pour la Zbre Team - Activités, Coupe du Monde 2026 et plus",
   icons: {
     icon: "/team/group.png",
