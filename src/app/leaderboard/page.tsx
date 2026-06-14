@@ -105,16 +105,8 @@ export default function LeaderboardPage() {
     }, 30000);
   }, [isPlaying, fireConfetti]);
 
-  // Close celebration modal
+  // Close celebration modal - music continues playing
   const closeCelebration = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
-    if (audioTimeoutRef.current) {
-      clearTimeout(audioTimeoutRef.current);
-    }
-    setIsPlaying(false);
     setShowDrereCelebration(false);
 
     // Mark as seen today
@@ -281,6 +273,16 @@ export default function LeaderboardPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Floating pause button - shows when music playing but modal closed */}
+      {isPlaying && !showDrereCelebration && (
+        <button
+          onClick={toggleMusic}
+          className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-[#fbbf24] rounded-full shadow-lg shadow-[#fbbf24]/30 flex items-center justify-center text-2xl hover:scale-110 transition-transform animate-pulse"
+        >
+          ⏸️
+        </button>
       )}
 
       {/* Hero */}
