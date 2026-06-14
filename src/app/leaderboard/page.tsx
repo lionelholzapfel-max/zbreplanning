@@ -44,6 +44,7 @@ export default function LeaderboardPage() {
   const [showDrereCelebration, setShowDrereCelebration] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fire confetti burst
   const fireConfetti = useCallback(() => {
@@ -73,22 +74,35 @@ export default function LeaderboardPage() {
     frame();
   }, []);
 
-  // Play/pause celebration music
+  // Play/pause celebration music (max 30 seconds)
   const toggleMusic = useCallback(() => {
+    if (isPlaying && audioRef.current) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+      if (audioTimeoutRef.current) {
+        clearTimeout(audioTimeoutRef.current);
+      }
+      return;
+    }
+
     if (!audioRef.current) {
       audioRef.current = new Audio('/sounds/drere.mp3');
       audioRef.current.volume = 0.7;
       audioRef.current.onended = () => setIsPlaying(false);
     }
 
-    if (isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    } else {
-      audioRef.current.play();
-      setIsPlaying(true);
-      fireConfetti();
-    }
+    audioRef.current.play();
+    setIsPlaying(true);
+    fireConfetti();
+
+    // Auto-stop after 30 seconds
+    audioTimeoutRef.current = setTimeout(() => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        setIsPlaying(false);
+      }
+    }, 30000);
   }, [isPlaying, fireConfetti]);
 
   // Close celebration modal
@@ -96,6 +110,9 @@ export default function LeaderboardPage() {
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
+    }
+    if (audioTimeoutRef.current) {
+      clearTimeout(audioTimeoutRef.current);
     }
     setIsPlaying(false);
     setShowDrereCelebration(false);
@@ -125,8 +142,14 @@ export default function LeaderboardPage() {
         setDrereDayPoints(data.drere_day_points || 0);
 
         // Check if current user is Drère du jour and hasn't seen celebration today
+        // TEMP TEST: Force Lionel as Drère - REMOVE AFTER TEST
+        const TEST_MODE = true;
+        const TEST_USER_ID = '7'; // Lionel
+
         const drereEntry = data.leaderboard.find((e: LeaderboardEntry) => e.is_drere_today);
-        if (drereEntry && drereEntry.user_id === data.current_user_id) {
+        const isTestDrere = TEST_MODE && data.current_user_id === TEST_USER_ID;
+
+        if ((drereEntry && drereEntry.user_id === data.current_user_id) || isTestDrere) {
           const today = new Date().toISOString().split('T')[0];
           const lastSeen = localStorage.getItem('drere-celebration-seen');
           if (lastSeen !== today) {
@@ -149,6 +172,9 @@ export default function LeaderboardPage() {
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
+      }
+      if (audioTimeoutRef.current) {
+        clearTimeout(audioTimeoutRef.current);
       }
     };
   }, []);
@@ -235,7 +261,7 @@ export default function LeaderboardPage() {
                 ) : (
                   <>
                     <span className="text-2xl">🎵</span>
-                    <span>Jouer &quot;1er Gaou&quot; 🎶</span>
+                    <span>C&apos;est la fête !</span>
                   </>
                 )}
               </button>
@@ -250,7 +276,7 @@ export default function LeaderboardPage() {
 
               {/* Fun text */}
               <p className="mt-4 text-sm text-gray-500 italic">
-                &quot;Premier gaou n&apos;est pas gaou...&quot; 🎤
+                La victoire te va si bien ! 🏆
               </p>
             </div>
           </div>
