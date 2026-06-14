@@ -376,24 +376,47 @@ async function updateDailyAwards(
   const maxPoints = Math.max(...Object.values(userPoints));
   if (maxPoints === 0) return;
 
-  // Find users with max points
+  // Find users with max points (Drère)
   const drereUsers = Object.entries(userPoints)
     .filter(([, points]) => points === maxPoints)
     .map(([userId]) => userId);
 
-  // Create daily awards
+  // Find users with 0 points who made predictions (Type mzi)
+  const mziUsers = Object.entries(userPoints)
+    .filter(([, points]) => points === 0)
+    .map(([userId]) => userId);
+
+  // Create Drère daily awards
   await supabase
     .from('daily_awards')
     .delete()
     .eq('award_date', dateStr)
     .eq('award_type', 'drere');
 
-  const awards = drereUsers.map(userId => ({
+  const drereAwards = drereUsers.map(userId => ({
     user_id: userId,
     award_date: dateStr,
     award_type: 'drere' as const,
     points_earned: maxPoints,
   }));
 
-  await supabase.from('daily_awards').insert(awards);
+  await supabase.from('daily_awards').insert(drereAwards);
+
+  // Create Type mzi daily awards
+  await supabase
+    .from('daily_awards')
+    .delete()
+    .eq('award_date', dateStr)
+    .eq('award_type', 'mzi');
+
+  if (mziUsers.length > 0) {
+    const mziAwards = mziUsers.map(userId => ({
+      user_id: userId,
+      award_date: dateStr,
+      award_type: 'mzi' as const,
+      points_earned: 0,
+    }));
+
+    await supabase.from('daily_awards').insert(mziAwards);
+  }
 }

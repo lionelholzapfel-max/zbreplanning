@@ -15,7 +15,9 @@ export interface LeaderboardEntry {
   matches_predicted: number;
   global_correct: number; // Number of correct global predictions (0-5)
   crown_count: number;
+  mzi_count: number; // Number of times this user got 0 points in a day
   is_drere_today: boolean;
+  is_mzi_today: boolean; // Type mzi du jour (0 points)
   rank_change: number; // positive = up, negative = down, 0 = same
 }
 
@@ -79,11 +81,17 @@ export async function GET() {
       // Table might not exist yet - that's ok
     }
 
-    // Get crown counts
+    // Get crown counts (Drère)
     const { data: crownsData } = await supabase
       .from('daily_awards')
       .select('user_id')
       .eq('award_type', 'drere');
+
+    // Get mzi counts (Type mzi)
+    const { data: mziData } = await supabase
+      .from('daily_awards')
+      .select('user_id')
+      .eq('award_type', 'mzi');
 
     // Get Drère for display (previous competition day) with points earned
     const { data: todayDrere } = await supabase
@@ -92,7 +100,15 @@ export async function GET() {
       .eq('award_date', drereDisplayDate)
       .eq('award_type', 'drere');
 
+    // Get Mzi for display (previous competition day)
+    const { data: todayMzi } = await supabase
+      .from('daily_awards')
+      .select('user_id')
+      .eq('award_date', drereDisplayDate)
+      .eq('award_type', 'mzi');
+
     const todayDrereIds = new Set((todayDrere || []).map(d => d.user_id));
+    const todayMziIds = new Set((todayMzi || []).map(d => d.user_id));
     const drerePoints = (todayDrere || [])[0]?.points_earned || 0;
 
     // Calculate user stats
@@ -132,10 +148,16 @@ export async function GET() {
       userStats[g.user_id].global_correct += 1;
     }
 
-    // Count crowns
+    // Count crowns (Drère)
     const crownCounts: Record<string, number> = {};
     for (const c of crownsData || []) {
       crownCounts[c.user_id] = (crownCounts[c.user_id] || 0) + 1;
+    }
+
+    // Count mzi
+    const mziCounts: Record<string, number> = {};
+    for (const m of mziData || []) {
+      mziCounts[m.user_id] = (mziCounts[m.user_id] || 0) + 1;
     }
 
     // Build leaderboard
@@ -157,7 +179,9 @@ export async function GET() {
         matches_predicted: stats.matches_predicted,
         global_correct: stats.global_correct,
         crown_count: crownCounts[member.id] || 0,
+        mzi_count: mziCounts[member.id] || 0,
         is_drere_today: todayDrereIds.has(member.id),
+        is_mzi_today: todayMziIds.has(member.id),
         rank_change: 0, // TODO: Calculate from yesterday's ranking
       };
     });

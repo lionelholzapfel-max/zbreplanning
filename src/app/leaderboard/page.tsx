@@ -20,7 +20,9 @@ interface LeaderboardEntry {
   matches_predicted: number;
   global_correct: number;
   crown_count: number;
+  mzi_count: number;
   is_drere_today: boolean;
+  is_mzi_today: boolean;
   rank_change: number;
 }
 
@@ -186,8 +188,13 @@ export default function LeaderboardPage() {
     );
   }
 
+  // Separate active and inactive players
+  const activePlayers = leaderboard.filter(e => e.matches_predicted > 0);
+  const inactivePlayers = leaderboard.filter(e => e.matches_predicted === 0);
+
   const drereToday = leaderboard.find(e => e.is_drere_today);
-  const woodenSpoon = leaderboard[leaderboard.length - 1];
+  const mziToday = leaderboard.find(e => e.is_mzi_today);
+  const woodenSpoon = activePlayers[activePlayers.length - 1];
 
   const currentUserEntry = leaderboard.find(e => e.user_id === currentUserId);
 
@@ -299,15 +306,16 @@ export default function LeaderboardPage() {
         </div>
       </section>
 
-      {/* Drère du jour */}
-      {drereToday && (
-        <section className="max-w-4xl mx-auto px-4 pb-8">
+      {/* Drère du jour & Type mzi du jour */}
+      <section className="max-w-4xl mx-auto px-4 pb-8 grid md:grid-cols-2 gap-4">
+        {/* Drère du jour */}
+        {drereToday && (
           <div className="relative overflow-hidden rounded-3xl border-2 border-[#fbbf24] bg-gradient-to-br from-[#fbbf24]/20 to-[#f59e0b]/10 p-6">
             <div className="absolute top-0 right-0 w-40 h-40 bg-[#fbbf24]/20 rounded-full blur-3xl" />
-            <div className="absolute -top-2 -left-2 text-6xl">👑</div>
+            <div className="absolute -top-2 -left-2 text-5xl">👑</div>
 
-            <div className="relative flex items-center gap-4 pl-12">
-              <div className="relative w-20 h-20 rounded-full overflow-hidden ring-4 ring-[#fbbf24]">
+            <div className="relative flex items-center gap-4 pl-10">
+              <div className="relative w-16 h-16 rounded-full overflow-hidden ring-4 ring-[#fbbf24]">
                 <Image
                   src={`/members/${drereToday.member_slug}.png`}
                   alt={drereToday.member_name}
@@ -315,19 +323,39 @@ export default function LeaderboardPage() {
                   className="object-cover"
                 />
               </div>
-              <div>
-                <p className="text-[#fbbf24] text-sm font-bold uppercase tracking-wide">Drère du jour</p>
-                <h2 className="text-2xl font-black text-white">{drereToday.member_name}</h2>
-                <p className="text-gray-400">Meilleur score du jour</p>
-              </div>
-              <div className="ml-auto text-right">
-                <p className="text-3xl font-black text-[#fbbf24]">{drereDayPoints}</p>
-                <p className="text-sm text-gray-400">points du jour</p>
+              <div className="flex-1">
+                <p className="text-[#fbbf24] text-xs font-bold uppercase tracking-wide">Drère du jour</p>
+                <h2 className="text-xl font-black text-white">{drereToday.member_name}</h2>
+                <p className="text-[#fbbf24] font-bold">{drereDayPoints} pts</p>
               </div>
             </div>
           </div>
-        </section>
-      )}
+        )}
+
+        {/* Type mzi du jour */}
+        {mziToday && (
+          <div className="relative overflow-hidden rounded-3xl border-2 border-[#ef4444]/50 bg-gradient-to-br from-[#ef4444]/10 to-[#0a0a0f] p-6">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-[#ef4444]/10 rounded-full blur-3xl" />
+            <div className="absolute -top-2 -left-2 text-5xl">💀</div>
+
+            <div className="relative flex items-center gap-4 pl-10">
+              <div className="relative w-16 h-16 rounded-full overflow-hidden ring-4 ring-[#ef4444]/50 grayscale">
+                <Image
+                  src={`/members/${mziToday.member_slug}.png`}
+                  alt={mziToday.member_name}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+              <div className="flex-1">
+                <p className="text-[#ef4444] text-xs font-bold uppercase tracking-wide">Type mzi du jour</p>
+                <h2 className="text-xl font-black text-white">{mziToday.member_name}</h2>
+                <p className="text-[#ef4444] font-bold">0 pts</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
 
       {/* Main Leaderboard */}
       <section className="max-w-4xl mx-auto px-4 pb-8">
@@ -341,9 +369,9 @@ export default function LeaderboardPage() {
             <div className="col-span-1 text-center">👑</div>
           </div>
 
-          {leaderboard.map((entry, index) => {
+          {activePlayers.map((entry, index) => {
             const isMe = entry.user_id === currentUserId;
-            const isLast = index === leaderboard.length - 1;
+            const isLast = index === activePlayers.length - 1;
 
             const pronosRatio = totalMatchesWithResults > 0
               ? Math.round((entry.matches_predicted / totalMatchesWithResults) * 100)
@@ -371,6 +399,7 @@ export default function LeaderboardPage() {
                   <div className="relative">
                     <div className={`w-10 h-10 rounded-full overflow-hidden relative ${
                       entry.is_drere_today ? 'ring-2 ring-[#fbbf24]' : ''
+                    } ${entry.is_mzi_today ? 'ring-2 ring-[#ef4444] grayscale' : ''
                     } ${isLast ? 'grayscale' : ''}`}>
                       <Image
                         src={`/members/${entry.member_slug}.png`}
@@ -382,6 +411,9 @@ export default function LeaderboardPage() {
                     {entry.is_drere_today && (
                       <span className="absolute -top-1 -right-1 text-sm">👑</span>
                     )}
+                    {entry.is_mzi_today && (
+                      <span className="absolute -top-1 -right-1 text-sm">💀</span>
+                    )}
                     {isLast && (
                       <span className="absolute -bottom-1 -right-1 text-sm">🥄</span>
                     )}
@@ -391,7 +423,10 @@ export default function LeaderboardPage() {
                       {entry.member_name.split(' ')[0]}
                     </p>
                     {entry.crown_count > 0 && (
-                      <p className="text-xs text-[#fbbf24]">{entry.crown_count}x Drère</p>
+                      <p className="text-xs text-[#fbbf24]">{entry.crown_count}x 👑</p>
+                    )}
+                    {entry.mzi_count > 0 && (
+                      <p className="text-xs text-[#ef4444]">{entry.mzi_count}x 💀</p>
                     )}
                   </div>
                 </div>
@@ -448,8 +483,8 @@ export default function LeaderboardPage() {
         </div>
       </section>
 
-      {/* Wooden Spoon Section - Always show last place */}
-      {woodenSpoon && leaderboard.length > 1 && (
+      {/* Wooden Spoon Section - Always show last place among active players */}
+      {woodenSpoon && activePlayers.length > 1 && (
         <section className="max-w-4xl mx-auto px-4 pb-8">
           <div className="relative overflow-hidden rounded-3xl border border-[#ef4444]/30 bg-gradient-to-br from-[#ef4444]/10 to-[#12121a] p-6">
             <div className="absolute top-0 right-0 text-8xl opacity-20 rotate-12">🥄</div>
@@ -469,6 +504,35 @@ export default function LeaderboardPage() {
                 <p className="text-gray-500 text-sm italic">&quot;La prochaine fois sera la bonne...&quot;</p>
               </div>
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* Inactive Players */}
+      {inactivePlayers.length > 0 && (
+        <section className="max-w-4xl mx-auto px-4 pb-8">
+          <div className="bg-[#12121a]/50 rounded-2xl border border-white/5 p-6">
+            <h3 className="text-lg font-bold mb-4 text-gray-500 flex items-center gap-2">
+              <span>😴</span>
+              Joueurs inactifs
+              <span className="text-sm font-normal">({inactivePlayers.length})</span>
+            </h3>
+            <div className="flex flex-wrap gap-3">
+              {inactivePlayers.map(player => (
+                <div key={player.user_id} className="flex items-center gap-2 bg-white/5 rounded-full px-3 py-2">
+                  <div className="relative w-8 h-8 rounded-full overflow-hidden grayscale opacity-50">
+                    <Image
+                      src={`/members/${player.member_slug}.png`}
+                      alt={player.member_name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                  <span className="text-gray-500 text-sm">{player.member_name.split(' ')[0]}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-gray-600 text-xs mt-3 italic">Ces joueurs n&apos;ont pas encore fait de pronostics</p>
           </div>
         </section>
       )}
