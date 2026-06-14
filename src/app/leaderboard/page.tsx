@@ -39,6 +39,7 @@ export default function LeaderboardPage() {
   const [drereDayPoints, setDrereDayPoints] = useState(0);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string>('Loading...');
 
   // Drère celebration state
   const [showDrereCelebration, setShowDrereCelebration] = useState(false);
@@ -104,17 +105,23 @@ export default function LeaderboardPage() {
   useEffect(() => {
     async function loadData() {
       try {
+        setDebugInfo('Fetching API...');
         const res = await fetch('/api/leaderboard');
+        setDebugInfo(`API status: ${res.status}`);
+
         if (!res.ok) {
           if (res.status === 401) {
+            setDebugInfo('401 - Redirecting to login');
             router.push('/login');
             return;
           }
-          throw new Error('Failed to load');
+          throw new Error(`Failed to load: ${res.status}`);
         }
 
         const data = await res.json();
-        setLeaderboard(data.leaderboard);
+        setDebugInfo(`Got ${data.leaderboard?.length || 0} entries, user: ${data.current_user_id}`);
+
+        setLeaderboard(data.leaderboard || []);
         setStats(data.stats);
         setCurrentUserId(data.current_user_id);
         setTotalMatchesWithResults(data.total_matches_with_results || 0);
@@ -125,8 +132,10 @@ export default function LeaderboardPage() {
         const TEST_MODE = true;
         const TEST_USER_ID = '7'; // Lionel
 
-        const drereEntry = data.leaderboard.find((e: LeaderboardEntry) => e.is_drere_today);
+        const drereEntry = (data.leaderboard || []).find((e: LeaderboardEntry) => e.is_drere_today);
         const isTestDrere = TEST_MODE && data.current_user_id === TEST_USER_ID;
+
+        setDebugInfo(`Entries: ${data.leaderboard?.length}, User: ${data.current_user_id}, TestDrere: ${isTestDrere}`);
 
         if ((drereEntry && drereEntry.user_id === data.current_user_id) || isTestDrere) {
           // TEST: Always show celebration (skip localStorage check)
@@ -139,6 +148,7 @@ export default function LeaderboardPage() {
         }
       } catch (error) {
         console.error('Error loading leaderboard:', error);
+        setDebugInfo(`ERROR: ${error}`);
       } finally {
         setLoading(false);
         setMounted(true);
@@ -175,8 +185,9 @@ export default function LeaderboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+      <div className="min-h-screen bg-[#0a0a0f] flex flex-col items-center justify-center gap-4">
         <div className="animate-spin w-8 h-8 border-4 border-[#6366f1] border-t-transparent rounded-full" />
+        <p className="text-yellow-400 text-sm">{debugInfo}</p>
       </div>
     );
   }
@@ -194,6 +205,11 @@ export default function LeaderboardPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
       <Navbar />
+
+      {/* DEBUG BAR - remove after testing */}
+      <div className="bg-yellow-500 text-black text-xs p-2 text-center font-mono">
+        DEBUG: {debugInfo} | Entries: {leaderboard.length} | ShowModal: {showDrereCelebration ? 'YES' : 'NO'}
+      </div>
 
       {/* Drère Celebration Modal */}
       {showDrereCelebration && celebrationEntry && (
