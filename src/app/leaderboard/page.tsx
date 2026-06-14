@@ -194,7 +194,6 @@ export default function LeaderboardPage() {
 
   const drereToday = leaderboard.find(e => e.is_drere_today);
   const mziToday = leaderboard.find(e => e.is_mzi_today);
-  const woodenSpoon = activePlayers[activePlayers.length - 1];
 
   const currentUserEntry = leaderboard.find(e => e.user_id === currentUserId);
 
@@ -371,7 +370,6 @@ export default function LeaderboardPage() {
 
           {activePlayers.map((entry, index) => {
             const isMe = entry.user_id === currentUserId;
-            const isLast = index === activePlayers.length - 1;
 
             const pronosRatio = totalMatchesWithResults > 0
               ? Math.round((entry.matches_predicted / totalMatchesWithResults) * 100)
@@ -383,7 +381,7 @@ export default function LeaderboardPage() {
                 key={entry.user_id}
                 className={`grid grid-cols-12 gap-2 px-6 py-4 items-center border-t border-white/5 transition-all ${
                   mounted ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'
-                } ${isMe ? 'bg-[#6366f1]/10' : ''} ${isLast ? 'bg-[#ef4444]/5' : ''}`}
+                } ${isMe ? 'bg-[#6366f1]/10' : ''}`}
                 style={{ transitionDelay: `${index * 50}ms` }}
               >
                 {/* Rank */}
@@ -399,8 +397,7 @@ export default function LeaderboardPage() {
                   <div className="relative">
                     <div className={`w-10 h-10 rounded-full overflow-hidden relative ${
                       entry.is_drere_today ? 'ring-2 ring-[#fbbf24]' : ''
-                    } ${entry.is_mzi_today ? 'ring-2 ring-[#ef4444] grayscale' : ''
-                    } ${isLast ? 'grayscale' : ''}`}>
+                    } ${entry.is_mzi_today ? 'ring-2 ring-[#ef4444] grayscale' : ''}`}>
                       <Image
                         src={`/members/${entry.member_slug}.png`}
                         alt={entry.member_name}
@@ -413,9 +410,6 @@ export default function LeaderboardPage() {
                     )}
                     {entry.is_mzi_today && (
                       <span className="absolute -top-1 -right-1 text-sm">💀</span>
-                    )}
-                    {isLast && (
-                      <span className="absolute -bottom-1 -right-1 text-sm">🥄</span>
                     )}
                   </div>
                   <div>
@@ -483,30 +477,6 @@ export default function LeaderboardPage() {
         </div>
       </section>
 
-      {/* Wooden Spoon Section - Always show last place among active players */}
-      {woodenSpoon && activePlayers.length > 1 && (
-        <section className="max-w-4xl mx-auto px-4 pb-8">
-          <div className="relative overflow-hidden rounded-3xl border border-[#ef4444]/30 bg-gradient-to-br from-[#ef4444]/10 to-[#12121a] p-6">
-            <div className="absolute top-0 right-0 text-8xl opacity-20 rotate-12">🥄</div>
-
-            <div className="relative flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full overflow-hidden relative grayscale ring-2 ring-[#ef4444]/50">
-                <Image
-                  src={`/members/${woodenSpoon.member_slug}.png`}
-                  alt={woodenSpoon.member_name}
-                  fill
-                  className="object-cover"
-                />
-              </div>
-              <div>
-                <p className="text-[#ef4444] text-sm font-bold uppercase tracking-wide">Wooden Spoon 🥄</p>
-                <h3 className="text-xl font-bold text-white">{woodenSpoon.member_name}</h3>
-                <p className="text-gray-500 text-sm italic">&quot;La prochaine fois sera la bonne...&quot;</p>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Inactive Players */}
       {inactivePlayers.length > 0 && (
