@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
+import confetti from 'canvas-confetti';
 
 interface LeaderboardEntry {
   rank: number;
@@ -39,6 +40,71 @@ export default function LeaderboardPage() {
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
+  // Drère celebration state
+  const [showDrereCelebration, setShowDrereCelebration] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Fire confetti burst
+  const fireConfetti = useCallback(() => {
+    const duration = 3000;
+    const end = Date.now() + duration;
+
+    const frame = () => {
+      confetti({
+        particleCount: 5,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0 },
+        colors: ['#fbbf24', '#f59e0b', '#22c55e', '#6366f1'],
+      });
+      confetti({
+        particleCount: 5,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1 },
+        colors: ['#fbbf24', '#f59e0b', '#22c55e', '#6366f1'],
+      });
+
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
+      }
+    };
+    frame();
+  }, []);
+
+  // Play/pause celebration music
+  const toggleMusic = useCallback(() => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio('/sounds/drere.mp3');
+      audioRef.current.volume = 0.7;
+      audioRef.current.onended = () => setIsPlaying(false);
+    }
+
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play();
+      setIsPlaying(true);
+      fireConfetti();
+    }
+  }, [isPlaying, fireConfetti]);
+
+  // Close celebration modal
+  const closeCelebration = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    setIsPlaying(false);
+    setShowDrereCelebration(false);
+
+    // Mark as seen today
+    const today = new Date().toISOString().split('T')[0];
+    localStorage.setItem('drere-celebration-seen', today);
+  }, []);
+
   useEffect(() => {
     async function loadData() {
       try {
@@ -57,6 +123,16 @@ export default function LeaderboardPage() {
         setCurrentUserId(data.current_user_id);
         setTotalMatchesWithResults(data.total_matches_with_results || 0);
         setDrereDayPoints(data.drere_day_points || 0);
+
+        // Check if current user is Drère du jour and hasn't seen celebration today
+        const drereEntry = data.leaderboard.find((e: LeaderboardEntry) => e.is_drere_today);
+        if (drereEntry && drereEntry.user_id === data.current_user_id) {
+          const today = new Date().toISOString().split('T')[0];
+          const lastSeen = localStorage.getItem('drere-celebration-seen');
+          if (lastSeen !== today) {
+            setShowDrereCelebration(true);
+          }
+        }
       } catch (error) {
         console.error('Error loading leaderboard:', error);
       } finally {
@@ -67,6 +143,15 @@ export default function LeaderboardPage() {
 
     loadData();
   }, [router]);
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+    };
+  }, []);
 
   const getRankEmoji = (rank: number) => {
     if (rank === 1) return '🥇';
@@ -92,9 +177,85 @@ export default function LeaderboardPage() {
   const drereToday = leaderboard.find(e => e.is_drere_today);
   const woodenSpoon = leaderboard[leaderboard.length - 1];
 
+  const currentUserEntry = leaderboard.find(e => e.user_id === currentUserId);
+
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
       <Navbar />
+
+      {/* Drère Celebration Modal */}
+      {showDrereCelebration && currentUserEntry && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="relative w-full max-w-md bg-gradient-to-br from-[#1a1a2e] to-[#0a0a0f] rounded-3xl border-2 border-[#fbbf24] p-8 text-center animate-bounce-in">
+            {/* Crown animation */}
+            <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-7xl animate-bounce">
+              👑
+            </div>
+
+            {/* Glow effect */}
+            <div className="absolute inset-0 bg-[#fbbf24]/10 rounded-3xl blur-xl" />
+
+            <div className="relative">
+              {/* Avatar */}
+              <div className="w-24 h-24 mx-auto mb-4 rounded-full overflow-hidden ring-4 ring-[#fbbf24] shadow-lg shadow-[#fbbf24]/50">
+                <Image
+                  src={`/members/${currentUserEntry.member_slug}.png`}
+                  alt={currentUserEntry.member_name}
+                  width={96}
+                  height={96}
+                  className="object-cover"
+                />
+              </div>
+
+              {/* Title */}
+              <h2 className="text-3xl font-black text-[#fbbf24] mb-2">
+                🎉 FÉLICITATIONS ! 🎉
+              </h2>
+              <p className="text-xl text-white font-bold mb-1">
+                Tu es le Drère du jour !
+              </p>
+              <p className="text-gray-400 mb-6">
+                Avec <span className="text-[#fbbf24] font-bold">{drereDayPoints} points</span> aujourd&apos;hui
+              </p>
+
+              {/* Music button */}
+              <button
+                onClick={toggleMusic}
+                className={`w-full py-4 rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-3 mb-4 ${
+                  isPlaying
+                    ? 'bg-[#ef4444] text-white animate-pulse'
+                    : 'bg-gradient-to-r from-[#fbbf24] to-[#f59e0b] text-black hover:scale-105'
+                }`}
+              >
+                {isPlaying ? (
+                  <>
+                    <span className="text-2xl">⏸️</span>
+                    <span>Arrêter la musique</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-2xl">🎵</span>
+                    <span>Jouer &quot;1er Gaou&quot; 🎶</span>
+                  </>
+                )}
+              </button>
+
+              {/* Close button */}
+              <button
+                onClick={closeCelebration}
+                className="w-full py-3 rounded-xl bg-white/10 text-white font-medium hover:bg-white/20 transition-all"
+              >
+                Fermer
+              </button>
+
+              {/* Fun text */}
+              <p className="mt-4 text-sm text-gray-500 italic">
+                &quot;Premier gaou n&apos;est pas gaou...&quot; 🎤
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hero */}
       <section className="relative py-12 px-4 overflow-hidden">
