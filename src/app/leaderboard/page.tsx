@@ -144,6 +144,8 @@ export default function LeaderboardPage() {
           const lastSeen = localStorage.getItem('drere-celebration-seen');
           if (lastSeen !== today) {
             setShowDrereCelebration(true);
+            // Record in database that user saw celebration
+            fetch('/api/drere-celebration/seen', { method: 'POST' }).catch(() => {});
           }
         }
       } catch (error) {
