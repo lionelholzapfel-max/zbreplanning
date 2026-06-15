@@ -1,11 +1,13 @@
 'use client';
 
 import { Toaster } from 'sonner';
+import DrereCelebration from './DrereCelebration';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <>
       {children}
+      <DrereCelebration />
       <Toaster
         position="top-center"
         toastOptions={{
