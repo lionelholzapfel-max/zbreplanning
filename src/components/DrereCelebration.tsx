@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import confetti from 'canvas-confetti';
 
@@ -11,9 +12,11 @@ interface DrereData {
 }
 
 export default function DrereCelebration() {
+  const pathname = usePathname();
   const [showCelebration, setShowCelebration] = useState(false);
   const [drereData, setDrereData] = useState<DrereData | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [hasChecked, setHasChecked] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -76,8 +79,19 @@ export default function DrereCelebration() {
     }, 30000);
   }, [isPlaying, fireConfetti]);
 
-  // Check if current user is Drère on mount
+  // Check if current user is Drère - runs on navigation changes
   useEffect(() => {
+    // Skip on login page
+    if (pathname === '/login') return;
+
+    // Skip if already showing celebration
+    if (showCelebration) return;
+
+    // Check localStorage first to avoid unnecessary API calls
+    const today = new Date().toISOString().split('T')[0];
+    const lastSeen = localStorage.getItem('drere-celebration-seen');
+    if (lastSeen === today) return;
+
     const checkDrere = async () => {
       try {
         const res = await fetch('/api/drere-celebration/check');
@@ -96,10 +110,11 @@ export default function DrereCelebration() {
           fetch('/api/drere-celebration/seen', { method: 'POST' }).catch(() => {});
 
           // Store in localStorage too
-          localStorage.setItem('drere-celebration-seen', new Date().toISOString().split('T')[0]);
+          localStorage.setItem('drere-celebration-seen', today);
         }
+        setHasChecked(true);
       } catch (error) {
-        console.error('Error checking drere status:', error);
+        // Silently fail - user might not be logged in yet
       }
     };
 
@@ -113,7 +128,7 @@ export default function DrereCelebration() {
         clearTimeout(audioTimeoutRef.current);
       }
     };
-  }, []);
+  }, [pathname, showCelebration]);
 
   // Start music when celebration shows
   useEffect(() => {
