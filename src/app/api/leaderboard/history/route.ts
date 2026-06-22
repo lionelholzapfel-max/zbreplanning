@@ -95,13 +95,15 @@ export async function GET() {
       history.push(dataPoint);
     }
 
-    // Only return members who have points (active players)
+    // Only return members who have points (active players), sorted by total points
     const activeMembers = MEMBERS
       .filter(m => cumulativePoints[m.id] > 0)
+      .sort((a, b) => cumulativePoints[b.id] - cumulativePoints[a.id])
       .map(m => ({
         id: m.id,
         name: m.name.split(' ')[0],
         slug: m.slug,
+        totalPoints: cumulativePoints[m.id],
       }));
 
     return NextResponse.json({ history, members: activeMembers });
