@@ -175,143 +175,6 @@ export default function LeaderboardPage() {
         </div>
       </section>
 
-      {/* Live Ranking - Current Day */}
-      {liveRanking && liveRanking.matchesToday > 0 && (
-        <section className="max-w-4xl mx-auto px-4 pb-6">
-          <div className="relative overflow-hidden rounded-3xl border border-[#6366f1]/50 bg-gradient-to-br from-[#6366f1]/10 via-[#0a0a0f] to-[#0a0a0f] p-5">
-            <div className="absolute top-0 right-0 w-48 h-48 bg-[#6366f1]/10 rounded-full blur-3xl" />
-
-            {/* Header */}
-            <div className="relative flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <span className="text-2xl">📊</span>
-                  <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                  </span>
-                </div>
-                <div>
-                  <h3 className="text-white font-bold">Classement Live</h3>
-                  <p className="text-gray-500 text-xs">
-                    {liveRanking.matchesCompleted}/{liveRanking.matchesToday} matchs joués aujourd&apos;hui
-                  </p>
-                </div>
-              </div>
-              {liveRanking.currentLeader && (
-                <div className="flex items-center gap-2 bg-[#6366f1]/20 px-3 py-1.5 rounded-full">
-                  <span className="text-sm">🔥</span>
-                  <span className="text-[#6366f1] text-sm font-bold">{liveRanking.currentLeader.member_name.split(' ')[0]}</span>
-                  <span className="text-white text-sm font-bold">{liveRanking.currentLeader.day_points} pts</span>
-                </div>
-              )}
-            </div>
-
-            {/* Ranking List */}
-            {liveRanking.ranking.length > 0 ? (
-              <div className="relative grid gap-1.5 max-h-[300px] overflow-y-auto">
-                {liveRanking.ranking.map((entry, index) => {
-                  const isLeader = index === 0;
-                  const isCurrentUser = entry.user_id === currentUserId;
-
-                  return (
-                    <div
-                      key={entry.user_id}
-                      className={`flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl transition-all ${
-                        isLeader ? 'bg-[#6366f1]/20 border border-[#6366f1]/30' :
-                        isCurrentUser ? 'bg-white/5' : ''
-                      }`}
-                    >
-                      <span className={`w-5 sm:w-6 text-center font-bold text-sm ${
-                        isLeader ? 'text-[#6366f1]' : 'text-gray-500'
-                      }`}>
-                        {index + 1}
-                      </span>
-                      <div className="relative w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden ring-2 ring-white/10 flex-shrink-0">
-                        <Image
-                          src={`/members/${entry.member_slug}.png`}
-                          alt={entry.member_name}
-                          fill
-                          className="object-cover object-top"
-                        />
-                      </div>
-                      <span className={`flex-1 text-xs sm:text-sm font-medium truncate ${
-                        isLeader ? 'text-white' : 'text-gray-400'
-                      }`}>
-                        {entry.member_name.split(' ')[0]}
-                      </span>
-                      <div className="text-right flex-shrink-0">
-                        <span className={`font-bold text-sm ${
-                          isLeader ? 'text-[#6366f1]' : 'text-white'
-                        }`}>
-                          {entry.day_points}
-                        </span>
-                        <span className="text-gray-500 text-xs ml-0.5">pts</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-4">
-                <p className="text-gray-500 text-sm">En attente des premiers résultats...</p>
-                <p className="text-gray-600 text-xs mt-1">{liveRanking.matchesToday} matchs prévus aujourd&apos;hui</p>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* Evolution Chart */}
-      <section className="max-w-4xl mx-auto px-4 pb-6">
-        <EvolutionChart />
-      </section>
-
-      {/* Wall of Shame */}
-      <section className="max-w-4xl mx-auto px-4 pb-6">
-        <WallOfShame />
-      </section>
-
-      {/* Drère of the Week */}
-      {dreresWeek.length > 0 && (
-        <section className="max-w-4xl mx-auto px-4 pb-6">
-          <div className="relative overflow-hidden rounded-3xl border-2 border-[#FFD700] bg-gradient-to-br from-[#FFD700]/20 via-[#FFA500]/10 to-[#0a0a0f] p-6">
-            <div className="absolute top-0 right-0 w-60 h-60 bg-[#FFD700]/20 rounded-full blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-40 h-40 bg-[#FFA500]/10 rounded-full blur-2xl" />
-            <div className="absolute -top-2 -left-2 text-5xl">🏆</div>
-
-            <div className="relative flex items-center gap-6 pl-12">
-              {/* Stacked avatars for ties */}
-              <div className="flex -space-x-4">
-                {dreresWeek.map((drere, idx) => (
-                  <div
-                    key={drere.user_id}
-                    className="relative w-20 h-20 rounded-full overflow-hidden ring-4 ring-[#FFD700] bg-[#0a0a0f]"
-                    style={{ zIndex: dreresWeek.length - idx }}
-                  >
-                    <Image
-                      src={`/members/${drere.member_slug}.png`}
-                      alt={drere.member_name}
-                      fill
-                      className="object-cover object-top"
-                    />
-                  </div>
-                ))}
-              </div>
-              <div className="flex-1">
-                <p className="text-[#FFD700] text-xs font-bold uppercase tracking-wide">
-                  {dreresWeek.length > 1 ? 'Drères of the Week' : 'Drère of the Week'}
-                </p>
-                <h2 className="text-2xl font-black text-white">
-                  {dreresWeek.map(d => d.member_name).join(' & ')}
-                </h2>
-                <p className="text-[#FFD700] font-bold text-lg">{drereWeekPoints} pts cette semaine</p>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* Drère du jour & Type mzi du jour */}
       <section className="max-w-4xl mx-auto px-4 pb-8 grid md:grid-cols-2 gap-4">
         {/* Drère(s) du jour */}
@@ -397,6 +260,46 @@ export default function LeaderboardPage() {
           </div>
         )}
       </section>
+
+      {/* Drère of the Week */}
+      {dreresWeek.length > 0 && (
+        <section className="max-w-4xl mx-auto px-4 pb-6">
+          <div className="relative overflow-hidden rounded-3xl border-2 border-[#FFD700] bg-gradient-to-br from-[#FFD700]/20 via-[#FFA500]/10 to-[#0a0a0f] p-6">
+            <div className="absolute top-0 right-0 w-60 h-60 bg-[#FFD700]/20 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-40 h-40 bg-[#FFA500]/10 rounded-full blur-2xl" />
+            <div className="absolute -top-2 -left-2 text-5xl">🏆</div>
+
+            <div className="relative flex items-center gap-6 pl-12">
+              {/* Stacked avatars for ties */}
+              <div className="flex -space-x-4">
+                {dreresWeek.map((drere, idx) => (
+                  <div
+                    key={drere.user_id}
+                    className="relative w-20 h-20 rounded-full overflow-hidden ring-4 ring-[#FFD700] bg-[#0a0a0f]"
+                    style={{ zIndex: dreresWeek.length - idx }}
+                  >
+                    <Image
+                      src={`/members/${drere.member_slug}.png`}
+                      alt={drere.member_name}
+                      fill
+                      className="object-cover object-top"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="flex-1">
+                <p className="text-[#FFD700] text-xs font-bold uppercase tracking-wide">
+                  {dreresWeek.length > 1 ? 'Drères of the Week' : 'Drère of the Week'}
+                </p>
+                <h2 className="text-2xl font-black text-white">
+                  {dreresWeek.map(d => d.member_name).join(' & ')}
+                </h2>
+                <p className="text-[#FFD700] font-bold text-lg">{drereWeekPoints} pts cette semaine</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Main Leaderboard */}
       <section className="max-w-4xl mx-auto px-4 pb-8">
@@ -548,6 +451,103 @@ export default function LeaderboardPage() {
           </div>
         </section>
       )}
+
+      {/* Live Ranking - Current Day */}
+      {liveRanking && liveRanking.matchesToday > 0 && (
+        <section className="max-w-4xl mx-auto px-4 pb-6">
+          <div className="relative overflow-hidden rounded-3xl border border-[#6366f1]/50 bg-gradient-to-br from-[#6366f1]/10 via-[#0a0a0f] to-[#0a0a0f] p-5">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-[#6366f1]/10 rounded-full blur-3xl" />
+
+            {/* Header */}
+            <div className="relative flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <span className="text-2xl">📊</span>
+                  <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-white font-bold">Classement Live</h3>
+                  <p className="text-gray-500 text-xs">
+                    {liveRanking.matchesCompleted}/{liveRanking.matchesToday} matchs joués aujourd&apos;hui
+                  </p>
+                </div>
+              </div>
+              {liveRanking.currentLeader && (
+                <div className="flex items-center gap-2 bg-[#6366f1]/20 px-3 py-1.5 rounded-full">
+                  <span className="text-sm">🔥</span>
+                  <span className="text-[#6366f1] text-sm font-bold">{liveRanking.currentLeader.member_name.split(' ')[0]}</span>
+                  <span className="text-white text-sm font-bold">{liveRanking.currentLeader.day_points} pts</span>
+                </div>
+              )}
+            </div>
+
+            {/* Ranking List */}
+            {liveRanking.ranking.length > 0 ? (
+              <div className="relative grid gap-1.5 max-h-[300px] overflow-y-auto">
+                {liveRanking.ranking.map((entry, index) => {
+                  const isLeader = index === 0;
+                  const isCurrentUser = entry.user_id === currentUserId;
+
+                  return (
+                    <div
+                      key={entry.user_id}
+                      className={`flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl transition-all ${
+                        isLeader ? 'bg-[#6366f1]/20 border border-[#6366f1]/30' :
+                        isCurrentUser ? 'bg-white/5' : ''
+                      }`}
+                    >
+                      <span className={`w-5 sm:w-6 text-center font-bold text-sm ${
+                        isLeader ? 'text-[#6366f1]' : 'text-gray-500'
+                      }`}>
+                        {index + 1}
+                      </span>
+                      <div className="relative w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden ring-2 ring-white/10 flex-shrink-0">
+                        <Image
+                          src={`/members/${entry.member_slug}.png`}
+                          alt={entry.member_name}
+                          fill
+                          className="object-cover object-top"
+                        />
+                      </div>
+                      <span className={`flex-1 text-xs sm:text-sm font-medium truncate ${
+                        isLeader ? 'text-white' : 'text-gray-400'
+                      }`}>
+                        {entry.member_name.split(' ')[0]}
+                      </span>
+                      <div className="text-right flex-shrink-0">
+                        <span className={`font-bold text-sm ${
+                          isLeader ? 'text-[#6366f1]' : 'text-white'
+                        }`}>
+                          {entry.day_points}
+                        </span>
+                        <span className="text-gray-500 text-xs ml-0.5">pts</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-gray-500 text-sm">En attente des premiers résultats...</p>
+                <p className="text-gray-600 text-xs mt-1">{liveRanking.matchesToday} matchs prévus aujourd&apos;hui</p>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Evolution Chart */}
+      <section className="max-w-4xl mx-auto px-4 pb-6">
+        <EvolutionChart />
+      </section>
+
+      {/* Wall of Shame */}
+      <section className="max-w-4xl mx-auto px-4 pb-6">
+        <WallOfShame />
+      </section>
 
       {/* Fun Stats */}
       {stats && (
