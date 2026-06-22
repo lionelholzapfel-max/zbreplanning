@@ -627,9 +627,9 @@ export default function WorldCupPage() {
       <Navbar />
 
       {/* Hero */}
-      <section className="relative py-16 px-4 overflow-hidden">
+      <section className="relative py-8 sm:py-16 px-4 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-[#1a472a] via-[#0d2818] to-[#0a0a0f]" />
-        <div className="absolute inset-0 opacity-30">
+        <div className="absolute inset-0 opacity-30 hidden sm:block">
           <div className="absolute top-10 left-10 text-6xl animate-bounce" style={{ animationDelay: '0s' }}>⚽</div>
           <div className="absolute top-20 right-20 text-5xl animate-bounce" style={{ animationDelay: '0.5s' }}>🏆</div>
           <div className="absolute bottom-10 left-1/4 text-4xl animate-bounce" style={{ animationDelay: '1s' }}>⚽</div>
@@ -639,23 +639,23 @@ export default function WorldCupPage() {
 
         <div className={`max-w-7xl mx-auto text-center relative transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
           {daysUntil > 0 && (
-            <div className="inline-flex items-center gap-3 px-6 py-3 bg-[#fbbf24]/20 rounded-full text-[#fbbf24] font-bold mb-6 border border-[#fbbf24]/30">
-              <span className="text-2xl">⏰</span>
-              <span className="text-xl">{daysUntil} jours</span>
-              <span className="text-sm opacity-70">avant le coup d&apos;envoi</span>
+            <div className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 bg-[#fbbf24]/20 rounded-full text-[#fbbf24] font-bold mb-4 sm:mb-6 border border-[#fbbf24]/30">
+              <span className="text-lg sm:text-2xl">⏰</span>
+              <span className="text-base sm:text-xl">{daysUntil} jours</span>
+              <span className="text-xs sm:text-sm opacity-70 hidden xs:inline">avant le coup d&apos;envoi</span>
             </div>
           )}
 
-          <div className="flex items-center justify-center gap-6 mb-6">
-            <span className="text-6xl md:text-8xl">🏆</span>
+          <div className="flex items-center justify-center gap-3 sm:gap-6 mb-4 sm:mb-6">
+            <span className="text-4xl sm:text-6xl md:text-8xl">🏆</span>
             <div>
-              <h1 className="text-5xl md:text-7xl font-black text-white">Coupe du Monde</h1>
-              <p className="text-3xl md:text-4xl font-bold text-[#fbbf24]">2026</p>
+              <h1 className="text-3xl sm:text-5xl md:text-7xl font-black text-white">Coupe du Monde</h1>
+              <p className="text-xl sm:text-3xl md:text-4xl font-bold text-[#fbbf24]">2026</p>
             </div>
-            <span className="text-6xl md:text-8xl">⚽</span>
+            <span className="text-4xl sm:text-6xl md:text-8xl">⚽</span>
           </div>
 
-          <div className="flex items-center justify-center gap-4 text-xl text-white/80 mb-4">
+          <div className="flex items-center justify-center gap-2 sm:gap-4 text-sm sm:text-xl text-white/80 mb-2 sm:mb-4">
             <span>🇺🇸 USA</span>
             <span className="text-[#fbbf24]">•</span>
             <span>🇲🇽 Mexique</span>
@@ -663,7 +663,7 @@ export default function WorldCupPage() {
             <span>🇨🇦 Canada</span>
           </div>
 
-          <p className="text-gray-400">11 juin - 19 juillet 2026 • 104 matchs • 48 équipes</p>
+          <p className="text-gray-400 text-xs sm:text-base">11 juin - 19 juillet 2026 • 104 matchs • 48 équipes</p>
         </div>
       </section>
 
@@ -715,13 +715,13 @@ export default function WorldCupPage() {
       </section>
 
       {/* Sticky Filter Bar - positioned below navbar */}
-      <section className="sticky top-[7.5rem] md:top-16 z-30 bg-[#0a0a0f] border-b border-white/10 py-3 px-4">
+      <section className="sticky top-[7.5rem] md:top-16 z-30 bg-[#0a0a0f] border-b border-white/10 py-2 sm:py-3 px-3 sm:px-4">
         <div className="max-w-7xl mx-auto">
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-2 scrollbar-hide">
             {/* Time filters */}
             <button
               onClick={() => setFilters(f => ({ ...f, time: 'today' }))}
-              className={`flex-shrink-0 min-h-[44px] px-4 py-2 rounded-full font-medium transition-all flex items-center gap-2 ${
+              className={`flex-shrink-0 min-h-[36px] sm:min-h-[44px] px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 sm:gap-2 ${
                 filters.time === 'today'
                   ? 'bg-[#fbbf24] text-black'
                   : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
@@ -729,14 +729,12 @@ export default function WorldCupPage() {
               title={`Matchs du ${new Date().toLocaleDateString('fr-FR')}`}
             >
               <span>📅</span>
-              <span>Aujourd&apos;hui</span>
-              {filters.time === 'today' && (
-                <span className="text-xs opacity-75">({new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })})</span>
-              )}
+              <span className="hidden xs:inline">Aujourd&apos;hui</span>
+              <span className="xs:hidden">Auj.</span>
             </button>
             <button
               onClick={() => setFilters(f => ({ ...f, time: 'week' }))}
-              className={`flex-shrink-0 min-h-[44px] px-4 py-2 rounded-full font-medium transition-all flex items-center gap-2 ${
+              className={`flex-shrink-0 min-h-[36px] sm:min-h-[44px] px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 sm:gap-2 ${
                 filters.time === 'week'
                   ? 'bg-[#fbbf24] text-black'
                   : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
@@ -744,11 +742,12 @@ export default function WorldCupPage() {
               title={`Du ${new Date().toLocaleDateString('fr-FR')} au ${new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('fr-FR')}`}
             >
               <span>📆</span>
-              <span>Cette semaine</span>
+              <span className="hidden xs:inline">Cette semaine</span>
+              <span className="xs:hidden">Sem.</span>
             </button>
             <button
               onClick={() => setFilters(f => ({ ...f, time: 'all' }))}
-              className={`flex-shrink-0 min-h-[44px] px-4 py-2 rounded-full font-medium transition-all flex items-center gap-2 ${
+              className={`flex-shrink-0 min-h-[36px] sm:min-h-[44px] px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 sm:gap-2 ${
                 filters.time === 'all'
                   ? 'bg-[#fbbf24] text-black'
                   : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
@@ -758,19 +757,19 @@ export default function WorldCupPage() {
               <span>Tous</span>
             </button>
 
-            <div className="w-px bg-white/20 mx-1 flex-shrink-0" />
+            <div className="w-px bg-white/20 mx-0.5 sm:mx-1 flex-shrink-0" />
 
             {/* My teams filter */}
             <button
               onClick={() => setFilters(f => ({ ...f, myTeams: !f.myTeams }))}
-              className={`flex-shrink-0 min-h-[44px] px-4 py-2 rounded-full font-medium transition-all flex items-center gap-2 ${
+              className={`flex-shrink-0 min-h-[36px] sm:min-h-[44px] px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 sm:gap-2 ${
                 filters.myTeams
                   ? 'bg-[#6366f1] text-white'
                   : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
               }`}
             >
               <span>⭐</span>
-              <span>Mes équipes</span>
+              <span className="hidden sm:inline">Mes équipes</span>
               {favorites.length > 0 && (
                 <span className={`text-xs px-1.5 py-0.5 rounded-full ${
                   filters.myTeams ? 'bg-white/20' : 'bg-[#6366f1]/30 text-[#6366f1]'
@@ -783,14 +782,14 @@ export default function WorldCupPage() {
             {/* To predict filter */}
             <button
               onClick={() => setFilters(f => ({ ...f, toPredictOnly: !f.toPredictOnly }))}
-              className={`flex-shrink-0 min-h-[44px] px-4 py-2 rounded-full font-medium transition-all flex items-center gap-2 ${
+              className={`flex-shrink-0 min-h-[36px] sm:min-h-[44px] px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 sm:gap-2 ${
                 filters.toPredictOnly
                   ? 'bg-[#22c55e] text-white'
                   : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
               }`}
             >
               <span>✍️</span>
-              <span>À pronostiquer</span>
+              <span className="hidden sm:inline">À pronostiquer</span>
               {toPredictCount > 0 && (
                 <span className={`text-xs px-1.5 py-0.5 rounded-full ${
                   filters.toPredictOnly ? 'bg-white/20' : 'bg-[#22c55e]/30 text-[#22c55e]'
@@ -800,20 +799,20 @@ export default function WorldCupPage() {
               )}
             </button>
 
-            <div className="w-px bg-white/20 mx-1 flex-shrink-0" />
+            <div className="w-px bg-white/20 mx-0.5 sm:mx-1 flex-shrink-0" />
 
             {/* Time slot filters - based on actual World Cup 2026 schedule */}
             <button
               onClick={() => setFilters(f => ({ ...f, timeSlot: f.timeSlot === 'evening' ? 'all' : 'evening' }))}
-              className={`flex-shrink-0 min-h-[44px] px-4 py-2 rounded-full font-medium transition-all flex items-center gap-2 ${
+              className={`flex-shrink-0 min-h-[36px] sm:min-h-[44px] px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1 sm:gap-2 ${
                 filters.timeSlot === 'evening'
                   ? 'bg-[#f59e0b] text-black'
                   : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
               }`}
             >
               <span>🌙</span>
-              <span>Soirée</span>
-              <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+              <span className="hidden sm:inline">Soirée</span>
+              <span className={`text-xs px-1 sm:px-1.5 py-0.5 rounded-full ${
                 filters.timeSlot === 'evening' ? 'bg-black/20' : 'bg-white/10'
               }`}>
                 {timeSlotCounts.evening}
@@ -821,15 +820,15 @@ export default function WorldCupPage() {
             </button>
             <button
               onClick={() => setFilters(f => ({ ...f, timeSlot: f.timeSlot === 'night' ? 'all' : 'night' }))}
-              className={`flex-shrink-0 min-h-[44px] px-4 py-2 rounded-full font-medium transition-all flex items-center gap-2 ${
+              className={`flex-shrink-0 min-h-[36px] sm:min-h-[44px] px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1 sm:gap-2 ${
                 filters.timeSlot === 'night'
                   ? 'bg-[#6366f1] text-white'
                   : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
               }`}
             >
               <span>🌃</span>
-              <span>Nuit</span>
-              <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+              <span className="hidden sm:inline">Nuit</span>
+              <span className={`text-xs px-1 sm:px-1.5 py-0.5 rounded-full ${
                 filters.timeSlot === 'night' ? 'bg-white/20' : 'bg-white/10'
               }`}>
                 {timeSlotCounts.night}
@@ -921,7 +920,7 @@ export default function WorldCupPage() {
                 >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-[#fbbf24]/5 rounded-full blur-2xl" />
 
-                <div className="relative p-6">
+                <div className="relative p-4 sm:p-6">
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-3 flex-wrap">
@@ -968,17 +967,17 @@ export default function WorldCupPage() {
                       </div>
 
                       {/* Team names - Stacked on mobile, horizontal on desktop */}
-                      {/* Mobile: vertical stack */}
-                      <div className="flex sm:hidden flex-col gap-2 mb-2">
+                      {/* Mobile: compact horizontal layout */}
+                      <div className="flex sm:hidden items-center justify-between gap-2 mb-2">
                         {/* Home team */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-2xl">{getFlag(team1)}</span>
-                          <TeamInfoButton teamName={team1} />
-                          <span className="text-base font-bold text-white">{team1}</span>
+                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                          <span className="text-xl flex-shrink-0">{getFlag(team1)}</span>
+                          <span className="text-sm font-bold text-white truncate">{team1}</span>
+                          <TeamInfoButton teamName={team1} className="flex-shrink-0" />
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleFavorite(team1); }}
                             disabled={loadingFavorite === team1}
-                            className={`ml-auto min-w-[32px] min-h-[32px] flex items-center justify-center rounded-full transition-all text-base ${
+                            className={`flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full transition-all text-sm ${
                               favorites.includes(team1) ? 'text-[#fbbf24]' : 'text-gray-500'
                             }`}
                           >
@@ -986,23 +985,21 @@ export default function WorldCupPage() {
                           </button>
                         </div>
                         {/* VS */}
-                        <div className="flex justify-center">
-                          <span className="text-gray-500 text-sm font-bold px-3 py-0.5 bg-white/5 rounded-full">VS</span>
-                        </div>
+                        <span className="text-gray-500 text-xs font-bold px-2 py-0.5 bg-white/5 rounded-full flex-shrink-0">VS</span>
                         {/* Away team */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-2xl">{getFlag(team2)}</span>
-                          <TeamInfoButton teamName={team2} />
-                          <span className="text-base font-bold text-white">{team2}</span>
+                        <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleFavorite(team2); }}
                             disabled={loadingFavorite === team2}
-                            className={`ml-auto min-w-[32px] min-h-[32px] flex items-center justify-center rounded-full transition-all text-base ${
+                            className={`flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full transition-all text-sm ${
                               favorites.includes(team2) ? 'text-[#fbbf24]' : 'text-gray-500'
                             }`}
                           >
                             {favorites.includes(team2) ? '★' : '☆'}
                           </button>
+                          <TeamInfoButton teamName={team2} className="flex-shrink-0" />
+                          <span className="text-sm font-bold text-white truncate">{team2}</span>
+                          <span className="text-xl flex-shrink-0">{getFlag(team2)}</span>
                         </div>
                       </div>
 
@@ -1135,7 +1132,7 @@ export default function WorldCupPage() {
                             </div>
                           ) : (
                             // Editable score inputs - BIG and prominent
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 sm:gap-3">
                               <input
                                 type="text"
                                 inputMode="numeric"
@@ -1144,14 +1141,14 @@ export default function WorldCupPage() {
                                 onChange={(e) => handleScoreChange(match.id, 'home', e.target.value)}
                                 onBlur={() => handleScoreBlur(match.id)}
                                 placeholder="?"
-                                className={`w-16 h-16 text-center text-3xl font-black rounded-2xl border-2 transition-all focus:outline-none focus:ring-2 focus:ring-[#6366f1] ${
+                                className={`w-12 h-12 sm:w-16 sm:h-16 text-center text-2xl sm:text-3xl font-black rounded-xl sm:rounded-2xl border-2 transition-all focus:outline-none focus:ring-2 focus:ring-[#6366f1] ${
                                   currentHome
                                     ? 'bg-[#6366f1]/30 border-[#6366f1] text-white'
                                     : 'bg-[#1e1e2e] border-[#fbbf24]/50 text-[#fbbf24] placeholder-[#fbbf24]/50'
                                 } ${isSaving ? 'opacity-50' : ''}`}
                                 disabled={isSaving}
                               />
-                              <span className="text-2xl text-gray-400 font-bold">-</span>
+                              <span className="text-xl sm:text-2xl text-gray-400 font-bold">-</span>
                               <input
                                 type="text"
                                 inputMode="numeric"
@@ -1160,7 +1157,7 @@ export default function WorldCupPage() {
                                 onChange={(e) => handleScoreChange(match.id, 'away', e.target.value)}
                                 onBlur={() => handleScoreBlur(match.id)}
                                 placeholder="?"
-                                className={`w-16 h-16 text-center text-3xl font-black rounded-2xl border-2 transition-all focus:outline-none focus:ring-2 focus:ring-[#6366f1] ${
+                                className={`w-12 h-12 sm:w-16 sm:h-16 text-center text-2xl sm:text-3xl font-black rounded-xl sm:rounded-2xl border-2 transition-all focus:outline-none focus:ring-2 focus:ring-[#6366f1] ${
                                   currentAway
                                     ? 'bg-[#6366f1]/30 border-[#6366f1] text-white'
                                     : 'bg-[#1e1e2e] border-[#fbbf24]/50 text-[#fbbf24] placeholder-[#fbbf24]/50'
@@ -1168,10 +1165,10 @@ export default function WorldCupPage() {
                                 disabled={isSaving}
                               />
                               {isSaving && (
-                                <div className="animate-spin w-6 h-6 border-2 border-[#6366f1] border-t-transparent rounded-full" />
+                                <div className="animate-spin w-5 h-5 sm:w-6 sm:h-6 border-2 border-[#6366f1] border-t-transparent rounded-full" />
                               )}
                               {myPrediction && !editingThis && !isSaving && (
-                                <span className="text-green-400 text-xl">✓</span>
+                                <span className="text-green-400 text-lg sm:text-xl">✓</span>
                               )}
                             </div>
                           )}

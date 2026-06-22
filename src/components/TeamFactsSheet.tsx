@@ -191,9 +191,9 @@ export function TeamInfoButton({ teamName, className = '' }: TeamInfoButtonProps
           e.stopPropagation();
           setIsOpen(!isOpen);
         }}
-        className={`w-8 h-8 flex items-center justify-center rounded-full bg-[#6366f1]/20 hover:bg-[#6366f1]/40 active:bg-[#6366f1]/50 border border-[#6366f1]/30 hover:border-[#6366f1]/60 transition-all text-base hover:scale-110 ${className}`}
+        className={`w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-[#6366f1]/20 hover:bg-[#6366f1]/40 active:bg-[#6366f1]/50 border border-[#6366f1]/30 hover:border-[#6366f1]/60 transition-all text-xs sm:text-base hover:scale-110 ${className}`}
         aria-label={`Info sur ${teamName}`}
-        style={{ minWidth: '44px', minHeight: '44px' }}
+        style={{ minWidth: '32px', minHeight: '32px' }}
       >
         💡
       </button>
