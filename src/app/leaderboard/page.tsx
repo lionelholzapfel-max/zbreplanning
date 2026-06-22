@@ -212,12 +212,12 @@ export default function LeaderboardPage() {
               </div>
             </div>
 
-            {/* Discours du Drère */}
-            {dreresToday.length === 1 && drereDisplayDate && (
+            {/* Discours du Drère - tous les Drères peuvent enregistrer */}
+            {dreresToday.length > 0 && drereDisplayDate && (
               <DrereSpeech
                 date={drereDisplayDate}
-                isDrere={dreresToday[0].user_id === currentUserId}
-                drereName={dreresToday[0].member_name.split(' ')[0]}
+                isDrere={dreresToday.some(d => d.user_id === currentUserId)}
+                drereName={dreresToday.find(d => d.user_id === currentUserId)?.member_name.split(' ')[0] || dreresToday[0].member_name.split(' ')[0]}
               />
             )}
           </div>
@@ -608,10 +608,6 @@ export default function LeaderboardPage() {
             <div className="flex items-center gap-3">
               <span className="w-8 h-8 bg-purple-500/20 text-purple-400 rounded-lg flex items-center justify-center font-bold">+1</span>
               <span className="text-gray-300">Bonus visionnaire (exact solo)</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="w-8 h-8 bg-red-500/20 text-red-400 rounded-lg flex items-center justify-center font-bold">+1</span>
-              <span className="text-gray-300">Bonus outsider (prédit victoire petit)</span>
             </div>
             <div className="flex items-center gap-3">
               <span className="w-8 h-8 bg-[#22c55e]/20 text-[#22c55e] rounded-lg flex items-center justify-center font-bold">+20</span>
