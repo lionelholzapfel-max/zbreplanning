@@ -18,6 +18,7 @@ export interface LeaderboardEntry {
   mzi_count: number; // Number of times this user got 0 points in a day
   is_drere_today: boolean;
   is_mzi_today: boolean; // Type mzi du jour (0 points)
+  is_drere_week: boolean; // Drère of the Week
   rank_change: number; // positive = up, negative = down, 0 = same
 }
 
@@ -107,10 +108,31 @@ export async function GET() {
       .eq('award_date', drereDisplayDate)
       .eq('award_type', 'mzi');
 
+    // Get Drère of the Week (calculated Monday at 6am UTC)
+    // Week starts on Monday at 6am UTC
+    const getWeekStartDate = (date: Date): string => {
+      const d = new Date(date);
+      const day = d.getUTCDay();
+      const hour = d.getUTCHours();
+      const daysToSubtract = day === 0 ? 6 : (day === 1 && hour < 6 ? 7 : day - 1);
+      d.setUTCDate(d.getUTCDate() - daysToSubtract);
+      d.setUTCHours(6, 0, 0, 0);
+      return d.toISOString().split('T')[0];
+    };
+
+    const weekStartDate = getWeekStartDate(now);
+    const { data: weeklyDrere } = await supabase
+      .from('daily_awards')
+      .select('user_id, points_earned')
+      .eq('award_date', weekStartDate)
+      .eq('award_type', 'drere_week');
+
     const todayDrereIds = new Set((todayDrere || []).map(d => d.user_id));
     const todayMziIds = new Set((todayMzi || []).map(d => d.user_id));
+    const weeklyDrereIds = new Set((weeklyDrere || []).map(d => d.user_id));
     const drerePoints = (todayDrere || [])[0]?.points_earned || 0;
     const mziPoints = (todayMzi || [])[0]?.points_earned ?? null;
+    const weeklyDrerePoints = (weeklyDrere || [])[0]?.points_earned || 0;
 
     // Calculate user stats
     const userStats: Record<string, {
@@ -183,6 +205,7 @@ export async function GET() {
         mzi_count: mziCounts[member.id] || 0,
         is_drere_today: todayDrereIds.has(member.id),
         is_mzi_today: todayMziIds.has(member.id),
+        is_drere_week: weeklyDrereIds.has(member.id),
         rank_change: 0, // TODO: Calculate from yesterday's ranking
       };
     });
@@ -214,6 +237,8 @@ export async function GET() {
       total_matches_with_results: totalMatchesWithResults || 0,
       drere_day_points: drerePoints,
       mzi_day_points: mziPoints,
+      drere_week_points: weeklyDrerePoints,
+      drere_week_users: (weeklyDrere || []).map(d => d.user_id),
     });
   } catch (error) {
     console.error('[Leaderboard] GET error:', error);

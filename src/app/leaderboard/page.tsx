@@ -22,6 +22,7 @@ interface LeaderboardEntry {
   mzi_count: number;
   is_drere_today: boolean;
   is_mzi_today: boolean;
+  is_drere_week: boolean;
   rank_change: number;
 }
 
@@ -39,6 +40,7 @@ export default function LeaderboardPage() {
   const [totalMatchesWithResults, setTotalMatchesWithResults] = useState(0);
   const [drereDayPoints, setDrereDayPoints] = useState(0);
   const [mziDayPoints, setMziDayPoints] = useState<number | null>(null);
+  const [drereWeekPoints, setDrereWeekPoints] = useState(0);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
@@ -61,6 +63,7 @@ export default function LeaderboardPage() {
         setTotalMatchesWithResults(data.total_matches_with_results || 0);
         setDrereDayPoints(data.drere_day_points || 0);
         setMziDayPoints(data.mzi_day_points ?? null);
+        setDrereWeekPoints(data.drere_week_points || 0);
       } catch (error) {
         console.error('Error loading leaderboard:', error);
       } finally {
@@ -100,6 +103,7 @@ export default function LeaderboardPage() {
   // Get ALL drères and mzis (handles ties)
   const dreresToday = leaderboard.filter(e => e.is_drere_today);
   const mzisToday = leaderboard.filter(e => e.is_mzi_today);
+  const dreresWeek = leaderboard.filter(e => e.is_drere_week);
 
   const currentUserEntry = leaderboard.find(e => e.user_id === currentUserId);
 
@@ -126,6 +130,46 @@ export default function LeaderboardPage() {
           </div>
         </div>
       </section>
+
+      {/* Drère of the Week */}
+      {dreresWeek.length > 0 && (
+        <section className="max-w-4xl mx-auto px-4 pb-6">
+          <div className="relative overflow-hidden rounded-3xl border-2 border-[#FFD700] bg-gradient-to-br from-[#FFD700]/20 via-[#FFA500]/10 to-[#0a0a0f] p-6">
+            <div className="absolute top-0 right-0 w-60 h-60 bg-[#FFD700]/20 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-40 h-40 bg-[#FFA500]/10 rounded-full blur-2xl" />
+            <div className="absolute -top-2 -left-2 text-5xl">🏆</div>
+
+            <div className="relative flex items-center gap-6 pl-12">
+              {/* Stacked avatars for ties */}
+              <div className="flex -space-x-4">
+                {dreresWeek.map((drere, idx) => (
+                  <div
+                    key={drere.user_id}
+                    className="relative w-20 h-20 rounded-full overflow-hidden ring-4 ring-[#FFD700] bg-[#0a0a0f]"
+                    style={{ zIndex: dreresWeek.length - idx }}
+                  >
+                    <Image
+                      src={`/members/${drere.member_slug}.png`}
+                      alt={drere.member_name}
+                      fill
+                      className="object-cover object-top"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="flex-1">
+                <p className="text-[#FFD700] text-xs font-bold uppercase tracking-wide">
+                  {dreresWeek.length > 1 ? 'Drères of the Week' : 'Drère of the Week'}
+                </p>
+                <h2 className="text-2xl font-black text-white">
+                  {dreresWeek.map(d => d.member_name).join(' & ')}
+                </h2>
+                <p className="text-[#FFD700] font-bold text-lg">{drereWeekPoints} pts cette semaine</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Drère du jour & Type mzi du jour */}
       <section className="max-w-4xl mx-auto px-4 pb-8 grid md:grid-cols-2 gap-4">
