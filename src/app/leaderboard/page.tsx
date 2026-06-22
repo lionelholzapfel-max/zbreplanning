@@ -32,6 +32,22 @@ interface LeaderboardStats {
   top_follower: { user_id: string; member_name: string; count: number } | null;
 }
 
+interface LiveRankingEntry {
+  user_id: string;
+  member_name: string;
+  member_slug: string;
+  day_points: number;
+  matches_today: number;
+}
+
+interface LiveRankingData {
+  date: string;
+  matchesToday: number;
+  matchesCompleted: number;
+  ranking: LiveRankingEntry[];
+  currentLeader: LiveRankingEntry | null;
+}
+
 export default function LeaderboardPage() {
   const router = useRouter();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -41,6 +57,7 @@ export default function LeaderboardPage() {
   const [drereDayPoints, setDrereDayPoints] = useState(0);
   const [mziDayPoints, setMziDayPoints] = useState<number | null>(null);
   const [drereWeekPoints, setDrereWeekPoints] = useState(0);
+  const [liveRanking, setLiveRanking] = useState<LiveRankingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
@@ -64,6 +81,13 @@ export default function LeaderboardPage() {
         setDrereDayPoints(data.drere_day_points || 0);
         setMziDayPoints(data.mzi_day_points ?? null);
         setDrereWeekPoints(data.drere_week_points || 0);
+
+        // Fetch live ranking
+        const liveRes = await fetch('/api/leaderboard/live');
+        if (liveRes.ok) {
+          const liveData = await liveRes.json();
+          setLiveRanking(liveData);
+        }
       } catch (error) {
         console.error('Error loading leaderboard:', error);
       } finally {
@@ -73,6 +97,21 @@ export default function LeaderboardPage() {
     }
 
     loadData();
+
+    // Refresh live ranking every 30 seconds
+    const liveInterval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/leaderboard/live');
+        if (res.ok) {
+          const data = await res.json();
+          setLiveRanking(data);
+        }
+      } catch {
+        // Silently fail on refresh errors
+      }
+    }, 30000);
+
+    return () => clearInterval(liveInterval);
   }, [router]);
 
   const getRankEmoji = (rank: number) => {
@@ -130,6 +169,102 @@ export default function LeaderboardPage() {
           </div>
         </div>
       </section>
+
+      {/* Live Ranking - Current Day */}
+      {liveRanking && liveRanking.matchesToday > 0 && (
+        <section className="max-w-4xl mx-auto px-4 pb-6">
+          <div className="relative overflow-hidden rounded-3xl border border-[#6366f1]/50 bg-gradient-to-br from-[#6366f1]/10 via-[#0a0a0f] to-[#0a0a0f] p-5">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-[#6366f1]/10 rounded-full blur-3xl" />
+
+            {/* Header */}
+            <div className="relative flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <span className="text-2xl">📊</span>
+                  <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-white font-bold">Classement Live</h3>
+                  <p className="text-gray-500 text-xs">
+                    {liveRanking.matchesCompleted}/{liveRanking.matchesToday} matchs joués aujourd&apos;hui
+                  </p>
+                </div>
+              </div>
+              {liveRanking.currentLeader && (
+                <div className="flex items-center gap-2 bg-[#6366f1]/20 px-3 py-1.5 rounded-full">
+                  <span className="text-sm">🔥</span>
+                  <span className="text-[#6366f1] text-sm font-bold">{liveRanking.currentLeader.member_name.split(' ')[0]}</span>
+                  <span className="text-white text-sm font-bold">{liveRanking.currentLeader.day_points} pts</span>
+                </div>
+              )}
+            </div>
+
+            {/* Ranking List */}
+            {liveRanking.ranking.length > 0 ? (
+              <div className="relative grid gap-2">
+                {liveRanking.ranking.slice(0, 5).map((entry, index) => {
+                  const isLeader = index === 0;
+                  const isCurrentUser = entry.user_id === currentUserId;
+
+                  return (
+                    <div
+                      key={entry.user_id}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-xl transition-all ${
+                        isLeader ? 'bg-[#6366f1]/20 border border-[#6366f1]/30' :
+                        isCurrentUser ? 'bg-white/5' : ''
+                      }`}
+                    >
+                      <span className={`w-6 text-center font-bold ${
+                        isLeader ? 'text-[#6366f1]' : 'text-gray-500'
+                      }`}>
+                        {index + 1}
+                      </span>
+                      <div className="relative w-8 h-8 rounded-full overflow-hidden ring-2 ring-white/10">
+                        <Image
+                          src={`/members/${entry.member_slug}.png`}
+                          alt={entry.member_name}
+                          fill
+                          className="object-cover object-top"
+                        />
+                      </div>
+                      <span className={`flex-1 text-sm font-medium ${
+                        isLeader ? 'text-white' : 'text-gray-400'
+                      }`}>
+                        {entry.member_name.split(' ')[0]}
+                      </span>
+                      <div className="text-right">
+                        <span className={`font-bold ${
+                          isLeader ? 'text-[#6366f1]' : 'text-white'
+                        }`}>
+                          {entry.day_points}
+                        </span>
+                        <span className="text-gray-500 text-xs ml-1">pts</span>
+                      </div>
+                      <span className="text-gray-600 text-xs">
+                        ({entry.matches_today} matchs)
+                      </span>
+                    </div>
+                  );
+                })}
+
+                {liveRanking.ranking.length > 5 && (
+                  <p className="text-gray-600 text-xs text-center mt-2">
+                    +{liveRanking.ranking.length - 5} autres joueurs
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-gray-500 text-sm">En attente des premiers résultats...</p>
+                <p className="text-gray-600 text-xs mt-1">{liveRanking.matchesToday} matchs prévus aujourd&apos;hui</p>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Drère of the Week */}
       {dreresWeek.length > 0 && (
