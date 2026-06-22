@@ -95,14 +95,16 @@ export async function GET() {
       history.push(dataPoint);
     }
 
-    // Return member info for legend
-    const members = MEMBERS.map(m => ({
-      id: m.id,
-      name: m.name.split(' ')[0],
-      slug: m.slug,
-    }));
+    // Only return members who have points (active players)
+    const activeMembers = MEMBERS
+      .filter(m => cumulativePoints[m.id] > 0)
+      .map(m => ({
+        id: m.id,
+        name: m.name.split(' ')[0],
+        slug: m.slug,
+      }));
 
-    return NextResponse.json({ history, members });
+    return NextResponse.json({ history, members: activeMembers });
   } catch (error) {
     console.error('[LeaderboardHistory] Error:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
