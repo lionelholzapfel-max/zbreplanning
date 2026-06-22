@@ -139,15 +139,15 @@ export function TeamFactsSheet({ teamName, isOpen, onClose, triggerRef }: TeamFa
       />
 
       {/* Sheet container - flexbox for centering */}
-      <div className="absolute inset-0 flex items-end md:items-center justify-center pointer-events-none p-2 sm:p-4 md:p-8">
+      <div className="absolute inset-0 flex items-end md:items-center justify-center pointer-events-none md:p-8">
         <div
           ref={sheetRef}
           className={`relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 backdrop-blur-xl border border-white/10 shadow-2xl pointer-events-auto ${
             isMobile
-              ? 'w-full rounded-t-3xl rounded-b-none -mb-2 pb-6'
+              ? 'w-full rounded-t-3xl rounded-b-none'
               : 'w-[450px] max-w-full rounded-2xl'
           }`}
-          style={{ maxHeight: isMobile ? '90vh' : '85vh' }}
+          style={{ maxHeight: isMobile ? '85vh' : '85vh' }}
         >
           {/* Handle bar - mobile only */}
           {isMobile && (
@@ -158,8 +158,8 @@ export function TeamFactsSheet({ teamName, isOpen, onClose, triggerRef }: TeamFa
 
           {/* Scrollable content */}
           <div
-            className={`overflow-y-auto px-4 sm:px-6 pb-4 sm:pb-6 ${isMobile ? 'pt-1' : 'pt-6'}`}
-            style={{ maxHeight: isMobile ? 'calc(90vh - 32px)' : 'calc(85vh - 48px)' }}
+            className={`overflow-y-auto px-4 sm:px-6 ${isMobile ? 'pt-1 pb-10' : 'pt-6 pb-6'}`}
+            style={{ maxHeight: isMobile ? 'calc(85vh - 24px)' : 'calc(85vh - 48px)' }}
           >
             {content}
           </div>
