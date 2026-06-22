@@ -205,25 +205,25 @@ export default function LeaderboardPage() {
 
             {/* Ranking List */}
             {liveRanking.ranking.length > 0 ? (
-              <div className="relative grid gap-2">
-                {liveRanking.ranking.slice(0, 5).map((entry, index) => {
+              <div className="relative grid gap-1.5 max-h-[300px] overflow-y-auto">
+                {liveRanking.ranking.map((entry, index) => {
                   const isLeader = index === 0;
                   const isCurrentUser = entry.user_id === currentUserId;
 
                   return (
                     <div
                       key={entry.user_id}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-xl transition-all ${
+                      className={`flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl transition-all ${
                         isLeader ? 'bg-[#6366f1]/20 border border-[#6366f1]/30' :
                         isCurrentUser ? 'bg-white/5' : ''
                       }`}
                     >
-                      <span className={`w-6 text-center font-bold ${
+                      <span className={`w-5 sm:w-6 text-center font-bold text-sm ${
                         isLeader ? 'text-[#6366f1]' : 'text-gray-500'
                       }`}>
                         {index + 1}
                       </span>
-                      <div className="relative w-8 h-8 rounded-full overflow-hidden ring-2 ring-white/10">
+                      <div className="relative w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden ring-2 ring-white/10 flex-shrink-0">
                         <Image
                           src={`/members/${entry.member_slug}.png`}
                           alt={entry.member_name}
@@ -231,31 +231,22 @@ export default function LeaderboardPage() {
                           className="object-cover object-top"
                         />
                       </div>
-                      <span className={`flex-1 text-sm font-medium ${
+                      <span className={`flex-1 text-xs sm:text-sm font-medium truncate ${
                         isLeader ? 'text-white' : 'text-gray-400'
                       }`}>
                         {entry.member_name.split(' ')[0]}
                       </span>
-                      <div className="text-right">
-                        <span className={`font-bold ${
+                      <div className="text-right flex-shrink-0">
+                        <span className={`font-bold text-sm ${
                           isLeader ? 'text-[#6366f1]' : 'text-white'
                         }`}>
                           {entry.day_points}
                         </span>
-                        <span className="text-gray-500 text-xs ml-1">pts</span>
+                        <span className="text-gray-500 text-xs ml-0.5">pts</span>
                       </div>
-                      <span className="text-gray-600 text-xs">
-                        ({entry.matches_today} matchs)
-                      </span>
                     </div>
                   );
                 })}
-
-                {liveRanking.ranking.length > 5 && (
-                  <p className="text-gray-600 text-xs text-center mt-2">
-                    +{liveRanking.ranking.length - 5} autres joueurs
-                  </p>
-                )}
               </div>
             ) : (
               <div className="text-center py-4">
