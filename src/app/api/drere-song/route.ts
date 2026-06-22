@@ -128,8 +128,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Erreur création' }, { status: 500 });
     }
 
-    // Trigger Suno AI generation (async - will be updated when complete)
-    generateSongWithSuno(songRecord.id, lyrics, stats.drereName).catch(console.error);
+    // Trigger DiffRhythm AI generation (async - will be updated when complete)
+    generateSongWithDiffRhythm(songRecord.id, lyrics, stats.drereName).catch(console.error);
 
     return NextResponse.json({
       message: 'Song generation started',
@@ -283,7 +283,7 @@ function generateLyrics(stats: WeekStats): string {
   return verses.join('\n');
 }
 
-async function generateSongWithSuno(songId: number, lyrics: string, drereName: string) {
+async function generateSongWithDiffRhythm(songId: number, lyrics: string, drereName: string) {
   const supabase = getSupabaseAdmin();
 
   try {
@@ -293,12 +293,11 @@ async function generateSongWithSuno(songId: number, lyrics: string, drereName: s
       .update({ status: 'generating', updated_at: new Date().toISOString() })
       .eq('id', songId);
 
-    // Use Goapi.ai Suno wrapper (https://goapi.ai/docs/suno-api)
-    const apiKey = process.env.GOAPI_KEY || process.env.SUNO_API_KEY;
+    // Use Goapi.ai DiffRhythm API (faster & cheaper than Suno)
+    const apiKey = process.env.GOAPI_KEY;
 
     if (!apiKey) {
-      console.log('[DrereSong] No API key configured, using lyrics only mode');
-      // Mark as completed with just lyrics (no audio)
+      console.log('[DrereSong] No GOAPI_KEY configured, using lyrics only mode');
       await supabase
         .from('drere_week_songs')
         .update({
@@ -310,34 +309,48 @@ async function generateSongWithSuno(songId: number, lyrics: string, drereName: s
       return;
     }
 
-    // Step 1: Generate the song
-    const generateResponse = await fetch('https://api.goapi.ai/v1/suno/generate', {
+    // Step 1: Create the song generation task
+    // DiffRhythm API via GoAPI - based on Qubico/diffrhythm model
+    const generateResponse = await fetch('https://api.goapi.ai/v1/task', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'X-API-KEY': apiKey,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        custom_mode: true,
+        model: 'Qubico/diffrhythm',
+        task_type: 'txt2audio-base',
         input: {
-          prompt: lyrics,
-          style: 'hip-hop français, rap victoire, énergique, célébration, trap beats',
-          title: `${drereName} - Drère of the Week`,
+          lyrics: lyrics,
+          style_prompt: 'hip-hop français, rap victoire, trap énergique, célébration sportive',
         },
-        model: 'chirp-v4',
       }),
     });
 
     if (!generateResponse.ok) {
       const errorText = await generateResponse.text();
-      throw new Error(`Goapi error: ${generateResponse.status} - ${errorText}`);
+      throw new Error(`DiffRhythm error: ${generateResponse.status} - ${errorText}`);
     }
 
     const generateResult = await generateResponse.json();
-    const taskId = generateResult.data?.task_id;
+    const taskId = generateResult.data?.task_id || generateResult.task_id;
 
     if (!taskId) {
-      throw new Error('No task_id returned from Goapi');
+      // Maybe it returned the audio directly?
+      const directUrl = generateResult.data?.audio_url || generateResult.audio_url;
+      if (directUrl) {
+        await supabase
+          .from('drere_week_songs')
+          .update({
+            status: 'completed',
+            audio_url: directUrl,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', songId);
+        console.log('[DrereSong] Song generated directly:', directUrl);
+        return;
+      }
+      throw new Error('No task_id or audio_url returned');
     }
 
     console.log('[DrereSong] Generation started, task_id:', taskId);
@@ -349,22 +362,22 @@ async function generateSongWithSuno(songId: number, lyrics: string, drereName: s
     for (let i = 0; i < maxAttempts; i++) {
       await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
 
-      const statusResponse = await fetch(`https://api.goapi.ai/v1/suno/task/${taskId}`, {
+      const statusResponse = await fetch(`https://api.goapi.ai/v1/task/${taskId}`, {
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'X-API-KEY': apiKey,
         },
       });
 
       if (!statusResponse.ok) continue;
 
       const statusResult = await statusResponse.json();
-      const status = statusResult.data?.status;
+      const status = statusResult.data?.status || statusResult.status;
 
-      if (status === 'completed') {
-        audioUrl = statusResult.data?.output?.audio_url || statusResult.data?.songs?.[0]?.audio_url;
+      if (status === 'completed' || status === 'success') {
+        audioUrl = statusResult.data?.audio_url || statusResult.data?.output?.audio_url || statusResult.audio_url;
         break;
-      } else if (status === 'failed') {
-        throw new Error('Song generation failed');
+      } else if (status === 'failed' || status === 'error') {
+        throw new Error('Song generation failed: ' + (statusResult.data?.error || 'Unknown error'));
       }
       // Otherwise continue polling
     }
