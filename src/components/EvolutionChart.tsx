@@ -138,10 +138,10 @@ export function EvolutionChart() {
                 border: '1px solid #333',
                 borderRadius: '8px',
               }}
-              labelFormatter={formatDate}
-              formatter={(value: number, name: string) => {
-                const member = members.find(m => m.id === name);
-                return [value + ' pts', member?.name || name];
+              labelFormatter={(label) => formatDate(String(label))}
+              formatter={(value, name) => {
+                const member = members.find(m => m.id === String(name));
+                return [value + ' pts', member?.name || String(name)];
               }}
             />
             {members.map((member, index) => (
