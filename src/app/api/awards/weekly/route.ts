@@ -16,38 +16,31 @@ function verifyCronSecret(request: NextRequest): boolean {
 }
 
 /**
- * Get the Monday at 6am UTC for the start of a week
- * Week runs: Monday 6am UTC to next Monday 6am UTC
+ * Get the boundaries of the week that JUST ENDED
+ * The cron runs Monday at 6am to calculate the previous week (Mon 6am to Mon 6am)
  */
 function getWeekBoundaries(now: Date): { weekStart: Date; weekEnd: Date; weekLabel: string } {
   const d = new Date(now);
   const day = d.getUTCDay();
-  const hour = d.getUTCHours();
 
-  // Calculate days to subtract to get to the previous Monday
-  // If it's Monday before 6am, we're calculating for the week that just ended
-  let daysToSubtract: number;
+  // Find the most recent Monday
+  let daysToMostRecentMonday: number;
   if (day === 0) {
-    // Sunday -> go back 6 days to Monday
-    daysToSubtract = 6;
-  } else if (day === 1 && hour < 6) {
-    // Monday before 6am -> go back 7 days to previous Monday
-    daysToSubtract = 7;
+    daysToMostRecentMonday = 6; // Sunday -> Monday was 6 days ago
   } else {
-    // Any other day -> go back to this week's Monday
-    daysToSubtract = day - 1;
+    daysToMostRecentMonday = day - 1; // Monday=0, Tuesday=1, etc.
   }
 
-  // Week start: previous Monday at 6am UTC
+  // The week that just ended STARTED 7 days before the most recent Monday
   const weekStart = new Date(d);
-  weekStart.setUTCDate(weekStart.getUTCDate() - daysToSubtract);
+  weekStart.setUTCDate(weekStart.getUTCDate() - daysToMostRecentMonday - 7);
   weekStart.setUTCHours(6, 0, 0, 0);
 
-  // Week end: this Monday at 6am UTC
+  // Week end is 7 days after week start (the most recent Monday at 6am)
   const weekEnd = new Date(weekStart);
   weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
 
-  // Week label is the Monday date
+  // Week label is the Monday date that started the week
   const weekLabel = weekStart.toISOString().split('T')[0];
 
   return { weekStart, weekEnd, weekLabel };

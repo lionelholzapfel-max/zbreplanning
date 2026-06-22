@@ -109,18 +109,26 @@ export async function GET() {
       .eq('award_type', 'mzi');
 
     // Get Drère of the Week (calculated Monday at 6am UTC)
-    // Week starts on Monday at 6am UTC
-    const getWeekStartDate = (date: Date): string => {
+    // We display the PREVIOUS COMPLETED week's drère
+    // The cron runs Monday 6am and stores the award with the PREVIOUS Monday's date
+    const getPreviousWeekStartDate = (date: Date): string => {
       const d = new Date(date);
-      const day = d.getUTCDay();
-      const hour = d.getUTCHours();
-      const daysToSubtract = day === 0 ? 6 : (day === 1 && hour < 6 ? 7 : day - 1);
-      d.setUTCDate(d.getUTCDate() - daysToSubtract);
-      d.setUTCHours(6, 0, 0, 0);
+      const day = d.getUTCDay(); // 0=Sunday, 1=Monday, etc.
+
+      // First, find the most recent Monday (or today if Monday)
+      let daysToMostRecentMonday: number;
+      if (day === 0) {
+        daysToMostRecentMonday = 6; // Sunday -> Monday was 6 days ago
+      } else {
+        daysToMostRecentMonday = day - 1; // Monday=0, Tuesday=1, etc.
+      }
+
+      // Then go back 7 more days to get the start of the completed week
+      d.setUTCDate(d.getUTCDate() - daysToMostRecentMonday - 7);
       return d.toISOString().split('T')[0];
     };
 
-    const weekStartDate = getWeekStartDate(now);
+    const weekStartDate = getPreviousWeekStartDate(now);
     const { data: weeklyDrere } = await supabase
       .from('daily_awards')
       .select('user_id, points_earned')
