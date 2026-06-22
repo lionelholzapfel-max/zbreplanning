@@ -120,26 +120,27 @@ export default function ActivitiesPage() {
     <div className="min-h-screen bg-[#0a0a0f]">
       <Navbar />
 
-      <section className="relative py-12 px-4 overflow-hidden">
+      <section className="relative py-6 sm:py-12 px-4 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-[#6366f1]/20 to-transparent" />
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#a855f7]/10 rounded-full blur-3xl" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-[#a855f7]/10 rounded-full blur-3xl hidden sm:block" />
 
         <div className={`max-w-7xl mx-auto relative transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sm:gap-6">
             <div>
-              <h1 className="text-4xl md:text-5xl font-black flex items-center gap-4 mb-2">
-                <span className="text-5xl">📅</span>
+              <h1 className="text-2xl sm:text-4xl md:text-5xl font-black flex items-center gap-2 sm:gap-4 mb-1 sm:mb-2">
+                <span className="text-3xl sm:text-5xl">📅</span>
                 Activités
               </h1>
-              <p className="text-gray-400 text-lg">Propose une sortie ou rejoins-en une !</p>
+              <p className="text-gray-400 text-sm sm:text-lg">Propose une sortie ou rejoins-en une !</p>
             </div>
 
             <button
               onClick={() => setShowCreateModal(true)}
-              className="px-8 py-4 bg-gradient-to-r from-[#6366f1] to-[#a855f7] text-white rounded-2xl font-bold text-lg hover:scale-105 transition-transform shadow-lg shadow-[#6366f1]/30 flex items-center gap-3"
+              className="px-4 sm:px-8 py-2.5 sm:py-4 bg-gradient-to-r from-[#6366f1] to-[#a855f7] text-white rounded-xl sm:rounded-2xl font-bold text-sm sm:text-lg hover:scale-105 transition-transform shadow-lg shadow-[#6366f1]/30 flex items-center gap-2 sm:gap-3"
             >
-              <span className="text-xl">+</span>
-              Créer une activité
+              <span className="text-base sm:text-xl">+</span>
+              <span className="hidden xs:inline">Créer une activité</span>
+              <span className="xs:hidden">Créer</span>
             </button>
           </div>
 

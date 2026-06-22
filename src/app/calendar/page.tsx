@@ -121,16 +121,16 @@ export default function CalendarPage() {
       <Navbar />
 
       {/* Header */}
-      <section className="relative py-12 px-4 overflow-hidden">
+      <section className="relative py-6 sm:py-12 px-4 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-[#6366f1]/10 to-transparent" />
-        <div className="absolute top-0 left-1/2 w-[600px] h-[300px] -translate-x-1/2 bg-[#6366f1]/10 rounded-full blur-[100px]" />
+        <div className="absolute top-0 left-1/2 w-[600px] h-[300px] -translate-x-1/2 bg-[#6366f1]/10 rounded-full blur-[100px] hidden sm:block" />
 
         <div className={`max-w-7xl mx-auto relative transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-          <h1 className="text-4xl md:text-5xl font-black flex items-center gap-4 mb-2">
-            <span className="text-5xl">🗓️</span>
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black flex items-center gap-2 sm:gap-4 mb-1 sm:mb-2">
+            <span className="text-3xl sm:text-5xl">🗓️</span>
             Calendrier
           </h1>
-          <p className="text-gray-400 text-lg">Tous les événements de la team</p>
+          <p className="text-gray-400 text-sm sm:text-lg">Tous les événements de la team</p>
 
           {/* Quick jump to World Cup */}
           <div className="mt-6 flex flex-wrap gap-3">

@@ -439,22 +439,22 @@ export default function PredictionsPage() {
       <Navbar />
 
       {/* Hero */}
-      <section className="relative py-12 px-4 overflow-hidden">
+      <section className="relative py-6 sm:py-12 px-4 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-[#fbbf24]/20 via-[#1a472a]/20 to-transparent" />
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#fbbf24]/10 rounded-full blur-3xl" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-[#fbbf24]/10 rounded-full blur-3xl hidden sm:block" />
 
         <div className={`max-w-7xl mx-auto relative transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-3 mb-4">
-              <span className="text-5xl">🎰</span>
-              <h1 className="text-4xl md:text-5xl font-black">
+          <div className="text-center mb-4 sm:mb-8">
+            <div className="inline-flex items-center gap-2 sm:gap-3 mb-2 sm:mb-4">
+              <span className="text-3xl sm:text-5xl">🎰</span>
+              <h1 className="text-2xl sm:text-4xl md:text-5xl font-black">
                 <span className="text-white">Mes </span>
                 <span className="bg-gradient-to-r from-[#fbbf24] to-[#f59e0b] bg-clip-text text-transparent">Pronostics</span>
               </h1>
-              <span className="text-5xl">🔮</span>
+              <span className="text-3xl sm:text-5xl">🔮</span>
             </div>
-            <p className="text-gray-400 text-lg">Qui va briller à la Coupe du Monde 2026 ?</p>
-            <p className="text-sm text-[#fbbf24] mt-2">💰 Chaque prono correct = +20 points</p>
+            <p className="text-gray-400 text-sm sm:text-lg">Qui va briller à la Coupe du Monde 2026 ?</p>
+            <p className="text-xs sm:text-sm text-[#fbbf24] mt-1 sm:mt-2">💰 Chaque prono correct = +20 points</p>
 
             {/* Lock status banner */}
             {isLocked ? (

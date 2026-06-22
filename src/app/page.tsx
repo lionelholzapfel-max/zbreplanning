@@ -256,9 +256,9 @@ export default function HomePage() {
       <Navbar />
 
       {/* Hero Section */}
-      <section className="relative h-[80vh] flex items-center justify-center overflow-hidden">
-        {/* Animated gradient orbs */}
-        <div className="absolute inset-0 overflow-hidden">
+      <section className="relative h-[60vh] sm:h-[80vh] flex items-center justify-center overflow-hidden">
+        {/* Animated gradient orbs - hidden on mobile */}
+        <div className="absolute inset-0 overflow-hidden hidden sm:block">
           <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-[#6366f1]/20 rounded-full blur-[128px] animate-pulse" />
           <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-[#a855f7]/20 rounded-full blur-[128px] animate-pulse" style={{ animationDelay: '1s' }} />
         </div>
@@ -273,30 +273,30 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0f] via-[#0a0a0f]/70 to-[#0a0a0f]/40" />
 
         <div className={`relative z-10 text-center px-4 transition-all duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full text-white/80 text-sm font-medium mb-6 border border-white/10">
+          <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-white/10 backdrop-blur-sm rounded-full text-white/80 text-xs sm:text-sm font-medium mb-4 sm:mb-6 border border-white/10">
             <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
             {MEMBERS.length} membres • En ligne
           </div>
 
-          <h1 className="text-6xl md:text-8xl font-black mb-6">
+          <h1 className="text-4xl sm:text-6xl md:text-8xl font-black mb-4 sm:mb-6">
             <span className="bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] bg-clip-text text-transparent">La Zbre Team</span>
           </h1>
 
-          <p className="text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto mb-8">
+          <p className="text-base sm:text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto mb-6 sm:mb-8">
             Toujours ensemble, toujours prêts pour l&apos;aventure
           </p>
 
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
             <Link
               href="/world-cup"
-              className="px-8 py-4 bg-gradient-to-r from-[#1a472a] to-[#2d5a3d] text-white rounded-2xl font-bold text-lg hover:scale-105 transition-transform shadow-lg shadow-[#1a472a]/30 flex items-center gap-3"
+              className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-[#1a472a] to-[#2d5a3d] text-white rounded-xl sm:rounded-2xl font-bold text-base sm:text-lg hover:scale-105 transition-transform shadow-lg shadow-[#1a472a]/30 flex items-center justify-center gap-2 sm:gap-3"
             >
               <span>⚽</span>
               Coupe du Monde
             </Link>
             <Link
               href="/activities"
-              className="px-8 py-4 bg-gradient-to-r from-[#6366f1] to-[#a855f7] text-white rounded-2xl font-bold text-lg hover:scale-105 transition-transform shadow-lg shadow-[#6366f1]/30 flex items-center gap-3"
+              className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-[#6366f1] to-[#a855f7] text-white rounded-xl sm:rounded-2xl font-bold text-base sm:text-lg hover:scale-105 transition-transform shadow-lg shadow-[#6366f1]/30 flex items-center justify-center gap-2 sm:gap-3"
             >
               <span>🎉</span>
               Activités
