@@ -2,21 +2,34 @@ import { NextResponse } from 'next/server';
 import { getSessionUser, getSupabaseAdmin } from '@/lib/auth/session';
 import { MEMBERS } from '@/data/members';
 
-// GET /api/drere-celebration/check - Check if current user is Drère du jour
+// Helper to get the Monday of a given week (at 6am UTC = 8am Belgian time)
+function getWeekStartDate(date: Date): string {
+  const d = new Date(date);
+  const day = d.getUTCDay();
+  const hour = d.getUTCHours();
+
+  // If it's Monday before 6am UTC, we're still in the previous week
+  const daysToSubtract = day === 0 ? 6 : (day === 1 && hour < 6 ? 7 : day - 1);
+  d.setUTCDate(d.getUTCDate() - daysToSubtract);
+  d.setUTCHours(6, 0, 0, 0);
+
+  return d.toISOString().split('T')[0];
+}
+
+// GET /api/drere-celebration/check - Check if current user is Drère du jour or Drère of the Week
 export async function GET() {
   try {
     const user = await getSessionUser();
     if (!user) {
-      return NextResponse.json({ isDrere: false });
+      return NextResponse.json({ isDrere: false, isDrereWeek: false });
     }
 
     const supabase = getSupabaseAdmin();
-
-    // Get today's display date (same logic as leaderboard)
     const now = new Date();
     const hour = now.getUTCHours();
-    let drereDisplayDate: string;
 
+    // Get today's display date for daily Drère
+    let drereDisplayDate: string;
     if (hour < 7) {
       const twoDaysAgo = new Date(now.getTime() - 2 * 86400000);
       drereDisplayDate = twoDaysAgo.toISOString().split('T')[0];
@@ -25,7 +38,10 @@ export async function GET() {
       drereDisplayDate = yesterday.toISOString().split('T')[0];
     }
 
-    // Check if user is Drère for today
+    // Get the week start date for weekly Drère (last Monday at 6am)
+    const weekStartDate = getWeekStartDate(now);
+
+    // Check daily Drère
     const { data: drereAward } = await supabase
       .from('daily_awards')
       .select('user_id, points_earned, celebration_seen_at')
@@ -34,26 +50,34 @@ export async function GET() {
       .eq('user_id', user.id)
       .single();
 
-    if (!drereAward) {
-      return NextResponse.json({ isDrere: false });
-    }
+    // Check weekly Drère
+    const { data: weeklyAward } = await supabase
+      .from('daily_awards')
+      .select('user_id, points_earned, celebration_seen_at')
+      .eq('award_date', weekStartDate)
+      .eq('award_type', 'drere_week')
+      .eq('user_id', user.id)
+      .single();
 
-    // Check if already seen
-    const alreadySeen = !!drereAward.celebration_seen_at;
-
-    // Get member info
     const member = MEMBERS.find(m => m.id === user.id);
 
+    // Return both daily and weekly status
     return NextResponse.json({
-      isDrere: true,
-      alreadySeen,
+      // Daily Drère
+      isDrere: !!drereAward,
+      alreadySeen: drereAward?.celebration_seen_at ? true : false,
       member_name: member?.name || 'Drère',
       member_slug: member?.slug || 'unknown',
-      points: drereAward.points_earned,
+      points: drereAward?.points_earned || 0,
       date: drereDisplayDate,
+      // Weekly Drère
+      isDrereWeek: !!weeklyAward,
+      alreadySeenWeek: weeklyAward?.celebration_seen_at ? true : false,
+      weekPoints: weeklyAward?.points_earned || 0,
+      weekDate: weekStartDate,
     });
   } catch (error) {
     console.error('[DrèreCelebration] Check error:', error);
-    return NextResponse.json({ isDrere: false });
+    return NextResponse.json({ isDrere: false, isDrereWeek: false });
   }
 }

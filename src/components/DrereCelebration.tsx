@@ -9,6 +9,7 @@ interface DrereData {
   member_name: string;
   member_slug: string;
   points: number;
+  type: 'daily' | 'weekly';
 }
 
 export default function DrereCelebration() {
@@ -16,12 +17,11 @@ export default function DrereCelebration() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [drereData, setDrereData] = useState<DrereData | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [hasChecked, setHasChecked] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Fire confetti
-  const fireConfetti = useCallback(() => {
+  // Fire daily confetti (classic style)
+  const fireDailyConfetti = useCallback(() => {
     const duration = 3000;
     const end = Date.now() + duration;
 
@@ -48,8 +48,78 @@ export default function DrereCelebration() {
     frame();
   }, []);
 
+  // Fire weekly confetti (champion style - bigger, more gold, more epic)
+  const fireWeeklyConfetti = useCallback(() => {
+    const duration = 5000;
+    const end = Date.now() + duration;
+
+    // Initial big burst
+    confetti({
+      particleCount: 100,
+      spread: 100,
+      origin: { y: 0.6 },
+      colors: ['#FFD700', '#FFA500', '#FFDF00', '#F0E68C', '#DAA520'],
+      scalar: 1.5,
+    });
+
+    // Continuous gold rain
+    const frame = () => {
+      // Left cannon
+      confetti({
+        particleCount: 8,
+        angle: 60,
+        spread: 70,
+        origin: { x: 0, y: 0.5 },
+        colors: ['#FFD700', '#FFA500', '#FFDF00', '#ffffff'],
+        scalar: 1.3,
+        gravity: 0.8,
+      });
+      // Right cannon
+      confetti({
+        particleCount: 8,
+        angle: 120,
+        spread: 70,
+        origin: { x: 1, y: 0.5 },
+        colors: ['#FFD700', '#FFA500', '#FFDF00', '#ffffff'],
+        scalar: 1.3,
+        gravity: 0.8,
+      });
+      // Center shower
+      confetti({
+        particleCount: 3,
+        angle: 270,
+        spread: 60,
+        origin: { x: 0.5, y: 0 },
+        colors: ['#FFD700', '#FFDF00', '#DAA520'],
+        scalar: 1.2,
+        drift: 0,
+      });
+
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
+      }
+    };
+    frame();
+
+    // Star bursts every second
+    const starBurst = setInterval(() => {
+      if (Date.now() >= end) {
+        clearInterval(starBurst);
+        return;
+      }
+      confetti({
+        particleCount: 50,
+        spread: 360,
+        origin: { x: Math.random(), y: Math.random() * 0.5 + 0.2 },
+        colors: ['#FFD700', '#FFA500'],
+        scalar: 0.8,
+        shapes: ['star'],
+      });
+    }, 800);
+  }, []);
+
   // Play/pause music
-  const toggleMusic = useCallback(() => {
+  const toggleMusic = useCallback((type: 'daily' | 'weekly' = 'daily') => {
     if (isPlaying && audioRef.current) {
       audioRef.current.pause();
       setIsPlaying(false);
@@ -59,15 +129,22 @@ export default function DrereCelebration() {
       return;
     }
 
-    if (!audioRef.current) {
-      audioRef.current = new Audio('/sounds/drere.mp3');
+    const soundFile = type === 'weekly' ? '/sounds/drere-week.mp3' : '/sounds/drere.mp3';
+
+    if (!audioRef.current || audioRef.current.src !== soundFile) {
+      audioRef.current = new Audio(soundFile);
       audioRef.current.volume = 0.7;
       audioRef.current.onended = () => setIsPlaying(false);
     }
 
     audioRef.current.play();
     setIsPlaying(true);
-    fireConfetti();
+
+    if (type === 'weekly') {
+      fireWeeklyConfetti();
+    } else {
+      fireDailyConfetti();
+    }
 
     // Auto-stop after 30 seconds
     audioTimeoutRef.current = setTimeout(() => {
@@ -77,20 +154,16 @@ export default function DrereCelebration() {
         setIsPlaying(false);
       }
     }, 30000);
-  }, [isPlaying, fireConfetti]);
+  }, [isPlaying, fireDailyConfetti, fireWeeklyConfetti]);
 
   // Check if current user is Drère - runs on navigation changes
   useEffect(() => {
-    // Skip on login page
     if (pathname === '/login') return;
-
-    // Skip if already showing celebration
     if (showCelebration) return;
 
-    // Check localStorage first to avoid unnecessary API calls
     const today = new Date().toISOString().split('T')[0];
-    const lastSeen = localStorage.getItem('drere-celebration-seen');
-    if (lastSeen === today) return;
+    const lastSeenDaily = localStorage.getItem('drere-celebration-seen');
+    const lastSeenWeekly = localStorage.getItem('drere-week-celebration-seen');
 
     const checkDrere = async () => {
       try {
@@ -98,23 +171,47 @@ export default function DrereCelebration() {
         if (!res.ok) return;
 
         const data = await res.json();
-        if (data.isDrere && !data.alreadySeen) {
+
+        // Check weekly first (higher priority)
+        if (data.isDrereWeek && !data.alreadySeenWeek && lastSeenWeekly !== data.weekDate) {
+          setDrereData({
+            member_name: data.member_name,
+            member_slug: data.member_slug,
+            points: data.weekPoints,
+            type: 'weekly',
+          });
+          setShowCelebration(true);
+
+          fetch('/api/drere-celebration/seen', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'weekly' }),
+          }).catch(() => {});
+
+          localStorage.setItem('drere-week-celebration-seen', data.weekDate);
+          return;
+        }
+
+        // Then check daily
+        if (data.isDrere && !data.alreadySeen && lastSeenDaily !== today) {
           setDrereData({
             member_name: data.member_name,
             member_slug: data.member_slug,
             points: data.points,
+            type: 'daily',
           });
           setShowCelebration(true);
 
-          // Record that user saw celebration
-          fetch('/api/drere-celebration/seen', { method: 'POST' }).catch(() => {});
+          fetch('/api/drere-celebration/seen', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'daily' }),
+          }).catch(() => {});
 
-          // Store in localStorage too
           localStorage.setItem('drere-celebration-seen', today);
         }
-        setHasChecked(true);
       } catch (error) {
-        // Silently fail - user might not be logged in yet
+        // Silently fail
       }
     };
 
@@ -133,25 +230,30 @@ export default function DrereCelebration() {
   // Start music when celebration shows
   useEffect(() => {
     if (showCelebration && drereData) {
-      toggleMusic();
+      toggleMusic(drereData.type);
     }
   }, [showCelebration, drereData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const closeCelebration = () => {
     setShowCelebration(false);
-    // Music continues playing
   };
 
   if (!showCelebration || !drereData) return null;
+
+  const isWeekly = drereData.type === 'weekly';
 
   return (
     <>
       {/* Celebration Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-        <div className="relative w-full max-w-md bg-gradient-to-br from-[#1a1a2e] to-[#0a0a0f] rounded-3xl border-2 border-[#fbbf24] p-8 text-center animate-bounce-in">
-          {/* Crown animation */}
+        <div className={`relative w-full max-w-md bg-gradient-to-br ${
+          isWeekly
+            ? 'from-[#2a1a0a] to-[#0f0a00] border-[#FFD700]'
+            : 'from-[#1a1a2e] to-[#0a0a0f] border-[#fbbf24]'
+        } rounded-3xl border-2 p-8 text-center animate-bounce-in`}>
+          {/* Icon animation */}
           <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-7xl animate-bounce">
-            👑
+            {isWeekly ? '🏆' : '👑'}
           </div>
 
           {/* Close button */}
@@ -166,15 +268,19 @@ export default function DrereCelebration() {
 
           {/* Content */}
           <div className="mt-8">
-            <h2 className="text-2xl font-black text-[#fbbf24] mb-2">
-              TU ES LE DRÈRE DU JOUR !
+            <h2 className={`text-2xl font-black mb-2 ${isWeekly ? 'text-[#FFD700]' : 'text-[#fbbf24]'}`}>
+              {isWeekly ? 'TU ES LE DRÈRE OF THE WEEK !' : 'TU ES LE DRÈRE DU JOUR !'}
             </h2>
             <p className="text-gray-400 mb-6">
-              Avec <span className="text-[#fbbf24] font-bold">{drereData.points} points</span> aujourd&apos;hui
+              Avec <span className={`font-bold ${isWeekly ? 'text-[#FFD700]' : 'text-[#fbbf24]'}`}>
+                {drereData.points} points
+              </span> {isWeekly ? 'cette semaine' : "aujourd'hui"}
             </p>
 
             {/* Avatar */}
-            <div className="relative w-32 h-32 mx-auto mb-6 rounded-full overflow-hidden ring-4 ring-[#fbbf24]">
+            <div className={`relative w-32 h-32 mx-auto mb-6 rounded-full overflow-hidden ring-4 ${
+              isWeekly ? 'ring-[#FFD700]' : 'ring-[#fbbf24]'
+            }`}>
               <Image
                 src={`/members/${drereData.member_slug}.png`}
                 alt={drereData.member_name}
@@ -189,9 +295,13 @@ export default function DrereCelebration() {
 
             <button
               onClick={closeCelebration}
-              className="px-8 py-3 bg-[#fbbf24] text-black font-bold rounded-xl hover:bg-[#f59e0b] transition-colors"
+              className={`px-8 py-3 font-bold rounded-xl transition-colors ${
+                isWeekly
+                  ? 'bg-[#FFD700] text-black hover:bg-[#FFA500]'
+                  : 'bg-[#fbbf24] text-black hover:bg-[#f59e0b]'
+              }`}
             >
-              Merci, je sais ! 😎
+              {isWeekly ? 'Champion! 🏆' : 'Merci, je sais ! 😎'}
             </button>
           </div>
         </div>
@@ -200,8 +310,12 @@ export default function DrereCelebration() {
       {/* Floating music control (visible after closing modal) */}
       {!showCelebration && isPlaying && (
         <button
-          onClick={toggleMusic}
-          className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-[#fbbf24] rounded-full flex items-center justify-center shadow-lg hover:bg-[#f59e0b] transition-colors"
+          onClick={() => toggleMusic(drereData?.type || 'daily')}
+          className={`fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-colors ${
+            isWeekly
+              ? 'bg-[#FFD700] hover:bg-[#FFA500]'
+              : 'bg-[#fbbf24] hover:bg-[#f59e0b]'
+          }`}
         >
           <span className="text-2xl">⏸️</span>
         </button>
