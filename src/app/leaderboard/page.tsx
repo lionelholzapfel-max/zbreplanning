@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
+import { EvolutionChart } from '@/components/EvolutionChart';
 
 interface LeaderboardEntry {
   rank: number;
@@ -265,6 +266,11 @@ export default function LeaderboardPage() {
           </div>
         </section>
       )}
+
+      {/* Evolution Chart */}
+      <section className="max-w-4xl mx-auto px-4 pb-6">
+        <EvolutionChart />
+      </section>
 
       {/* Drère of the Week */}
       {dreresWeek.length > 0 && (
