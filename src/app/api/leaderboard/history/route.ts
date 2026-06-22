@@ -4,7 +4,7 @@ import { MEMBERS } from '@/data/members';
 
 interface DayPoints {
   date: string;
-  [userId: string]: number | string; // date is string, rest are numbers
+  [userId: string]: number | string;
 }
 
 // GET /api/leaderboard/history - Get cumulative points per user per day
@@ -17,30 +17,44 @@ export async function GET() {
 
     const supabase = getSupabaseAdmin();
 
-    // Get all points with their match results dates
-    const { data: pointsData, error } = await supabase
-      .from('points_log')
-      .select(`
-        user_id,
-        total_points,
-        match_id,
-        match_results!inner(entered_at)
-      `)
-      .order('match_results(entered_at)', { ascending: true });
+    // Get all match results with dates
+    const { data: matchResults, error: mrError } = await supabase
+      .from('match_results')
+      .select('match_id, entered_at')
+      .order('entered_at', { ascending: true });
 
-    if (error) {
-      console.error('[LeaderboardHistory] Error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (mrError) {
+      console.error('[LeaderboardHistory] Match results error:', mrError);
+      return NextResponse.json({ error: mrError.message }, { status: 500 });
+    }
+
+    if (!matchResults || matchResults.length === 0) {
+      return NextResponse.json({ history: [], members: [] });
+    }
+
+    // Get all points
+    const { data: pointsData, error: pError } = await supabase
+      .from('points_log')
+      .select('user_id, total_points, match_id');
+
+    if (pError) {
+      console.error('[LeaderboardHistory] Points error:', pError);
+      return NextResponse.json({ error: pError.message }, { status: 500 });
+    }
+
+    // Create a map of match_id -> entered_at date
+    const matchDateMap: Record<number, string> = {};
+    for (const mr of matchResults) {
+      const date = new Date(mr.entered_at).toISOString().split('T')[0];
+      matchDateMap[mr.match_id] = date;
     }
 
     // Group points by date and user
     const pointsByDateAndUser: Record<string, Record<string, number>> = {};
 
     for (const p of pointsData || []) {
-      const enteredAt = (p.match_results as any)?.entered_at;
-      if (!enteredAt) continue;
-
-      const date = new Date(enteredAt).toISOString().split('T')[0];
+      const date = matchDateMap[p.match_id];
+      if (!date) continue;
 
       if (!pointsByDateAndUser[date]) {
         pointsByDateAndUser[date] = {};
@@ -84,7 +98,7 @@ export async function GET() {
     // Return member info for legend
     const members = MEMBERS.map(m => ({
       id: m.id,
-      name: m.name.split(' ')[0], // First name only
+      name: m.name.split(' ')[0],
       slug: m.slug,
     }));
 
