@@ -3,21 +3,33 @@
 import { useEffect, useRef, useState } from 'react';
 import { getTeamFacts, type TeamFacts } from '@/data/team-facts';
 
-// Flag mapping (copied from world-cup page for consistency)
+// Flag mapping - all 48 World Cup 2026 teams
 const FLAGS: Record<string, string> = {
-  'Maroc': '🇲🇦', 'Portugal': '🇵🇹', 'Espagne': '🇪🇸', 'USA': '🇺🇸',
-  'Mexique': '🇲🇽', 'Canada': '🇨🇦', 'Argentine': '🇦🇷', 'Chili': '🇨🇱',
-  'Pérou': '🇵🇪', 'Équateur': '🇪🇨', 'Brésil': '🇧🇷', 'Colombie': '🇨🇴',
-  'Paraguay': '🇵🇾', 'Uruguay': '🇺🇾', 'Bolivie': '🇧🇴', 'Venezuela': '🇻🇪',
-  'France': '🇫🇷', 'Allemagne': '🇩🇪', 'Danemark': '🇩🇰', 'Italie': '🇮🇹',
-  'Pays-Bas': '🇳🇱', 'Angleterre': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Belgique': '🇧🇪', 'Suisse': '🇨🇭',
-  'Autriche': '🇦🇹', 'Pologne': '🇵🇱', 'Serbie': '🇷🇸', 'Croatie': '🇭🇷',
-  'Écosse': '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'Slovénie': '🇸🇮', 'Turquie': '🇹🇷', 'Albanie': '🇦🇱',
-  'Ukraine': '🇺🇦', 'Hongrie': '🇭🇺', 'République tchèque': '🇨🇿', 'Galles': '🏴󠁧󠁢󠁷󠁬󠁳󠁿',
-  'Japon': '🇯🇵', 'Corée du Sud': '🇰🇷', 'Australie': '🇦🇺', 'Arabie Saoudite': '🇸🇦',
-  'Iran': '🇮🇷', 'Qatar': '🇶🇦', 'Indonésie': '🇮🇩', 'Cameroun': '🇨🇲',
-  'Nigeria': '🇳🇬', 'Sénégal': '🇸🇳', 'Afrique du Sud': '🇿🇦', 'Côte d\'Ivoire': '🇨🇮',
-  'Égypte': '🇪🇬', 'Algérie': '🇩🇿', 'Mali': '🇲🇱', 'RD Congo': '🇨🇩',
+  // Hosts
+  'USA': '🇺🇸', 'Mexique': '🇲🇽', 'Canada': '🇨🇦',
+  // Europe
+  'Allemagne': '🇩🇪', 'Angleterre': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Autriche': '🇦🇹', 'Belgique': '🇧🇪',
+  'Bosnie-Herzégovine': '🇧🇦', 'Croatie': '🇭🇷', 'Danemark': '🇩🇰', 'Écosse': '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+  'Espagne': '🇪🇸', 'France': '🇫🇷', 'Galles': '🏴󠁧󠁢󠁷󠁬󠁳󠁿', 'Hongrie': '🇭🇺',
+  'Italie': '🇮🇹', 'Norvège': '🇳🇴', 'Pays-Bas': '🇳🇱', 'Pologne': '🇵🇱',
+  'Portugal': '🇵🇹', 'République tchèque': '🇨🇿', 'Serbie': '🇷🇸', 'Slovénie': '🇸🇮',
+  'Suède': '🇸🇪', 'Suisse': '🇨🇭', 'Turquie': '🇹🇷', 'Ukraine': '🇺🇦', 'Albanie': '🇦🇱',
+  // South America
+  'Argentine': '🇦🇷', 'Brésil': '🇧🇷', 'Chili': '🇨🇱', 'Colombie': '🇨🇴',
+  'Équateur': '🇪🇨', 'Paraguay': '🇵🇾', 'Pérou': '🇵🇪', 'Uruguay': '🇺🇾',
+  'Bolivie': '🇧🇴', 'Venezuela': '🇻🇪',
+  // Africa
+  'Afrique du Sud': '🇿🇦', 'Algérie': '🇩🇿', 'Cameroun': '🇨🇲', 'Cap-Vert': '🇨🇻',
+  'Côte d\'Ivoire': '🇨🇮', 'Égypte': '🇪🇬', 'Ghana': '🇬🇭', 'Mali': '🇲🇱',
+  'Maroc': '🇲🇦', 'Nigeria': '🇳🇬', 'RD Congo': '🇨🇩', 'Sénégal': '🇸🇳', 'Tunisie': '🇹🇳',
+  // Asia
+  'Arabie Saoudite': '🇸🇦', 'Australie': '🇦🇺', 'Corée du Sud': '🇰🇷', 'Indonésie': '🇮🇩',
+  'Irak': '🇮🇶', 'Iran': '🇮🇷', 'Japon': '🇯🇵', 'Jordanie': '🇯🇴',
+  'Ouzbékistan': '🇺🇿', 'Qatar': '🇶🇦',
+  // CONCACAF & Caribbean
+  'Curaçao': '🇨🇼', 'Haïti': '🇭🇹', 'Panama': '🇵🇦',
+  // Oceania
+  'Nouvelle-Zélande': '🇳🇿',
 };
 
 function getFlag(team: string): string {
@@ -92,16 +104,16 @@ export function TeamFactsSheet({ teamName, isOpen, onClose, triggerRef }: TeamFa
   const content = (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold text-white flex items-center gap-2">
-          <span className="text-xl">💡</span>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-1.5 sm:gap-2 flex-wrap">
+          <span className="text-lg sm:text-xl">💡</span>
           <span>Le saviez-vous ?</span>
-          <span className="text-2xl ml-1">{getFlag(teamName)}</span>
+          <span className="text-xl sm:text-2xl">{getFlag(teamName)}</span>
           <span>{teamName}</span>
         </h3>
         <button
           onClick={onClose}
-          className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white/70 hover:text-white"
+          className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white/70 hover:text-white flex-shrink-0"
           aria-label="Fermer"
         >
           ✕
@@ -109,7 +121,7 @@ export function TeamFactsSheet({ teamName, isOpen, onClose, triggerRef }: TeamFa
       </div>
 
       {/* Facts */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         <FactItem emoji="😂" label="Marrante" text={facts.funny} />
         <FactItem emoji="🧠" label="Intelligente" text={facts.smart} />
         <FactItem emoji="⚽" label="Footballistique" text={facts.football} />
@@ -127,27 +139,27 @@ export function TeamFactsSheet({ teamName, isOpen, onClose, triggerRef }: TeamFa
       />
 
       {/* Sheet container - flexbox for centering */}
-      <div className="absolute inset-0 flex items-end md:items-center justify-center pointer-events-none p-4 md:p-8">
+      <div className="absolute inset-0 flex items-end md:items-center justify-center pointer-events-none p-2 sm:p-4 md:p-8">
         <div
           ref={sheetRef}
           className={`relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 backdrop-blur-xl border border-white/10 shadow-2xl pointer-events-auto ${
             isMobile
-              ? 'w-full rounded-t-3xl rounded-b-none -mb-4 pb-8'
+              ? 'w-full rounded-t-3xl rounded-b-none -mb-2 pb-6'
               : 'w-[450px] max-w-full rounded-2xl'
           }`}
-          style={{ maxHeight: isMobile ? '80vh' : '85vh' }}
+          style={{ maxHeight: isMobile ? '90vh' : '85vh' }}
         >
           {/* Handle bar - mobile only */}
           {isMobile && (
-            <div className="sticky top-0 pt-3 pb-2 bg-gradient-to-b from-gray-900 to-transparent rounded-t-3xl">
-              <div className="mx-auto w-12 h-1 bg-white/30 rounded-full" />
+            <div className="sticky top-0 pt-2 pb-1 bg-gradient-to-b from-gray-900 to-transparent rounded-t-3xl">
+              <div className="mx-auto w-10 h-1 bg-white/30 rounded-full" />
             </div>
           )}
 
           {/* Scrollable content */}
           <div
-            className={`overflow-y-auto px-6 pb-6 ${isMobile ? 'pt-2' : 'pt-6'}`}
-            style={{ maxHeight: isMobile ? 'calc(80vh - 40px)' : 'calc(85vh - 48px)' }}
+            className={`overflow-y-auto px-4 sm:px-6 pb-4 sm:pb-6 ${isMobile ? 'pt-1' : 'pt-6'}`}
+            style={{ maxHeight: isMobile ? 'calc(90vh - 32px)' : 'calc(85vh - 48px)' }}
           >
             {content}
           </div>
@@ -159,12 +171,12 @@ export function TeamFactsSheet({ teamName, isOpen, onClose, triggerRef }: TeamFa
 
 function FactItem({ emoji, label, text }: { emoji: string; label: string; text: string }) {
   return (
-    <div className="bg-white/5 rounded-xl p-4 border border-white/5">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-xl">{emoji}</span>
-        <span className="text-sm font-semibold text-white/70 uppercase tracking-wide">{label}</span>
+    <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <span className="text-lg">{emoji}</span>
+        <span className="text-xs font-semibold text-white/70 uppercase tracking-wide">{label}</span>
       </div>
-      <p className="text-white/90 text-sm leading-relaxed">{text}</p>
+      <p className="text-white/90 text-sm leading-snug">{text}</p>
     </div>
   );
 }
