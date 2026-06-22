@@ -5,6 +5,8 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import { EvolutionChart } from '@/components/EvolutionChart';
+import { WallOfShame } from '@/components/WallOfShame';
+import { DrereSpeech } from '@/components/DrereSpeech';
 
 interface LeaderboardEntry {
   rank: number;
@@ -58,6 +60,7 @@ export default function LeaderboardPage() {
   const [drereDayPoints, setDrereDayPoints] = useState(0);
   const [mziDayPoints, setMziDayPoints] = useState<number | null>(null);
   const [drereWeekPoints, setDrereWeekPoints] = useState(0);
+  const [drereDisplayDate, setDrereDisplayDate] = useState('');
   const [liveRanking, setLiveRanking] = useState<LiveRankingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
@@ -82,6 +85,7 @@ export default function LeaderboardPage() {
         setDrereDayPoints(data.drere_day_points || 0);
         setMziDayPoints(data.mzi_day_points ?? null);
         setDrereWeekPoints(data.drere_week_points || 0);
+        setDrereDisplayDate(data.drere_display_date || '');
 
         // Fetch live ranking
         const liveRes = await fetch('/api/leaderboard/live');
@@ -263,6 +267,11 @@ export default function LeaderboardPage() {
         <EvolutionChart />
       </section>
 
+      {/* Wall of Shame */}
+      <section className="max-w-4xl mx-auto px-4 pb-6">
+        <WallOfShame />
+      </section>
+
       {/* Drère of the Week */}
       {dreresWeek.length > 0 && (
         <section className="max-w-4xl mx-auto px-4 pb-6">
@@ -339,6 +348,15 @@ export default function LeaderboardPage() {
                 <p className="text-[#fbbf24] font-bold">{drereDayPoints} pts</p>
               </div>
             </div>
+
+            {/* Discours du Drère */}
+            {dreresToday.length === 1 && drereDisplayDate && (
+              <DrereSpeech
+                date={drereDisplayDate}
+                isDrere={dreresToday[0].user_id === currentUserId}
+                drereName={dreresToday[0].member_name.split(' ')[0]}
+              />
+            )}
           </div>
         )}
 

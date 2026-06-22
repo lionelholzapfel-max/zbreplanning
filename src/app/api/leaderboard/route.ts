@@ -247,6 +247,7 @@ export async function GET() {
       mzi_day_points: mziPoints,
       drere_week_points: weeklyDrerePoints,
       drere_week_users: (weeklyDrere || []).map(d => d.user_id),
+      drere_display_date: drereDisplayDate,
     });
   } catch (error) {
     console.error('[Leaderboard] GET error:', error);
