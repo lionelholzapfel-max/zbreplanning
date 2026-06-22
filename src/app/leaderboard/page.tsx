@@ -7,6 +7,7 @@ import Navbar from '@/components/Navbar';
 import { EvolutionChart } from '@/components/EvolutionChart';
 import { WallOfShame } from '@/components/WallOfShame';
 import { DrereSpeech } from '@/components/DrereSpeech';
+import { DrereWeekSong } from '@/components/DrereWeekSong';
 
 interface LeaderboardEntry {
   rank: number;
@@ -257,6 +258,10 @@ export default function LeaderboardPage() {
                 <p className="text-[#ef4444] font-bold">{mziDayPoints ?? 0} pts</p>
               </div>
             </div>
+            {/* Citation de honte */}
+            <p className="relative mt-3 text-xs text-gray-500 italic pl-10">
+              &quot;Honnêtement mec, tu pues la défaite.&quot;
+            </p>
           </div>
         )}
       </section>
@@ -297,6 +302,9 @@ export default function LeaderboardPage() {
                 <p className="text-[#FFD700] font-bold text-lg">{drereWeekPoints} pts cette semaine</p>
               </div>
             </div>
+
+            {/* Hymne du Champion */}
+            <DrereWeekSong drereName={dreresWeek[0]?.member_name.split(' ')[0] || ''} />
           </div>
         </section>
       )}
