@@ -270,9 +270,9 @@ export default function LeaderboardPage() {
       {dreresWeek.length > 0 && (
         <section className="max-w-4xl mx-auto px-4 pb-6">
           <div className="relative overflow-hidden rounded-3xl border-2 border-[#FFD700] bg-gradient-to-br from-[#FFD700]/20 via-[#FFA500]/10 to-[#0a0a0f] p-6">
-            <div className="absolute top-0 right-0 w-60 h-60 bg-[#FFD700]/20 rounded-full blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-40 h-40 bg-[#FFA500]/10 rounded-full blur-2xl" />
-            <div className="absolute -top-2 -left-2 text-5xl">🏆</div>
+            <div className="absolute top-0 right-0 w-60 h-60 bg-[#FFD700]/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-40 h-40 bg-[#FFA500]/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -top-2 -left-2 text-5xl pointer-events-none">🏆</div>
 
             <div className="relative flex items-center gap-6 pl-12">
               {/* Stacked avatars for ties */}
