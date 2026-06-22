@@ -85,6 +85,36 @@ export function EvolutionChart() {
     return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   };
 
+  // Custom tooltip that sorts players by points at that moment
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload || payload.length === 0) return null;
+
+    // Sort payload by value (points) descending
+    const sortedPayload = [...payload].sort((a, b) => (b.value || 0) - (a.value || 0));
+
+    return (
+      <div className="bg-[#1e1e2e] border border-white/20 rounded-lg p-3 shadow-xl">
+        <p className="text-white font-bold mb-2">{formatDate(String(label))}</p>
+        <div className="space-y-1">
+          {sortedPayload.map((entry: any, index: number) => {
+            const member = members.find(m => m.id === entry.dataKey);
+            return (
+              <div key={entry.dataKey} className="flex items-center gap-2 text-sm">
+                <span className="text-gray-400 w-4">{index + 1}.</span>
+                <span
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: entry.color }}
+                />
+                <span className="text-gray-300 flex-1">{member?.name || entry.dataKey}</span>
+                <span className="text-white font-bold">{entry.value} pts</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="bg-[#1e1e2e] rounded-2xl p-6 border border-white/10">
@@ -132,18 +162,7 @@ export function EvolutionChart() {
               stroke="#666"
               tick={{ fill: '#888', fontSize: 11 }}
             />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: '#1e1e2e',
-                border: '1px solid #333',
-                borderRadius: '8px',
-              }}
-              labelFormatter={(label) => formatDate(String(label))}
-              formatter={(value, name) => {
-                const member = members.find(m => m.id === String(name));
-                return [value + ' pts', member?.name || String(name)];
-              }}
-            />
+            <Tooltip content={<CustomTooltip />} />
             {members.map((member, index) => (
               !hiddenMembers.has(member.id) && (
                 <Line
