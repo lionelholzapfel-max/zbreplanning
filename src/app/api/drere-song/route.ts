@@ -310,11 +310,11 @@ async function generateSongWithDiffRhythm(songId: number, lyrics: string, drereN
     }
 
     // Step 1: Create the song generation task
-    // DiffRhythm API via GoAPI - based on Qubico/diffrhythm model
-    const generateResponse = await fetch('https://api.goapi.ai/v1/task', {
+    // DiffRhythm API via GoAPI - POST https://api.goapi.ai/api/v1/task
+    const generateResponse = await fetch('https://api.goapi.ai/api/v1/task', {
       method: 'POST',
       headers: {
-        'X-API-KEY': apiKey,
+        'x-api-key': apiKey,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -324,6 +324,7 @@ async function generateSongWithDiffRhythm(songId: number, lyrics: string, drereN
           lyrics: lyrics,
           style_prompt: 'hip-hop français, rap victoire, trap énergique, célébration sportive',
         },
+        config: {},
       }),
     });
 
@@ -362,22 +363,25 @@ async function generateSongWithDiffRhythm(songId: number, lyrics: string, drereN
     for (let i = 0; i < maxAttempts; i++) {
       await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
 
-      const statusResponse = await fetch(`https://api.goapi.ai/v1/task/${taskId}`, {
+      const statusResponse = await fetch(`https://api.goapi.ai/api/v1/task/${taskId}`, {
         headers: {
-          'X-API-KEY': apiKey,
+          'x-api-key': apiKey,
         },
       });
 
       if (!statusResponse.ok) continue;
 
       const statusResult = await statusResponse.json();
-      const status = statusResult.data?.status || statusResult.status;
+      const status = statusResult.data?.status;
 
-      if (status === 'completed' || status === 'success') {
-        audioUrl = statusResult.data?.audio_url || statusResult.data?.output?.audio_url || statusResult.audio_url;
+      console.log('[DrereSong] Poll status:', status, 'attempt:', i + 1);
+
+      if (status === 'completed') {
+        // Output contains the audio URL
+        audioUrl = statusResult.data?.output?.audio_url || statusResult.data?.output?.url;
         break;
-      } else if (status === 'failed' || status === 'error') {
-        throw new Error('Song generation failed: ' + (statusResult.data?.error || 'Unknown error'));
+      } else if (status === 'failed') {
+        throw new Error('Song generation failed: ' + (statusResult.data?.error?.message || 'Unknown error'));
       }
       // Otherwise continue polling
     }
