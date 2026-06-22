@@ -89,7 +89,7 @@ export function DrereWeekSong({ weekStartDate, drereName }: DrereWeekSongProps) 
         <div className="flex items-center gap-3">
           <span className="text-2xl">🎵</span>
           <div>
-            <p className="text-sm text-white font-medium">Hymne du Champion</p>
+            <p className="text-sm text-white font-medium">Hymne du Drère of the Week</p>
             <p className="text-xs text-gray-400">Bientôt disponible...</p>
           </div>
         </div>
@@ -147,7 +147,7 @@ export function DrereWeekSong({ weekStartDate, drereName }: DrereWeekSongProps) 
         </button>
         <div className="flex-1">
           <p className="text-sm text-white font-bold flex items-center gap-2">
-            🎵 Hymne du Champion
+            🎵 Hymne du Drère of the Week
             {isPlaying && (
               <span className="flex gap-0.5">
                 <span className="w-1 h-3 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>

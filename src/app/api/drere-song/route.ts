@@ -256,31 +256,157 @@ async function getWeekStats(supabase: ReturnType<typeof getSupabaseAdmin>, weekS
 function generateLyrics(stats: WeekStats): string {
   const { drereName, drerePoints, mziName, bestPredictions, worstPredictions } = stats;
 
-  // Build dynamic lyrics based on stats
-  const verses: string[] = [];
+  // Multiple song structures for variety
+  const structures = [
+    generateHipHopLyrics,
+    generateRockAnthemLyrics,
+    generatePopCelebrationLyrics,
+    generateEpicOrchestraLyrics,
+  ];
 
-  // Intro/Hook
-  verses.push(`${drereName} est le boss, le roi de la semaine`);
-  verses.push(`${drerePoints} points au compteur, c'est lui qui mène`);
+  // Pick a random structure based on week date hash
+  const weekHash = stats.drereId.charCodeAt(0) + drerePoints;
+  const structureIndex = weekHash % structures.length;
 
-  // Verse about best predictions
-  if (bestPredictions.length > 0) {
-    const best = bestPredictions[0];
-    verses.push(`Il a prédit ${best.match.split(' vs ')[0]}, score exact ${best.predicted}`);
-    verses.push(`Pendant que les autres galéraient, lui il a tout raflé`);
-  }
+  return structures[structureIndex](stats);
+}
 
-  // Verse about the Mzi (if exists)
+function generateHipHopLyrics(stats: WeekStats): string {
+  const { drereName, drerePoints, mziName, worstPredictions } = stats;
+  const lines: string[] = [];
+
+  lines.push(`[00:00.00] Yeah yeah its ${drereName}!`);
+  lines.push(`[00:03.00] Drere of the Week lets go!`);
+  lines.push(`[00:06.00] ${drereName} is the king the boss of the week`);
+  lines.push(`[00:09.00] ${drerePoints} points on the board hes at his peak`);
+  lines.push(`[00:12.00] While yall were sleeping on predictions`);
+  lines.push(`[00:15.00] He saw it all clear no contradictions`);
+  lines.push(`[00:18.00] Called every match with precision and grace`);
+  lines.push(`[00:21.00] Left all the haters in last place`);
+  lines.push(`[00:24.00] ${drereName} Drere of the Week crown on his head`);
+  lines.push(`[00:27.00] Rest of yall should have stayed in bed`);
+
   if (mziName) {
-    verses.push(`Pendant ce temps ${mziName} dort sur ses pronos`);
-    verses.push(`Zéro point zéro gloire, il reste en bas du tableau`);
+    lines.push(`[00:30.00] ${mziName} out here catching Ls all day`);
+    lines.push(`[00:33.00] Zero points bro just stay away`);
   }
 
-  // Outro
-  verses.push(`${drereName} Drère of the Week, personne peut le toucher`);
-  verses.push(`La couronne sur la tête, c'est lui le vrai winner!`);
+  if (worstPredictions.length > 0) {
+    const roast = worstPredictions[0];
+    const firstName = roast.userName.split(' ')[0];
+    lines.push(`[00:36.00] ${firstName} predicted ${roast.predicted} it ended ${roast.actual}`);
+    lines.push(`[00:39.00] Bro needs glasses thats factual`);
+  }
 
-  return verses.join('\n');
+  lines.push(`[00:42.00] But ${drereName} saw the future like a prophet supreme`);
+  lines.push(`[00:45.00] Living the glory living the dream`);
+  lines.push(`[00:48.00] Drere of the Week put respect on the name`);
+  lines.push(`[00:51.00] ${drereName} runs this game!`);
+
+  return lines.join('\n');
+}
+
+function generateRockAnthemLyrics(stats: WeekStats): string {
+  const { drereName, drerePoints, mziName, worstPredictions } = stats;
+  const lines: string[] = [];
+
+  lines.push(`[00:00.00] Ladies and gentlemen`);
+  lines.push(`[00:03.00] Your champion has arrived`);
+  lines.push(`[00:06.00] ${drereName} standing tall above them all`);
+  lines.push(`[00:09.00] ${drerePoints} points of pure glory`);
+  lines.push(`[00:12.00] They tried to beat him but they failed`);
+  lines.push(`[00:15.00] Victory was never in doubt`);
+  lines.push(`[00:18.00] He called the scores before they happened`);
+  lines.push(`[00:21.00] The oracle of football has spoken`);
+  lines.push(`[00:24.00] ${drereName} Drere of the Week`);
+  lines.push(`[00:27.00] Untouchable unstoppable`);
+
+  if (mziName) {
+    lines.push(`[00:30.00] While ${mziName} crashed and burned`);
+    lines.push(`[00:33.00] Zero points nothing learned`);
+  }
+
+  if (worstPredictions.length > 0) {
+    const roast = worstPredictions[0];
+    const firstName = roast.userName.split(' ')[0];
+    lines.push(`[00:36.00] ${firstName} with the terrible call`);
+    lines.push(`[00:39.00] Watching champions while losers fall`);
+  }
+
+  lines.push(`[00:42.00] So raise your hands for the king`);
+  lines.push(`[00:45.00] ${drereName} makes the stadium sing`);
+  lines.push(`[00:48.00] Drere of the Week forever reign`);
+  lines.push(`[00:51.00] ${drereName} owns this game!`);
+
+  return lines.join('\n');
+}
+
+function generatePopCelebrationLyrics(stats: WeekStats): string {
+  const { drereName, drerePoints, mziName, worstPredictions } = stats;
+  const lines: string[] = [];
+
+  lines.push(`[00:00.00] Celebrating tonight`);
+  lines.push(`[00:03.00] ${drereName} in the spotlight`);
+  lines.push(`[00:06.00] Oh ${drereName} you did it again`);
+  lines.push(`[00:09.00] ${drerePoints} points you are the champion`);
+  lines.push(`[00:12.00] Dancing through the predictions`);
+  lines.push(`[00:15.00] Perfect scores no contradictions`);
+  lines.push(`[00:18.00] Every match you saw it coming`);
+  lines.push(`[00:21.00] While the others kept on stumbling`);
+  lines.push(`[00:24.00] ${drereName} oh ${drereName}`);
+  lines.push(`[00:27.00] Drere of the Week hooray`);
+
+  if (mziName) {
+    lines.push(`[00:30.00] Sorry ${mziName} not your day`);
+    lines.push(`[00:33.00] Maybe next time find a way`);
+  }
+
+  if (worstPredictions.length > 0) {
+    const roast = worstPredictions[0];
+    const firstName = roast.userName.split(' ')[0];
+    lines.push(`[00:36.00] ${firstName} oh what happened there`);
+    lines.push(`[00:39.00] ${roast.predicted} prediction wasnt fair`);
+  }
+
+  lines.push(`[00:42.00] But tonight we celebrate`);
+  lines.push(`[00:45.00] ${drereName} you are so great`);
+  lines.push(`[00:48.00] Drere of the Week its your time to shine`);
+  lines.push(`[00:51.00] ${drereName} youre so fine!`);
+
+  return lines.join('\n');
+}
+
+function generateEpicOrchestraLyrics(stats: WeekStats): string {
+  const { drereName, drerePoints, mziName, worstPredictions } = stats;
+  const lines: string[] = [];
+
+  lines.push(`[00:00.00] In the realm of predictions`);
+  lines.push(`[00:04.00] A legend rises`);
+  lines.push(`[00:08.00] ${drereName} the chosen one ascends`);
+  lines.push(`[00:12.00] With ${drerePoints} points of pure dominance`);
+  lines.push(`[00:16.00] The prophecy has been fulfilled`);
+  lines.push(`[00:20.00] Every score foretold with precision`);
+  lines.push(`[00:24.00] Mortals tremble at his wisdom`);
+  lines.push(`[00:28.00] ${drereName} Drere of the Week`);
+
+  if (mziName) {
+    lines.push(`[00:32.00] ${mziName} fell into darkness`);
+    lines.push(`[00:36.00] Zero glory zero light`);
+  }
+
+  if (worstPredictions.length > 0) {
+    const roast = worstPredictions[0];
+    const firstName = roast.userName.split(' ')[0];
+    lines.push(`[00:40.00] ${firstName} wandered lost and blind`);
+    lines.push(`[00:44.00] Predicting ${roast.predicted} out of mind`);
+  }
+
+  lines.push(`[00:48.00] But ${drereName} saw through time`);
+  lines.push(`[00:52.00] The oracle supreme divine`);
+  lines.push(`[00:56.00] All hail the Drere of the Week`);
+  lines.push(`[01:00.00] ${drereName} the glory you seek!`);
+
+  return lines.join('\n');
 }
 
 async function generateSongWithDiffRhythm(songId: number, lyrics: string, drereName: string) {
