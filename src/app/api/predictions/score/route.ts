@@ -3,20 +3,6 @@ import { getSessionUser, getSupabaseAdmin } from '@/lib/auth/session';
 import { getMatchById, hasMatchStarted, isPredictionLocked, parseMatchTeams, getTimeUntilLock } from '@/lib/matches';
 import { MEMBERS } from '@/data/members';
 
-// Simple in-memory cache to prevent infinite loop spam (2 second cache per user+match)
-const requestCache = new Map<string, { data: unknown; timestamp: number }>();
-const CACHE_TTL_MS = 2000; // 2 seconds
-
-// Clean up old cache entries every 30 seconds
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of requestCache.entries()) {
-    if (now - entry.timestamp > CACHE_TTL_MS * 5) {
-      requestCache.delete(key);
-    }
-  }
-}, 30000);
-
 // GET /api/predictions/score?match_id=X
 // SECURITY: Scores are hidden until lock time (2h before kickoff)
 // - Before lock: return only {user_id} of predictors + current user's own prediction
@@ -47,13 +33,6 @@ export async function GET(request: NextRequest) {
         { error: 'match_id invalide' },
         { status: 400 }
       );
-    }
-
-    // Check cache to prevent infinite loop spam
-    const cacheKey = `${user.id}:${matchId}`;
-    const cached = requestCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-      return NextResponse.json(cached.data);
     }
 
     const match = getMatchById(matchId);
@@ -154,8 +133,12 @@ export async function GET(request: NextRequest) {
           : null,
         result: result || null,
       };
-      requestCache.set(cacheKey, { data: responseData, timestamp: Date.now() });
-      return NextResponse.json(responseData);
+      // Add cache headers to reduce repeated requests (private = per-user, max-age = 5 seconds)
+      return NextResponse.json(responseData, {
+        headers: {
+          'Cache-Control': 'private, max-age=5, stale-while-revalidate=10',
+        },
+      });
     } else {
       // BEFORE LOCK: Only return who predicted (user_id + avatar info), NOT their scores
       // Exception: Current user sees their own score
@@ -189,8 +172,12 @@ export async function GET(request: NextRequest) {
           : null,
         result: null, // No result before lock anyway
       };
-      requestCache.set(cacheKey, { data: responseData, timestamp: Date.now() });
-      return NextResponse.json(responseData);
+      // Add cache headers to reduce repeated requests (private = per-user, max-age = 5 seconds)
+      return NextResponse.json(responseData, {
+        headers: {
+          'Cache-Control': 'private, max-age=5, stale-while-revalidate=10',
+        },
+      });
     }
   } catch (error) {
     console.error('[Predictions] GET error:', error);
