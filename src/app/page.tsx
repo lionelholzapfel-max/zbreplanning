@@ -74,35 +74,15 @@ export default function HomePage() {
   const router = useRouter();
   const { currentUser, loading, getUserStats, getUpcomingActivities, getMyUpcomingMatches } = useSupabase();
 
-  // Load user's predictions
+  // Load user's predictions (single API call instead of 20+)
   const loadPredictions = useCallback(async () => {
     try {
-      // Fetch all predictions for upcoming matches
-      const upcomingMatchIds = (matches as Match[])
-        .filter(m => {
-          const [year, month, day] = m.date.split('-').map(Number);
-          const [hours, minutes] = m.time.split(':').map(Number);
-          const matchDate = new Date(year, month - 1, day, hours, minutes);
-          return matchDate > new Date();
-        })
-        .map(m => m.id);
-
-      const predictions = new Set<number>();
-      // Fetch in batches to avoid too many requests
-      await Promise.all(upcomingMatchIds.slice(0, 20).map(async (matchId) => {
-        try {
-          const res = await fetch(`/api/predictions/score?match_id=${matchId}`);
-          if (res.ok) {
-            const data = await res.json();
-            if (data.myPrediction) {
-              predictions.add(matchId);
-            }
-          }
-        } catch {
-          // Ignore errors
-        }
-      }));
-      setMyPredictions(predictions);
+      const res = await fetch('/api/predictions/my-scores');
+      if (res.ok) {
+        const data = await res.json();
+        // matchIds is an array of match IDs that have predictions
+        setMyPredictions(new Set(data.matchIds || []));
+      }
     } catch (err) {
       console.error('Error loading predictions:', err);
     }
