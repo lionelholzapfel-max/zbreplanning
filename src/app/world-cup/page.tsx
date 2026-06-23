@@ -482,12 +482,24 @@ export default function WorldCupPage() {
     setMounted(true);
   }, []);
 
+  // Track which matches we've already loaded predictions for to avoid infinite loops
+  const loadedMatchIdsRef = useRef<Set<number>>(new Set());
+
   useEffect(() => {
-    if (currentUser && filteredMatches.length > 0) {
-      const matchIds = filteredMatches.map(m => m.id);
-      loadMatchData(matchIds);
-      loadScorePredictions(matchIds);
-    }
+    if (!currentUser || filteredMatches.length === 0) return;
+
+    // Only load data for matches we haven't loaded yet
+    const newMatchIds = filteredMatches
+      .map(m => m.id)
+      .filter(id => !loadedMatchIdsRef.current.has(id));
+
+    if (newMatchIds.length === 0) return;
+
+    // Mark these as loaded before fetching to prevent re-triggering
+    newMatchIds.forEach(id => loadedMatchIdsRef.current.add(id));
+
+    loadMatchData(newMatchIds);
+    loadScorePredictions(newMatchIds);
   }, [currentUser, filteredMatches, loadMatchData, loadScorePredictions]);
 
   // Cleanup timeout on unmount
