@@ -313,32 +313,52 @@ export default function WorldCupPage() {
     setLocations(prev => ({ ...prev, ...newLocations }));
   }, [getMatchParticipations, getWatchLocations]);
 
-  // Load score predictions for matches (API always returns all predictions now)
+  // Load score predictions for matches (single batch API call)
   const loadScorePredictions = useCallback(async (matchIds: number[]) => {
-    const newPredictions: Record<number, MatchPredictionState> = {};
+    if (matchIds.length === 0) return;
 
-    await Promise.all(matchIds.map(async (matchId) => {
-      try {
-        const res = await fetch(`/api/predictions/score?match_id=${matchId}`);
-        if (!res.ok) return;
-        const data = await res.json();
+    try {
+      const res = await fetch('/api/predictions/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ match_ids: matchIds }),
+      });
 
-        // API now always returns all predictions
-        newPredictions[matchId] = {
-          myPrediction: data.myPrediction || null,
-          allPredictions: data.predictions || [],
-          matchStarted: data.matchStarted,
-          predictionLocked: data.predictionLocked,
-          timeUntilLock: data.timeUntilLock ?? -1,
-          result: data.result || null,
-          totalPredictions: data.predictions?.length || 0,
-        };
-      } catch (err) {
-        console.error(`Error loading predictions for match ${matchId}:`, err);
+      if (!res.ok) {
+        console.error('Batch predictions failed:', res.status);
+        return;
       }
-    }));
 
-    setScorePredictions(prev => ({ ...prev, ...newPredictions }));
+      const data = await res.json();
+      const newPredictions: Record<number, MatchPredictionState> = {};
+
+      for (const [matchIdStr, pred] of Object.entries(data.predictions || {})) {
+        const matchId = parseInt(matchIdStr, 10);
+        const p = pred as {
+          myPrediction: { home_score: number; away_score: number } | null;
+          allPredictions: unknown[];
+          matchStarted: boolean;
+          predictionLocked: boolean;
+          timeUntilLock: number;
+          result: { home_score: number; away_score: number } | null;
+          totalPredictions: number;
+        };
+
+        newPredictions[matchId] = {
+          myPrediction: p.myPrediction || null,
+          allPredictions: p.allPredictions || [],
+          matchStarted: p.matchStarted,
+          predictionLocked: p.predictionLocked,
+          timeUntilLock: p.timeUntilLock ?? -1,
+          result: p.result || null,
+          totalPredictions: p.totalPredictions || 0,
+        };
+      }
+
+      setScorePredictions(prev => ({ ...prev, ...newPredictions }));
+    } catch (err) {
+      console.error('Error loading batch predictions:', err);
+    }
   }, []);
 
   // Save score prediction
