@@ -141,8 +141,7 @@ export default function DrereCelebration() {
       .then(() => {
         setIsPlaying(true);
       })
-      .catch((err) => {
-        console.log('[DrereCelebration] Autoplay blocked:', err);
+      .catch(() => {
         setIsPlaying(false);
       });
 
@@ -162,16 +161,24 @@ export default function DrereCelebration() {
     }, 30000);
   }, [isPlaying, fireDailyConfetti, fireWeeklyConfetti]);
 
+  // Track if we've already checked to prevent multiple fetches
+  const hasCheckedRef = useRef(false);
+
   // Check if current user is Drère - runs on navigation changes
   useEffect(() => {
     if (pathname === '/login') return;
     if (showCelebration) return;
+    if (hasCheckedRef.current) return; // Already checked this session
 
     const today = new Date().toISOString().split('T')[0];
     const lastSeenDaily = localStorage.getItem('drere-celebration-seen');
     const lastSeenWeekly = localStorage.getItem('drere-week-celebration-seen');
 
+    // If already seen today in localStorage, skip API call
+    if (lastSeenDaily === today) return;
+
     const checkDrere = async () => {
+      hasCheckedRef.current = true; // Mark as checked
       try {
         const res = await fetch('/api/drere-celebration/check');
         if (!res.ok) return;
