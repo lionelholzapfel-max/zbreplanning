@@ -336,7 +336,7 @@ export default function WorldCupPage() {
         const matchId = parseInt(matchIdStr, 10);
         const p = pred as {
           myPrediction: { home_score: number; away_score: number } | null;
-          allPredictions: unknown[];
+          allPredictions: ScorePrediction[];
           matchStarted: boolean;
           predictionLocked: boolean;
           timeUntilLock: number;
