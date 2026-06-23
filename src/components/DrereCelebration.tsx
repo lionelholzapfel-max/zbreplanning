@@ -137,8 +137,14 @@ export default function DrereCelebration() {
       audioRef.current.onended = () => setIsPlaying(false);
     }
 
-    audioRef.current.play();
-    setIsPlaying(true);
+    audioRef.current.play()
+      .then(() => {
+        setIsPlaying(true);
+      })
+      .catch((err) => {
+        console.log('[DrereCelebration] Autoplay blocked:', err);
+        setIsPlaying(false);
+      });
 
     if (type === 'weekly') {
       fireWeeklyConfetti();
@@ -292,6 +298,23 @@ export default function DrereCelebration() {
             <p className="text-xl font-bold text-white mb-6">
               {drereData.member_name}
             </p>
+
+            {/* Music control button */}
+            <button
+              onClick={() => toggleMusic(drereData?.type || 'daily')}
+              className={`mb-4 px-6 py-2 rounded-full transition-all flex items-center gap-2 mx-auto ${
+                isPlaying
+                  ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                  : isWeekly
+                    ? 'bg-[#FFD700]/20 text-[#FFD700] hover:bg-[#FFD700]/30'
+                    : 'bg-[#fbbf24]/20 text-[#fbbf24] hover:bg-[#fbbf24]/30'
+              }`}
+            >
+              <span className="text-xl">{isPlaying ? '⏸️' : '▶️'}</span>
+              <span className="text-sm font-medium">
+                {isPlaying ? 'Pause la musique' : 'Jouer la musique'}
+              </span>
+            </button>
 
             <button
               onClick={closeCelebration}

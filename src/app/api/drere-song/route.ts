@@ -2,26 +2,49 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser, getSupabaseAdmin } from '@/lib/auth/session';
 import { MEMBERS } from '@/data/members';
 
+// Import matches data
+const matchesData = require('@/data/matches.json') as Array<{
+  id: number;
+  match: string;
+  date: string;
+  dateDisplay: string;
+  time: string;
+  stadium: string;
+  city: string;
+  phase: string;
+  group?: string;
+}>;
+
+interface MatchInfo {
+  id: number;
+  match: string;
+  date: string;
+}
+
 interface WeekStats {
   drereId: string;
   drereName: string;
   drerePoints: number;
-  mziId: string | null;
-  mziName: string | null;
-  mziPoints: number | null;
-  bestPredictions: Array<{
-    match: string;
-    predicted: string;
-    actual: string;
+  // Gros coup de la semaine
+  grosCoup: {
+    matchName: string;
+    predictedScore: string;
+    actualScore: string;
+    points: number;
+    countries: string[];
+  } | null;
+  // Stats de la semaine
+  exactScoresThisWeek: number;
+  drereJourCount: number;
+  // Pires performers actifs
+  worstActivePerformers: Array<{
+    name: string;
     points: number;
   }>;
-  worstPredictions: Array<{
-    userId: string;
-    userName: string;
-    match: string;
-    predicted: string;
-    actual: string;
-  }>;
+  // Pour le roast
+  mziName: string | null;
+  // Style musique basé sur le gros coup
+  musicStyle: string;
 }
 
 // GET /api/drere-song?week=YYYY-MM-DD - Get the song for a specific week
@@ -129,7 +152,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Trigger DiffRhythm AI generation (async - will be updated when complete)
-    generateSongWithDiffRhythm(songRecord.id, lyrics, stats.drereName).catch(console.error);
+    // Pass the music style based on the "gros coup" country
+    generateSongWithDiffRhythm(songRecord.id, lyrics, stats.drereName, stats.musicStyle).catch(console.error);
 
     return NextResponse.json({
       message: 'Song generation started',
@@ -150,6 +174,58 @@ function getLastMondayDate(): string {
   return monday.toISOString().split('T')[0];
 }
 
+// Map countries to music styles
+const COUNTRY_MUSIC_STYLES: Record<string, string> = {
+  'Mexique': 'latin trap mariachi energetic',
+  'Brésil': 'brazilian funk samba party',
+  'Argentine': 'tango latin passionate',
+  'France': 'french rap hip-hop energetic',
+  'Espagne': 'reggaeton flamenco spanish',
+  'Angleterre': 'uk grime british rap',
+  'Allemagne': 'techno electronic powerful',
+  'Italie': 'italian pop melodic',
+  'Portugal': 'portuguese fado modern',
+  'Pays-Bas': 'dutch edm electronic dance',
+  'Belgique': 'belgian techno electronic',
+  'Corée du Sud': 'k-pop energetic modern',
+  'Japon': 'j-pop electronic anime',
+  'USA': 'american hip-hop trap',
+  'États-Unis': 'american hip-hop trap',
+  'Afrique du Sud': 'afrobeat amapiano',
+  'Maroc': 'arabic gnawa fusion',
+  'Sénégal': 'afrobeat mbalax',
+  'Nigeria': 'afrobeats highlife',
+  'Cameroun': 'makossa afrobeat',
+  'Colombie': 'reggaeton cumbia',
+  'Croatie': 'balkan electronic',
+  'Serbie': 'balkan turbo folk',
+};
+
+function getMatchInfo(matchId: number): MatchInfo | null {
+  const match = (matchesData as any[]).find(m => m.id === matchId);
+  if (!match) return null;
+  return {
+    id: match.id,
+    match: match.match,
+    date: match.date,
+  };
+}
+
+function extractCountries(matchName: string): string[] {
+  // Format: "Pays1 - Pays2"
+  const parts = matchName.split(' - ');
+  return parts.map(p => p.trim());
+}
+
+function getMusicStyleForCountries(countries: string[]): string {
+  for (const country of countries) {
+    if (COUNTRY_MUSIC_STYLES[country]) {
+      return COUNTRY_MUSIC_STYLES[country];
+    }
+  }
+  return 'hip-hop trap energetic victory anthem';
+}
+
 async function getWeekStats(supabase: ReturnType<typeof getSupabaseAdmin>, weekStart: string): Promise<WeekStats | null> {
   // Get the Drère of the week
   const { data: drereData } = await supabase
@@ -164,11 +240,112 @@ async function getWeekStats(supabase: ReturnType<typeof getSupabaseAdmin>, weekS
   const drereMember = MEMBERS.find(m => m.id === drereData.user_id);
   if (!drereMember) return null;
 
-  // Get the week's worst performer (most mzi awards)
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekEnd.getDate() + 6);
   const weekEndStr = weekEnd.toISOString().split('T')[0];
 
+  // 1. Get Drère's GROS COUP (best prediction with most points)
+  const { data: bestPrediction } = await supabase
+    .from('points_log')
+    .select('match_id, total_points, detail')
+    .eq('user_id', drereData.user_id)
+    .gte('created_at', weekStart)
+    .lt('created_at', weekEndStr + 'T23:59:59')
+    .order('total_points', { ascending: false })
+    .limit(1)
+    .single();
+
+  let grosCoup: WeekStats['grosCoup'] = null;
+  let musicStyle = 'hip-hop trap energetic victory anthem male rapper';
+
+  if (bestPrediction) {
+    const matchInfo = getMatchInfo(bestPrediction.match_id);
+    if (matchInfo) {
+      // Get the prediction details
+      const { data: predDetails } = await supabase
+        .from('match_score_predictions')
+        .select('home_score, away_score')
+        .eq('user_id', drereData.user_id)
+        .eq('match_id', bestPrediction.match_id)
+        .single();
+
+      const { data: resultDetails } = await supabase
+        .from('match_results')
+        .select('home_score, away_score')
+        .eq('match_id', bestPrediction.match_id)
+        .single();
+
+      const countries = extractCountries(matchInfo.match);
+      musicStyle = getMusicStyleForCountries(countries);
+
+      grosCoup = {
+        matchName: matchInfo.match,
+        predictedScore: predDetails ? `${predDetails.home_score}-${predDetails.away_score}` : '?-?',
+        actualScore: resultDetails ? `${resultDetails.home_score}-${resultDetails.away_score}` : '?-?',
+        points: bestPrediction.total_points,
+        countries,
+      };
+    }
+  }
+
+  // 2. Count exact scores this week
+  const { data: exactScores } = await supabase
+    .from('points_log')
+    .select('id')
+    .eq('user_id', drereData.user_id)
+    .gte('created_at', weekStart)
+    .lt('created_at', weekEndStr + 'T23:59:59')
+    .eq('total_points', 3);
+
+  const exactScoresThisWeek = exactScores?.length || 0;
+
+  // 3. Count Drère du jour appearances this week
+  const { data: drereJours } = await supabase
+    .from('daily_awards')
+    .select('id')
+    .eq('user_id', drereData.user_id)
+    .eq('award_type', 'drere_jour')
+    .gte('award_date', weekStart)
+    .lte('award_date', weekEndStr);
+
+  const drereJourCount = drereJours?.length || 0;
+
+  // 4. Get active players (last 3 days) with worst performance this week
+  const threeDaysAgo = new Date();
+  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+  const threeDaysAgoStr = threeDaysAgo.toISOString();
+
+  const { data: activeUsers } = await supabase
+    .from('match_score_predictions')
+    .select('user_id')
+    .gte('created_at', threeDaysAgoStr);
+
+  const activeUserIds = Array.from(new Set((activeUsers || []).map(u => u.user_id))) as string[];
+
+  // Get week totals for active users (excluding drère)
+  const { data: weekTotals } = await supabase
+    .from('points_log')
+    .select('user_id, total_points')
+    .in('user_id', activeUserIds.filter(id => id !== drereData.user_id))
+    .gte('created_at', weekStart)
+    .lt('created_at', weekEndStr + 'T23:59:59');
+
+  // Sum points per user
+  const userPoints: Record<string, number> = {};
+  for (const log of weekTotals || []) {
+    userPoints[log.user_id] = (userPoints[log.user_id] || 0) + log.total_points;
+  }
+
+  // Sort by points (ascending = worst first)
+  const sortedWorst = Object.entries(userPoints)
+    .sort((a, b) => a[1] - b[1])
+    .slice(0, 3)
+    .map(([userId, points]) => ({
+      name: MEMBERS.find(m => m.id === userId)?.name.split(' ')[0] || 'Unknown',
+      points,
+    }));
+
+  // 5. Get Type Mzi (most mzi awards this week)
   const { data: mziData } = await supabase
     .from('daily_awards')
     .select('user_id')
@@ -176,161 +353,148 @@ async function getWeekStats(supabase: ReturnType<typeof getSupabaseAdmin>, weekS
     .gte('award_date', weekStart)
     .lte('award_date', weekEndStr);
 
-  // Count mzi per user
   const mziCounts: Record<string, number> = {};
   for (const m of mziData || []) {
     mziCounts[m.user_id] = (mziCounts[m.user_id] || 0) + 1;
   }
 
-  let mziId: string | null = null;
   let mziName: string | null = null;
   let maxMzi = 0;
   for (const [userId, count] of Object.entries(mziCounts)) {
     if (count > maxMzi && userId !== drereData.user_id) {
       maxMzi = count;
-      mziId = userId;
-      mziName = MEMBERS.find(m => m.id === userId)?.name || null;
+      mziName = MEMBERS.find(m => m.id === userId)?.name.split(' ')[0] || null;
     }
   }
-
-  // Get Drère's best predictions of the week
-  const { data: predictions } = await supabase
-    .from('points_log')
-    .select(`
-      user_id,
-      total_points,
-      match_id,
-      match_score_predictions!inner(home_score, away_score),
-      match_results!inner(home_score, away_score, matches!inner(home_team, away_team, match_date))
-    `)
-    .eq('user_id', drereData.user_id)
-    .gte('match_results.matches.match_date', weekStart)
-    .lte('match_results.matches.match_date', weekEndStr)
-    .order('total_points', { ascending: false })
-    .limit(3);
-
-  const bestPredictions = (predictions || []).map((p: any) => ({
-    match: `${p.match_results.matches.home_team} vs ${p.match_results.matches.away_team}`,
-    predicted: `${p.match_score_predictions.home_score}-${p.match_score_predictions.away_score}`,
-    actual: `${p.match_results.home_score}-${p.match_results.away_score}`,
-    points: p.total_points,
-  }));
-
-  // Get worst predictions of the week (from anyone)
-  const { data: worstPreds } = await supabase
-    .from('points_log')
-    .select(`
-      user_id,
-      match_id,
-      match_score_predictions!inner(home_score, away_score),
-      match_results!inner(home_score, away_score, matches!inner(home_team, away_team, match_date))
-    `)
-    .eq('total_points', 0)
-    .gte('match_results.matches.match_date', weekStart)
-    .lte('match_results.matches.match_date', weekEndStr)
-    .limit(3);
-
-  const worstPredictions = (worstPreds || []).map((p: any) => {
-    const member = MEMBERS.find(m => m.id === p.user_id);
-    return {
-      userId: p.user_id,
-      userName: member?.name || 'Unknown',
-      match: `${p.match_results.matches.home_team} vs ${p.match_results.matches.away_team}`,
-      predicted: `${p.match_score_predictions.home_score}-${p.match_score_predictions.away_score}`,
-      actual: `${p.match_results.home_score}-${p.match_results.away_score}`,
-    };
-  });
 
   return {
     drereId: drereData.user_id,
     drereName: drereMember.name.split(' ')[0],
     drerePoints: drereData.points_earned,
-    mziId,
-    mziName: mziName?.split(' ')[0] || null,
-    mziPoints: maxMzi > 0 ? maxMzi : null,
-    bestPredictions,
-    worstPredictions,
+    grosCoup,
+    exactScoresThisWeek,
+    drereJourCount,
+    worstActivePerformers: sortedWorst,
+    mziName,
+    musicStyle,
   };
 }
 
 function generateLyrics(stats: WeekStats): string {
-  const { drereName, drerePoints, mziName, bestPredictions, worstPredictions } = stats;
+  const { drereName, drerePoints } = stats;
 
   // Multiple song structures for variety
   const structures = [
     generateHipHopLyrics,
     generateRockAnthemLyrics,
-    generatePopCelebrationLyrics,
-    generateEpicOrchestraLyrics,
+    generateGrosCoupLyrics,
+    generateChampionStatsLyrics,
   ];
 
-  // Pick a random structure based on week date hash
+  // Pick structure based on week hash for variety
   const weekHash = stats.drereId.charCodeAt(0) + drerePoints;
   const structureIndex = weekHash % structures.length;
 
   return structures[structureIndex](stats);
 }
 
+// Structure 1: Hip-hop classique avec roast des perdants
 function generateHipHopLyrics(stats: WeekStats): string {
-  const { drereName, drerePoints, mziName, worstPredictions } = stats;
+  const { drereName, drerePoints, grosCoup, exactScoresThisWeek, worstActivePerformers, mziName } = stats;
   const lines: string[] = [];
 
   lines.push(`[00:00.00] Yeah yeah its ${drereName}!`);
   lines.push(`[00:03.00] Drere of the Week lets go!`);
-  lines.push(`[00:06.00] ${drereName} is the king the boss of the week`);
-  lines.push(`[00:09.00] ${drerePoints} points on the board hes at his peak`);
-  lines.push(`[00:12.00] While yall were sleeping on predictions`);
-  lines.push(`[00:15.00] He saw it all clear no contradictions`);
-  lines.push(`[00:18.00] Called every match with precision and grace`);
-  lines.push(`[00:21.00] Left all the haters in last place`);
+  lines.push(`[00:06.00] ${drereName} got ${drerePoints} points this week he the king`);
+
+  // Mention worst performers
+  if (worstActivePerformers.length >= 2) {
+    const [worst1, worst2] = worstActivePerformers;
+    lines.push(`[00:09.00] While ${worst1.name} and ${worst2.name} cant do a thing`);
+    lines.push(`[00:12.00] Only ${worst1.points} points thats embarrassing yo`);
+  } else {
+    lines.push(`[00:09.00] While the others falling behind`);
+    lines.push(`[00:12.00] ${drereName} saw it coming every time`);
+  }
+
+  lines.push(`[00:15.00] ${drereName} saw the future now everybody knows`);
+
+  // Gros coup mention
+  if (grosCoup) {
+    const countries = grosCoup.countries;
+    lines.push(`[00:18.00] Called ${countries[0]} ${grosCoup.predictedScore} exact score`);
+    lines.push(`[00:21.00] The prophet predicted it all and more`);
+  } else {
+    lines.push(`[00:18.00] Called every match with precision supreme`);
+    lines.push(`[00:21.00] Living the glory living the dream`);
+  }
+
   lines.push(`[00:24.00] ${drereName} Drere of the Week crown on his head`);
-  lines.push(`[00:27.00] Rest of yall should have stayed in bed`);
 
+  if (worstActivePerformers.length >= 2) {
+    lines.push(`[00:27.00] ${worstActivePerformers[0].name} and ${worstActivePerformers[1].name} should have stayed in bed`);
+  } else {
+    lines.push(`[00:27.00] Rest of yall should have stayed in bed`);
+  }
+
+  // Exact scores flex
+  if (exactScoresThisWeek > 0) {
+    lines.push(`[00:30.00] ${exactScoresThisWeek} exact scores this week no debate`);
+    lines.push(`[00:33.00] ${drereName} sees the future he dont hesitate`);
+  }
+
+  // Mzi roast
   if (mziName) {
-    lines.push(`[00:30.00] ${mziName} out here catching Ls all day`);
-    lines.push(`[00:33.00] Zero points bro just stay away`);
+    lines.push(`[00:36.00] ${mziName} catching Ls all day long`);
+    lines.push(`[00:39.00] Zero points bro your predictions wrong`);
   }
 
-  if (worstPredictions.length > 0) {
-    const roast = worstPredictions[0];
-    const firstName = roast.userName.split(' ')[0];
-    lines.push(`[00:36.00] ${firstName} predicted ${roast.predicted} it ended ${roast.actual}`);
-    lines.push(`[00:39.00] Bro needs glasses thats factual`);
-  }
-
-  lines.push(`[00:42.00] But ${drereName} saw the future like a prophet supreme`);
-  lines.push(`[00:45.00] Living the glory living the dream`);
-  lines.push(`[00:48.00] Drere of the Week put respect on the name`);
-  lines.push(`[00:51.00] ${drereName} runs this game!`);
+  lines.push(`[00:42.00] Drere of the Week respect the crown`);
+  lines.push(`[00:45.00] ${drereName} runs this game he runs this town!`);
 
   return lines.join('\n');
 }
 
+// Structure 2: Rock anthem épique
 function generateRockAnthemLyrics(stats: WeekStats): string {
-  const { drereName, drerePoints, mziName, worstPredictions } = stats;
+  const { drereName, drerePoints, grosCoup, drereJourCount, worstActivePerformers, mziName } = stats;
   const lines: string[] = [];
 
   lines.push(`[00:00.00] Ladies and gentlemen`);
   lines.push(`[00:03.00] Your champion has arrived`);
   lines.push(`[00:06.00] ${drereName} standing tall above them all`);
   lines.push(`[00:09.00] ${drerePoints} points of pure glory`);
-  lines.push(`[00:12.00] They tried to beat him but they failed`);
-  lines.push(`[00:15.00] Victory was never in doubt`);
-  lines.push(`[00:18.00] He called the scores before they happened`);
-  lines.push(`[00:21.00] The oracle of football has spoken`);
+
+  // Drère du jour mentions
+  if (drereJourCount > 0) {
+    lines.push(`[00:12.00] Drere du jour ${drereJourCount} times this week`);
+    lines.push(`[00:15.00] Unstoppable force they could not compete`);
+  } else {
+    lines.push(`[00:12.00] They tried to beat him but they failed`);
+    lines.push(`[00:15.00] Victory was never in doubt`);
+  }
+
+  // Gros coup
+  if (grosCoup) {
+    lines.push(`[00:18.00] ${grosCoup.matchName} he called it right`);
+    lines.push(`[00:21.00] ${grosCoup.predictedScore} exact score what a sight`);
+  } else {
+    lines.push(`[00:18.00] He called the scores before they happened`);
+    lines.push(`[00:21.00] The oracle of football has spoken`);
+  }
+
   lines.push(`[00:24.00] ${drereName} Drere of the Week`);
   lines.push(`[00:27.00] Untouchable unstoppable`);
 
-  if (mziName) {
-    lines.push(`[00:30.00] While ${mziName} crashed and burned`);
-    lines.push(`[00:33.00] Zero points nothing learned`);
+  if (worstActivePerformers.length > 0) {
+    const worst = worstActivePerformers[0];
+    lines.push(`[00:30.00] While ${worst.name} only got ${worst.points}`);
+    lines.push(`[00:33.00] Thats nothing compared to ${drereName}s joints`);
   }
 
-  if (worstPredictions.length > 0) {
-    const roast = worstPredictions[0];
-    const firstName = roast.userName.split(' ')[0];
-    lines.push(`[00:36.00] ${firstName} with the terrible call`);
-    lines.push(`[00:39.00] Watching champions while losers fall`);
+  if (mziName) {
+    lines.push(`[00:36.00] ${mziName} crashed and burned today`);
+    lines.push(`[00:39.00] Zero points he should just stay away`);
   }
 
   lines.push(`[00:42.00] So raise your hands for the king`);
@@ -341,75 +505,101 @@ function generateRockAnthemLyrics(stats: WeekStats): string {
   return lines.join('\n');
 }
 
-function generatePopCelebrationLyrics(stats: WeekStats): string {
-  const { drereName, drerePoints, mziName, worstPredictions } = stats;
+// Structure 3: Focus sur le GROS COUP de la semaine
+function generateGrosCoupLyrics(stats: WeekStats): string {
+  const { drereName, drerePoints, grosCoup, exactScoresThisWeek, worstActivePerformers } = stats;
   const lines: string[] = [];
 
-  lines.push(`[00:00.00] Celebrating tonight`);
-  lines.push(`[00:03.00] ${drereName} in the spotlight`);
-  lines.push(`[00:06.00] Oh ${drereName} you did it again`);
-  lines.push(`[00:09.00] ${drerePoints} points you are the champion`);
-  lines.push(`[00:12.00] Dancing through the predictions`);
-  lines.push(`[00:15.00] Perfect scores no contradictions`);
-  lines.push(`[00:18.00] Every match you saw it coming`);
-  lines.push(`[00:21.00] While the others kept on stumbling`);
-  lines.push(`[00:24.00] ${drereName} oh ${drereName}`);
-  lines.push(`[00:27.00] Drere of the Week hooray`);
+  lines.push(`[00:00.00] Listen up everybody`);
+  lines.push(`[00:03.00] ${drereName} got the vision`);
 
-  if (mziName) {
-    lines.push(`[00:30.00] Sorry ${mziName} not your day`);
-    lines.push(`[00:33.00] Maybe next time find a way`);
+  if (grosCoup) {
+    lines.push(`[00:06.00] The match was ${grosCoup.matchName}`);
+    lines.push(`[00:09.00] Everybody said they knew the game`);
+    lines.push(`[00:12.00] But ${drereName} called it ${grosCoup.predictedScore}`);
+    lines.push(`[00:15.00] Exact score he knew for sure`);
+    lines.push(`[00:18.00] ${grosCoup.countries[0]} versus ${grosCoup.countries[1] || 'the rest'}`);
+    lines.push(`[00:21.00] ${drereName} predictions are the best`);
+  } else {
+    lines.push(`[00:06.00] Every match he called it clean`);
+    lines.push(`[00:09.00] Best predictor youve ever seen`);
+    lines.push(`[00:12.00] While others guessing in the dark`);
+    lines.push(`[00:15.00] ${drereName} hits the mark`);
+    lines.push(`[00:18.00] Prophet vision crystal clear`);
+    lines.push(`[00:21.00] Thats why ${drereName} is here`);
   }
 
-  if (worstPredictions.length > 0) {
-    const roast = worstPredictions[0];
-    const firstName = roast.userName.split(' ')[0];
-    lines.push(`[00:36.00] ${firstName} oh what happened there`);
-    lines.push(`[00:39.00] ${roast.predicted} prediction wasnt fair`);
+  lines.push(`[00:24.00] ${drerePoints} points for the week`);
+  lines.push(`[00:27.00] ${drereName} Drere of the Week`);
+
+  if (exactScoresThisWeek > 1) {
+    lines.push(`[00:30.00] Not one but ${exactScoresThisWeek} exact scores`);
+    lines.push(`[00:33.00] ${drereName} opens all the doors`);
   }
 
-  lines.push(`[00:42.00] But tonight we celebrate`);
-  lines.push(`[00:45.00] ${drereName} you are so great`);
-  lines.push(`[00:48.00] Drere of the Week its your time to shine`);
-  lines.push(`[00:51.00] ${drereName} youre so fine!`);
+  if (worstActivePerformers.length >= 2) {
+    lines.push(`[00:36.00] ${worstActivePerformers[0].name} got ${worstActivePerformers[0].points} its a shame`);
+    lines.push(`[00:39.00] ${worstActivePerformers[1].name} ${worstActivePerformers[1].points} points just the same`);
+  }
+
+  lines.push(`[00:42.00] But ${drereName} different level you know`);
+  lines.push(`[00:45.00] Drere of the Week stealing the show!`);
 
   return lines.join('\n');
 }
 
-function generateEpicOrchestraLyrics(stats: WeekStats): string {
-  const { drereName, drerePoints, mziName, worstPredictions } = stats;
+// Structure 4: Stats champion avec toutes les données
+function generateChampionStatsLyrics(stats: WeekStats): string {
+  const { drereName, drerePoints, grosCoup, exactScoresThisWeek, drereJourCount, worstActivePerformers, mziName } = stats;
   const lines: string[] = [];
 
-  lines.push(`[00:00.00] In the realm of predictions`);
-  lines.push(`[00:04.00] A legend rises`);
-  lines.push(`[00:08.00] ${drereName} the chosen one ascends`);
-  lines.push(`[00:12.00] With ${drerePoints} points of pure dominance`);
-  lines.push(`[00:16.00] The prophecy has been fulfilled`);
-  lines.push(`[00:20.00] Every score foretold with precision`);
-  lines.push(`[00:24.00] Mortals tremble at his wisdom`);
-  lines.push(`[00:28.00] ${drereName} Drere of the Week`);
+  lines.push(`[00:00.00] Stats dont lie check the facts`);
+  lines.push(`[00:03.00] ${drereName} got the impact`);
+  lines.push(`[00:06.00] ${drerePoints} points total for the week`);
+
+  if (exactScoresThisWeek > 0) {
+    lines.push(`[00:09.00] ${exactScoresThisWeek} exact scores he got technique`);
+  } else {
+    lines.push(`[00:09.00] Consistency at its peak`);
+  }
+
+  if (drereJourCount > 0) {
+    lines.push(`[00:12.00] Drere du jour ${drereJourCount} times awarded`);
+    lines.push(`[00:15.00] Competition left discarded`);
+  } else {
+    lines.push(`[00:12.00] Day by day he built the lead`);
+    lines.push(`[00:15.00] ${drereName} got everything he need`);
+  }
+
+  if (grosCoup) {
+    lines.push(`[00:18.00] MVP prediction ${grosCoup.matchName}`);
+    lines.push(`[00:21.00] ${grosCoup.predictedScore} exact score hall of fame`);
+  } else {
+    lines.push(`[00:18.00] Every prediction on point`);
+    lines.push(`[00:21.00] ${drereName} running the joint`);
+  }
+
+  lines.push(`[00:24.00] Now lets talk about the rest`);
+
+  if (worstActivePerformers.length >= 2) {
+    lines.push(`[00:27.00] ${worstActivePerformers[0].name} ${worstActivePerformers[0].points} points not impressed`);
+    lines.push(`[00:30.00] ${worstActivePerformers[1].name} ${worstActivePerformers[1].points} didnt pass the test`);
+  }
 
   if (mziName) {
-    lines.push(`[00:32.00] ${mziName} fell into darkness`);
-    lines.push(`[00:36.00] Zero glory zero light`);
+    lines.push(`[00:33.00] ${mziName} is Type Mzi this week`);
+    lines.push(`[00:36.00] Zero game predictions weak`);
   }
 
-  if (worstPredictions.length > 0) {
-    const roast = worstPredictions[0];
-    const firstName = roast.userName.split(' ')[0];
-    lines.push(`[00:40.00] ${firstName} wandered lost and blind`);
-    lines.push(`[00:44.00] Predicting ${roast.predicted} out of mind`);
-  }
-
-  lines.push(`[00:48.00] But ${drereName} saw through time`);
-  lines.push(`[00:52.00] The oracle supreme divine`);
-  lines.push(`[00:56.00] All hail the Drere of the Week`);
-  lines.push(`[01:00.00] ${drereName} the glory you seek!`);
+  lines.push(`[00:39.00] But ${drereName} stands on top`);
+  lines.push(`[00:42.00] The king who never stops`);
+  lines.push(`[00:45.00] Drere of the Week no debate`);
+  lines.push(`[00:48.00] ${drereName} is truly great!`);
 
   return lines.join('\n');
 }
 
-async function generateSongWithDiffRhythm(songId: number, lyrics: string, drereName: string) {
+async function generateSongWithDiffRhythm(songId: number, lyrics: string, drereName: string, musicStyle: string) {
   const supabase = getSupabaseAdmin();
 
   try {
@@ -448,7 +638,8 @@ async function generateSongWithDiffRhythm(songId: number, lyrics: string, drereN
         task_type: 'txt2audio-base',
         input: {
           lyrics: lyrics,
-          style_prompt: 'hip-hop français, rap victoire, trap énergique, célébration sportive',
+          // Dynamic music style based on the "gros coup" country
+          style_prompt: musicStyle,
         },
         config: {},
       }),
