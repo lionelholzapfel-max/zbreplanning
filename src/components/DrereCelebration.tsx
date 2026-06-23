@@ -151,7 +151,14 @@ export default function DrereCelebration() {
       fireDailyConfetti();
     }
 
-    // La chanson joue jusqu'à la fin (onended callback gère l'arrêt)
+    // Auto-stop après 1min20
+    audioTimeoutRef.current = setTimeout(() => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        setIsPlaying(false);
+      }
+    }, 80000);
   }, [isPlaying, fireDailyConfetti, fireWeeklyConfetti]);
 
   // Track if we've already checked to prevent multiple fetches
