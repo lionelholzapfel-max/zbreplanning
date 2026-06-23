@@ -325,7 +325,6 @@ export default function WorldCupPage() {
       });
 
       if (!res.ok) {
-        console.error('Batch predictions failed:', res.status);
         return;
       }
 
@@ -355,9 +354,25 @@ export default function WorldCupPage() {
         };
       }
 
-      setScorePredictions(prev => ({ ...prev, ...newPredictions }));
-    } catch (err) {
-      console.error('Error loading batch predictions:', err);
+      // Merge carefully to preserve any optimistic myPrediction updates
+      // (user might have saved while batch was loading)
+      setScorePredictions(prev => {
+        const result = { ...prev };
+        for (const [matchIdStr, newData] of Object.entries(newPredictions)) {
+          const matchId = parseInt(matchIdStr, 10);
+          const existing = result[matchId];
+
+          // If we have an optimistic myPrediction that server doesn't have yet, preserve it
+          if (existing?.myPrediction && !newData.myPrediction) {
+            result[matchId] = { ...newData, myPrediction: existing.myPrediction };
+          } else {
+            result[matchId] = newData;
+          }
+        }
+        return result;
+      });
+    } catch {
+      // Silently fail
     }
   }, []);
 
@@ -391,8 +406,7 @@ export default function WorldCupPage() {
       }));
 
       return true;
-    } catch (err) {
-      console.error('Error saving prediction:', err);
+    } catch {
       toast.error('Erreur lors de l\'enregistrement');
       return false;
     } finally {
@@ -409,8 +423,8 @@ export default function WorldCupPage() {
         const data = await res.json();
         setFavorites(data.favorites || []);
       }
-    } catch (err) {
-      console.error('Error loading favorites:', err);
+    } catch {
+      // Silently fail
     }
   }, []);
 
