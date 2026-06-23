@@ -39,7 +39,6 @@ export async function POST(request: NextRequest) {
       .order('created_at', { ascending: true });
 
     if (error) {
-      console.error('[Batch] Error:', error);
       return NextResponse.json(
         { error: 'Erreur base de données' },
         { status: 500 }
@@ -153,7 +152,6 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (err) {
-    console.error('[Batch] Unexpected error:', err);
     return NextResponse.json(
       { error: 'Erreur serveur' },
       { status: 500 }

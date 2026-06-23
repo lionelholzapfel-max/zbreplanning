@@ -31,7 +31,6 @@ export async function GET() {
       .order('created_at', { ascending: true });
 
     if (error) {
-      console.error('[GlobalPredictions] Error getting predictions:', error);
       return NextResponse.json(
         { error: 'Erreur base de données' },
         { status: 500 }
@@ -98,7 +97,6 @@ export async function GET() {
       });
     }
   } catch (error) {
-    console.error('[GlobalPredictions] GET error:', error);
     return NextResponse.json(
       { error: 'Erreur serveur' },
       { status: 500 }
@@ -189,14 +187,7 @@ export async function POST(request: NextRequest) {
       saveError = error;
     }
 
-      saved,
-      error: saveError?.message,
-      code: saveError?.code,
-      details: saveError?.details
-    });
-
     if (saveError) {
-      console.error('[GlobalPredictions] Error saving prediction:', saveError);
       return NextResponse.json(
         {
           error: `Erreur sauvegarde: ${saveError.message}`,
@@ -212,7 +203,6 @@ export async function POST(request: NextRequest) {
       prediction: saved,
     });
   } catch (error) {
-    console.error('[GlobalPredictions] POST error:', error);
     return NextResponse.json(
       { error: 'Erreur serveur' },
       { status: 500 }

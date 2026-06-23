@@ -57,7 +57,6 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: true });
 
     if (error) {
-      console.error('[Predictions] Error getting predictions:', error);
       return NextResponse.json(
         { error: 'Erreur base de données' },
         { status: 500 }
@@ -180,7 +179,6 @@ export async function GET(request: NextRequest) {
       });
     }
   } catch (error) {
-    console.error('[Predictions] GET error:', error);
     return NextResponse.json(
       { error: 'Erreur serveur' },
       { status: 500 }
@@ -269,7 +267,6 @@ export async function POST(request: NextRequest) {
         .eq('id', existing.id);
 
       if (updateError) {
-        console.error('[Predictions] Error updating prediction:', updateError);
         return NextResponse.json(
           { error: 'Erreur lors de la mise à jour' },
           { status: 500 }
@@ -287,7 +284,6 @@ export async function POST(request: NextRequest) {
         });
 
       if (insertError) {
-        console.error('[Predictions] Error creating prediction:', insertError);
         return NextResponse.json(
           { error: 'Erreur lors de la création' },
           { status: 500 }
@@ -307,7 +303,6 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('[Predictions] POST error:', error);
     return NextResponse.json(
       { error: 'Erreur serveur' },
       { status: 500 }

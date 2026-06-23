@@ -55,13 +55,11 @@ export async function POST(request: NextRequest) {
       .eq('award_type', awardType);
 
     if (error) {
-      console.error('[DrèreCelebration] Error:', error);
       return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, date: awardDate, type: awardType });
   } catch (error) {
-    console.error('[DrèreCelebration] Error:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }

@@ -24,7 +24,6 @@ export async function GET() {
       .order('entered_at', { ascending: true });
 
     if (mrError) {
-      console.error('[LeaderboardHistory] Match results error:', mrError);
       return NextResponse.json({ error: mrError.message }, { status: 500 });
     }
 
@@ -38,7 +37,6 @@ export async function GET() {
       .select('user_id, total_points, match_id');
 
     if (pError) {
-      console.error('[LeaderboardHistory] Points error:', pError);
       return NextResponse.json({ error: pError.message }, { status: 500 });
     }
 
@@ -108,7 +106,6 @@ export async function GET() {
 
     return NextResponse.json({ history, members: activeMembers });
   } catch (error) {
-    console.error('[LeaderboardHistory] Error:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }

@@ -51,7 +51,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError) {
-      console.error('[DrereSong] Insert error:', insertError);
       return NextResponse.json({ error: 'Erreur création' }, { status: 500 });
     }
 
@@ -65,7 +64,6 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('[DrereSong] Generate error:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }

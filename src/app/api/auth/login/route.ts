@@ -66,7 +66,6 @@ export async function POST(request: NextRequest) {
           { status: 404 }
         );
       }
-      console.error('[Auth] Error getting user:', selectError);
       return NextResponse.json(
         { error: 'Erreur base de données' },
         { status: 500 }
@@ -110,7 +109,6 @@ export async function POST(request: NextRequest) {
       user: sessionUser,
     });
   } catch (error) {
-    console.error('[Auth] Login error:', error);
     return NextResponse.json(
       { error: 'Erreur serveur' },
       { status: 500 }

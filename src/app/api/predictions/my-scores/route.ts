@@ -23,7 +23,6 @@ export async function GET() {
       .eq('user_id', user.id);
 
     if (error) {
-      console.error('[MyScores] Error:', error);
       return NextResponse.json(
         { error: 'Erreur base de données' },
         { status: 500 }
@@ -48,7 +47,6 @@ export async function GET() {
       },
     });
   } catch (err) {
-    console.error('[MyScores] Unexpected error:', err);
     return NextResponse.json(
       { error: 'Erreur serveur' },
       { status: 500 }

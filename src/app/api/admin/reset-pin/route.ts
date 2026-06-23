@@ -66,7 +66,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (selectError && selectError.code !== 'PGRST116') {
-      console.error('[Admin] Error checking user:', selectError);
       return NextResponse.json(
         { error: 'Erreur base de données' },
         { status: 500 }
@@ -102,7 +101,6 @@ export async function POST(request: NextRequest) {
       .eq('id', member_id);
 
     if (updateError) {
-      console.error('[Admin] Error resetting PIN:', updateError);
       return NextResponse.json(
         { error: 'Erreur lors du reset du PIN' },
         { status: 500 }
@@ -115,7 +113,6 @@ export async function POST(request: NextRequest) {
       message: `PIN de ${member.name} réinitialisé`,
     });
   } catch (error) {
-    console.error('[Admin] Reset PIN error:', error);
     return NextResponse.json(
       { error: 'Erreur serveur' },
       { status: 500 }

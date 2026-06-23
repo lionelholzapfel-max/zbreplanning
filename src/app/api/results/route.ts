@@ -42,7 +42,6 @@ export async function GET(request: NextRequest) {
         if (error.code === 'PGRST116') {
           return NextResponse.json({ result: null });
         }
-        console.error('[Results] Error getting result:', error);
         return NextResponse.json(
           { error: 'Erreur base de données' },
           { status: 500 }
@@ -74,7 +73,6 @@ export async function GET(request: NextRequest) {
         .order('match_id', { ascending: true });
 
       if (error) {
-        console.error('[Results] Error getting all results:', error);
         return NextResponse.json(
           { error: 'Erreur base de données' },
           { status: 500 }
@@ -84,7 +82,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ results: results || [] });
     }
   } catch (error) {
-    console.error('[Results] GET error:', error);
     return NextResponse.json(
       { error: 'Erreur serveur' },
       { status: 500 }
@@ -167,7 +164,6 @@ export async function POST(request: NextRequest) {
         .eq('id', existing.id);
 
       if (updateError) {
-        console.error('[Results] Error updating result:', updateError);
         return NextResponse.json(
           { error: 'Erreur lors de la mise à jour' },
           { status: 500 }
@@ -184,7 +180,6 @@ export async function POST(request: NextRequest) {
         });
 
       if (insertError) {
-        console.error('[Results] Error creating result:', insertError);
         return NextResponse.json(
           { error: 'Erreur lors de la création' },
           { status: 500 }
@@ -199,7 +194,6 @@ export async function POST(request: NextRequest) {
       .eq('match_id', matchId);
 
     if (predError) {
-      console.error('[Results] Error getting predictions:', predError);
     }
 
     const predictions: Prediction[] = predictionsData || [];
@@ -244,7 +238,6 @@ export async function POST(request: NextRequest) {
         .insert(pointsLogEntries);
 
       if (pointsError) {
-        console.error('[Results] Error inserting points:', pointsError);
       }
     }
 
@@ -284,7 +277,6 @@ export async function POST(request: NextRequest) {
       points_calculated: pointsLogEntries.length,
     });
   } catch (error) {
-    console.error('[Results] POST error:', error);
     return NextResponse.json(
       { error: 'Erreur serveur' },
       { status: 500 }

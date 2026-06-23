@@ -59,7 +59,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (selectError && selectError.code !== 'PGRST116') {
-      console.error('[Auth] Error checking user:', selectError);
       return NextResponse.json(
         { error: 'Erreur base de données' },
         { status: 500 }
@@ -86,7 +85,6 @@ export async function POST(request: NextRequest) {
         .eq('id', member_id);
 
       if (updateError) {
-        console.error('[Auth] Error updating PIN:', updateError);
         return NextResponse.json(
           { error: 'Erreur lors de la configuration du PIN' },
           { status: 500 }
@@ -107,7 +105,6 @@ export async function POST(request: NextRequest) {
         });
 
       if (insertError) {
-        console.error('[Auth] Error creating user:', insertError);
         return NextResponse.json(
           { error: 'Erreur lors de la création du compte' },
           { status: 500 }
@@ -135,7 +132,6 @@ export async function POST(request: NextRequest) {
       user: sessionUser,
     });
   } catch (error) {
-    console.error('[Auth] Setup PIN error:', error);
     return NextResponse.json(
       { error: 'Erreur serveur' },
       { status: 500 }

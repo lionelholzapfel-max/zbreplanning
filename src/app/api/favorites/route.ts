@@ -21,7 +21,6 @@ export async function GET() {
       .eq('user_id', user.id);
 
     if (error) {
-      console.error('[Favorites] Error getting favorites:', error);
       return NextResponse.json(
         { error: 'Erreur base de données' },
         { status: 500 }
@@ -32,7 +31,6 @@ export async function GET() {
 
     return NextResponse.json({ favorites: teams });
   } catch (error) {
-    console.error('[Favorites] GET error:', error);
     return NextResponse.json(
       { error: 'Erreur serveur' },
       { status: 500 }
@@ -80,7 +78,6 @@ export async function POST(request: NextRequest) {
         .eq('id', existing.id);
 
       if (deleteError) {
-        console.error('[Favorites] Delete error:', deleteError);
         return NextResponse.json(
           { error: 'Erreur lors de la suppression' },
           { status: 500 }
@@ -102,7 +99,6 @@ export async function POST(request: NextRequest) {
         });
 
       if (insertError) {
-        console.error('[Favorites] Insert error:', insertError);
         return NextResponse.json(
           { error: 'Erreur lors de l\'ajout' },
           { status: 500 }
@@ -116,7 +112,6 @@ export async function POST(request: NextRequest) {
       });
     }
   } catch (error) {
-    console.error('[Favorites] POST error:', error);
     return NextResponse.json(
       { error: 'Erreur serveur' },
       { status: 500 }

@@ -33,13 +33,11 @@ export async function GET() {
       if (error.code === '42P01') {
         return NextResponse.json({ results: [], needsMigration: true });
       }
-      console.error('[TournamentResults] Error fetching:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ results: results || [] });
   } catch (error) {
-    console.error('[TournamentResults] GET error:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
@@ -80,7 +78,6 @@ export async function POST(request: NextRequest) {
       );
 
     if (upsertError) {
-      console.error('[TournamentResults] Upsert error:', upsertError);
       if (upsertError.code === '42P01') {
         return NextResponse.json({
           error: 'Table tournament_results manquante. Exécute la migration V6.',
@@ -98,7 +95,6 @@ export async function POST(request: NextRequest) {
       .eq('prediction_value', result_value);
 
     if (predError) {
-      console.error('[TournamentResults] Error fetching predictions:', predError);
       // Continue anyway - result was saved
     }
 
@@ -121,10 +117,8 @@ export async function POST(request: NextRequest) {
         );
 
       if (pointsError) {
-        console.error('[TournamentResults] Error awarding points:', pointsError);
         // If table doesn't exist, warn but continue
         if (pointsError.code === '42P01') {
-          console.warn('global_prediction_points table missing - run migration V6');
         }
       } else {
         pointsAwarded++;
@@ -151,7 +145,6 @@ export async function POST(request: NextRequest) {
       points_awarded: pointsAwarded * POINTS_PER_CORRECT,
     });
   } catch (error) {
-    console.error('[TournamentResults] POST error:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }

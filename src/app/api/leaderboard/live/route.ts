@@ -137,7 +137,6 @@ export async function GET() {
       currentLeader: ranking[0] || null,
     });
   } catch (error) {
-    console.error('[LiveRanking] Error:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }

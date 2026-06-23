@@ -30,7 +30,6 @@ export async function GET() {
       .order('member_name');
 
     if (error) {
-      console.error('[Admin] Error getting users:', error);
       return NextResponse.json(
         { error: 'Erreur base de données' },
         { status: 500 }
@@ -48,7 +47,6 @@ export async function GET() {
       users: userStatuses,
     });
   } catch (error) {
-    console.error('[Admin] Members error:', error);
     return NextResponse.json(
       { error: 'Erreur serveur' },
       { status: 500 }

@@ -9,7 +9,6 @@ export async function POST() {
       success: true,
     });
   } catch (error) {
-    console.error('[Auth] Logout error:', error);
     return NextResponse.json(
       { error: 'Erreur serveur' },
       { status: 500 }

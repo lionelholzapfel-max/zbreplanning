@@ -250,7 +250,6 @@ export async function GET() {
       drere_display_date: drereDisplayDate,
     });
   } catch (error) {
-    console.error('[Leaderboard] GET error:', error);
     return NextResponse.json(
       { error: 'Erreur serveur' },
       { status: 500 }

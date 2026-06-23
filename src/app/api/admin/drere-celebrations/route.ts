@@ -35,7 +35,6 @@ export async function GET() {
 
     return NextResponse.json({ awards: awardsWithNames });
   } catch (error) {
-    console.error('[Admin] Error:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }

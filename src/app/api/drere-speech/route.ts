@@ -39,7 +39,6 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('[DrereSpeech] GET Error:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
@@ -86,7 +85,6 @@ export async function POST(request: NextRequest) {
       });
 
     if (uploadError) {
-      console.error('[DrereSpeech] Upload error:', uploadError);
       return NextResponse.json({ error: 'Erreur upload' }, { status: 500 });
     }
 
@@ -107,13 +105,11 @@ export async function POST(request: NextRequest) {
       });
 
     if (dbError) {
-      console.error('[DrereSpeech] DB error:', dbError);
       return NextResponse.json({ error: 'Erreur sauvegarde' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('[DrereSpeech] POST Error:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }

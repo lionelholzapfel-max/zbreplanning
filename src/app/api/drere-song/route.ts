@@ -86,7 +86,6 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('[DrereSong] GET Error:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
@@ -147,13 +146,11 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError) {
-      console.error('[DrereSong] Insert error:', insertError);
       return NextResponse.json({ error: 'Erreur création' }, { status: 500 });
     }
 
     // Trigger DiffRhythm AI generation (async - will be updated when complete)
     // Pass the music style based on the "gros coup" country
-    generateSongWithDiffRhythm(songRecord.id, lyrics, stats.drereName, stats.musicStyle).catch(console.error);
 
     return NextResponse.json({
       message: 'Song generation started',
@@ -161,7 +158,6 @@ export async function POST(request: NextRequest) {
       lyrics,
     });
   } catch (error) {
-    console.error('[DrereSong] POST Error:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
@@ -714,7 +710,6 @@ async function generateSongWithDiffRhythm(songId: number, lyrics: string, drereN
       .eq('id', songId);
 
   } catch (error: any) {
-    console.error('[DrereSong] Generation error:', error);
     await supabase
       .from('drere_week_songs')
       .update({

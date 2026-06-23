@@ -77,7 +77,6 @@ export async function GET() {
       weekDate: weekStartDate,
     });
   } catch (error) {
-    console.error('[DrèreCelebration] Check error:', error);
     return NextResponse.json({ isDrere: false, isDrereWeek: false });
   }
 }

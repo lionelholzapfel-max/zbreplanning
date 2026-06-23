@@ -14,7 +14,6 @@ export async function GET() {
 
     return NextResponse.json({ user });
   } catch (error) {
-    console.error('[Auth] Me error:', error);
     return NextResponse.json(
       { error: 'Erreur serveur' },
       { status: 500 }
@@ -55,7 +54,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ needsSetup });
   } catch (error) {
-    console.error('[Auth] Check PIN error:', error);
     return NextResponse.json(
       { error: 'Erreur serveur' },
       { status: 500 }

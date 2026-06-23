@@ -73,7 +73,6 @@ export async function GET(request: NextRequest) {
       .lt('match_results.entered_at', weekEnd.toISOString());
 
     if (pointsError) {
-      console.error('[WeeklyAwards] Points query error:', pointsError);
       return NextResponse.json({ error: pointsError.message }, { status: 500 });
     }
 
@@ -133,7 +132,6 @@ export async function GET(request: NextRequest) {
       allUserPoints: userPoints,
     });
   } catch (error) {
-    console.error('[WeeklyAwards] Error:', error);
     const msg = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: msg }, { status: 500 });
   }

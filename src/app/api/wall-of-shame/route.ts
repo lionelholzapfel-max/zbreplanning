@@ -94,7 +94,6 @@ export async function GET() {
 
     return NextResponse.json({ shameList: top3 });
   } catch (error) {
-    console.error('[WallOfShame] Error:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
