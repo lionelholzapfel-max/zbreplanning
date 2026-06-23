@@ -613,7 +613,6 @@ async function generateSongWithDiffRhythm(songId: number, lyrics: string, drereN
     const apiKey = process.env.GOAPI_KEY;
 
     if (!apiKey) {
-      console.log('[DrereSong] No GOAPI_KEY configured, using lyrics only mode');
       await supabase
         .from('drere_week_songs')
         .update({
@@ -665,13 +664,11 @@ async function generateSongWithDiffRhythm(songId: number, lyrics: string, drereN
             updated_at: new Date().toISOString()
           })
           .eq('id', songId);
-        console.log('[DrereSong] Song generated directly:', directUrl);
         return;
       }
       throw new Error('No task_id or audio_url returned');
     }
 
-    console.log('[DrereSong] Generation started, task_id:', taskId);
 
     // Step 2: Poll for completion (max 2 minutes)
     let audioUrl: string | null = null;
@@ -691,7 +688,6 @@ async function generateSongWithDiffRhythm(songId: number, lyrics: string, drereN
       const statusResult = await statusResponse.json();
       const status = statusResult.data?.status;
 
-      console.log('[DrereSong] Poll status:', status, 'attempt:', i + 1);
 
       if (status === 'completed') {
         // Output contains the audio URL
@@ -717,7 +713,6 @@ async function generateSongWithDiffRhythm(songId: number, lyrics: string, drereN
       })
       .eq('id', songId);
 
-    console.log('[DrereSong] Song generated successfully:', audioUrl);
   } catch (error: any) {
     console.error('[DrereSong] Generation error:', error);
     await supabase

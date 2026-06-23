@@ -143,7 +143,6 @@ export async function POST(request: NextRequest) {
       })
     );
 
-    console.log(`[TournamentResults] ${prediction_type}=${result_value}: ${pointsAwarded} points awarded to: ${winnerNames.join(', ')}`);
 
     return NextResponse.json({
       success: true,

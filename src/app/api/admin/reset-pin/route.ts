@@ -109,7 +109,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[Admin] PIN reset for member ${member_id}${isTestBypass ? ' (test mode)' : ''}`);
 
     return NextResponse.json({
       success: true,

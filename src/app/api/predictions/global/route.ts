@@ -111,10 +111,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const user = await getSessionUser();
-    console.log('[GlobalPredictions] POST - User:', user?.id, user?.member_name);
 
     if (!user) {
-      console.log('[GlobalPredictions] POST - No user session');
       return NextResponse.json(
         { error: 'Non connecté' },
         { status: 401 }
@@ -123,7 +121,6 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { prediction_type, prediction_value } = body;
-    console.log('[GlobalPredictions] POST - Input:', { prediction_type, prediction_value });
 
     // Validate input
     if (!prediction_type || !prediction_value) {
@@ -165,7 +162,6 @@ export async function POST(request: NextRequest) {
 
     if (existing) {
       // UPDATE existing prediction
-      console.log('[GlobalPredictions] Updating existing prediction:', existing.id);
       const { data, error } = await supabase
         .from('predictions')
         .update({
@@ -179,7 +175,6 @@ export async function POST(request: NextRequest) {
       saveError = error;
     } else {
       // INSERT new prediction
-      console.log('[GlobalPredictions] Creating new prediction');
       const { data, error } = await supabase
         .from('predictions')
         .insert({
@@ -194,7 +189,6 @@ export async function POST(request: NextRequest) {
       saveError = error;
     }
 
-    console.log('[GlobalPredictions] Save result:', {
       saved,
       error: saveError?.message,
       code: saveError?.code,
@@ -213,7 +207,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[GlobalPredictions] Success! Saved:', saved);
     return NextResponse.json({
       success: true,
       prediction: saved,
