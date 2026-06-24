@@ -59,9 +59,18 @@ export async function GET() {
       .eq('user_id', user.id)
       .single();
 
+    // Check daily MZI (Type mzi du jour - worst performer)
+    const { data: mziAward } = await supabase
+      .from('daily_awards')
+      .select('user_id, points_earned, celebration_seen_at')
+      .eq('award_date', drereDisplayDate)
+      .eq('award_type', 'mzi')
+      .eq('user_id', user.id)
+      .single();
+
     const member = MEMBERS.find(m => m.id === user.id);
 
-    // Return both daily and weekly status
+    // Return daily, weekly and MZI status
     return NextResponse.json({
       // Daily Drère
       isDrere: !!drereAward,
@@ -75,6 +84,10 @@ export async function GET() {
       alreadySeenWeek: weeklyAward?.celebration_seen_at ? true : false,
       weekPoints: weeklyAward?.points_earned || 0,
       weekDate: weekStartDate,
+      // Daily MZI
+      isMzi: !!mziAward,
+      alreadySeenMzi: mziAward?.celebration_seen_at ? true : false,
+      mziPoints: mziAward?.points_earned || 0,
     });
   } catch (error) {
     return NextResponse.json({ isDrere: false, isDrereWeek: false });

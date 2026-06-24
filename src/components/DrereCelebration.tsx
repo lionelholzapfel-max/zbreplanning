@@ -5,20 +5,21 @@ import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import confetti from 'canvas-confetti';
 
-interface DrereData {
+interface CelebrationData {
   member_name: string;
   member_slug: string;
   points: number;
-  type: 'daily' | 'weekly';
+  type: 'daily' | 'weekly' | 'mzi';
 }
 
 export default function DrereCelebration() {
   const pathname = usePathname();
   const [showCelebration, setShowCelebration] = useState(false);
-  const [drereData, setDrereData] = useState<DrereData | null>(null);
+  const [celebrationData, setCelebrationData] = useState<CelebrationData | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const loserIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fire daily confetti (classic style)
   const fireDailyConfetti = useCallback(() => {
@@ -118,18 +119,70 @@ export default function DrereCelebration() {
     }, 800);
   }, []);
 
+  // Fire MZI "loser" effect - sad falling particles
+  const fireLoserEffect = useCallback(() => {
+    const duration = 5000;
+    const end = Date.now() + duration;
+
+    // Sad grey/brown falling particles
+    const frame = () => {
+      // Falling from top - slow and sad
+      confetti({
+        particleCount: 2,
+        angle: 270,
+        spread: 30,
+        origin: { x: Math.random(), y: 0 },
+        colors: ['#6b7280', '#4b5563', '#374151', '#78716c', '#57534e'],
+        scalar: 1.5,
+        gravity: 2,
+        drift: Math.random() * 2 - 1,
+        ticks: 300,
+      });
+
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
+      }
+    };
+    frame();
+
+    // Occasional "thumbs down" burst
+    const sadBurst = setInterval(() => {
+      if (Date.now() >= end) {
+        clearInterval(sadBurst);
+        return;
+      }
+      confetti({
+        particleCount: 10,
+        spread: 60,
+        origin: { x: Math.random(), y: 0.3 },
+        colors: ['#ef4444', '#991b1b', '#7f1d1d'],
+        scalar: 0.6,
+        gravity: 1.5,
+      });
+    }, 1200);
+
+    loserIntervalRef.current = sadBurst;
+  }, []);
+
   // Play/pause music
-  const toggleMusic = useCallback((type: 'daily' | 'weekly' = 'daily') => {
+  const toggleMusic = useCallback((type: 'daily' | 'weekly' | 'mzi' = 'daily') => {
     if (isPlaying && audioRef.current) {
       audioRef.current.pause();
       setIsPlaying(false);
       if (audioTimeoutRef.current) {
         clearTimeout(audioTimeoutRef.current);
       }
+      if (loserIntervalRef.current) {
+        clearInterval(loserIntervalRef.current);
+      }
       return;
     }
 
-    const soundFile = type === 'weekly' ? '/sounds/drere-week.mp3' : '/sounds/drere.mp3';
+    const soundFile = type === 'weekly'
+      ? '/sounds/drere-week.mp3'
+      : type === 'mzi'
+        ? '/sounds/mzi.mp3'
+        : '/sounds/drere.mp3';
 
     if (!audioRef.current || audioRef.current.src !== soundFile) {
       audioRef.current = new Audio(soundFile);
@@ -147,24 +200,30 @@ export default function DrereCelebration() {
 
     if (type === 'weekly') {
       fireWeeklyConfetti();
+    } else if (type === 'mzi') {
+      fireLoserEffect();
     } else {
       fireDailyConfetti();
     }
 
-    // Auto-stop après 1min20
+    // Auto-stop: 40s for MZI, 80s for others
+    const timeout = type === 'mzi' ? 40000 : 80000;
     audioTimeoutRef.current = setTimeout(() => {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
         setIsPlaying(false);
       }
-    }, 80000);
-  }, [isPlaying, fireDailyConfetti, fireWeeklyConfetti]);
+      if (loserIntervalRef.current) {
+        clearInterval(loserIntervalRef.current);
+      }
+    }, timeout);
+  }, [isPlaying, fireDailyConfetti, fireWeeklyConfetti, fireLoserEffect]);
 
   // Track if we've already checked to prevent multiple fetches
   const hasCheckedRef = useRef(false);
 
-  // Check if current user is Drère - runs on navigation changes
+  // Check if current user is Drère or MZI - runs on navigation changes
   useEffect(() => {
     if (pathname === '/login') return;
     if (showCelebration) return;
@@ -173,11 +232,9 @@ export default function DrereCelebration() {
     const today = new Date().toISOString().split('T')[0];
     const lastSeenDaily = localStorage.getItem('drere-celebration-seen');
     const lastSeenWeekly = localStorage.getItem('drere-week-celebration-seen');
+    const lastSeenMzi = localStorage.getItem('mzi-celebration-seen');
 
-    // If already seen today in localStorage, skip API call
-    if (lastSeenDaily === today) return;
-
-    const checkDrere = async () => {
+    const checkCelebration = async () => {
       hasCheckedRef.current = true; // Mark as checked
       try {
         const res = await fetch('/api/drere-celebration/check');
@@ -187,7 +244,7 @@ export default function DrereCelebration() {
 
         // Check weekly first (higher priority)
         if (data.isDrereWeek && !data.alreadySeenWeek && lastSeenWeekly !== data.weekDate) {
-          setDrereData({
+          setCelebrationData({
             member_name: data.member_name,
             member_slug: data.member_slug,
             points: data.weekPoints,
@@ -205,9 +262,9 @@ export default function DrereCelebration() {
           return;
         }
 
-        // Then check daily
+        // Then check daily Drère
         if (data.isDrere && !data.alreadySeen && lastSeenDaily !== today) {
-          setDrereData({
+          setCelebrationData({
             member_name: data.member_name,
             member_slug: data.member_slug,
             points: data.points,
@@ -222,13 +279,33 @@ export default function DrereCelebration() {
           }).catch(() => {});
 
           localStorage.setItem('drere-celebration-seen', today);
+          return;
         }
-      } catch (error) {
+
+        // Finally check MZI (lowest priority)
+        if (data.isMzi && !data.alreadySeenMzi && lastSeenMzi !== today) {
+          setCelebrationData({
+            member_name: data.member_name,
+            member_slug: data.member_slug,
+            points: data.mziPoints,
+            type: 'mzi',
+          });
+          setShowCelebration(true);
+
+          fetch('/api/drere-celebration/seen', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'mzi' }),
+          }).catch(() => {});
+
+          localStorage.setItem('mzi-celebration-seen', today);
+        }
+      } catch {
         // Silently fail
       }
     };
 
-    checkDrere();
+    checkCelebration();
 
     return () => {
       if (audioRef.current) {
@@ -237,36 +314,101 @@ export default function DrereCelebration() {
       if (audioTimeoutRef.current) {
         clearTimeout(audioTimeoutRef.current);
       }
+      if (loserIntervalRef.current) {
+        clearInterval(loserIntervalRef.current);
+      }
     };
   }, [pathname, showCelebration]);
 
   // Start music when celebration shows
   useEffect(() => {
-    if (showCelebration && drereData) {
-      toggleMusic(drereData.type);
+    if (showCelebration && celebrationData) {
+      toggleMusic(celebrationData.type);
     }
-  }, [showCelebration, drereData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showCelebration, celebrationData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const closeCelebration = () => {
     setShowCelebration(false);
+    if (loserIntervalRef.current) {
+      clearInterval(loserIntervalRef.current);
+    }
   };
 
-  if (!showCelebration || !drereData) return null;
+  if (!showCelebration || !celebrationData) return null;
 
-  const isWeekly = drereData.type === 'weekly';
+  const isWeekly = celebrationData.type === 'weekly';
+  const isMzi = celebrationData.type === 'mzi';
+
+  // Styling based on type
+  const getBorderColor = () => {
+    if (isMzi) return 'border-[#ef4444]';
+    if (isWeekly) return 'border-[#FFD700]';
+    return 'border-[#fbbf24]';
+  };
+
+  const getGradient = () => {
+    if (isMzi) return 'from-[#1f1315] to-[#0a0a0f]';
+    if (isWeekly) return 'from-[#2a1a0a] to-[#0f0a00]';
+    return 'from-[#1a1a2e] to-[#0a0a0f]';
+  };
+
+  const getTextColor = () => {
+    if (isMzi) return 'text-[#ef4444]';
+    if (isWeekly) return 'text-[#FFD700]';
+    return 'text-[#fbbf24]';
+  };
+
+  const getRingColor = () => {
+    if (isMzi) return 'ring-[#ef4444]';
+    if (isWeekly) return 'ring-[#FFD700]';
+    return 'ring-[#fbbf24]';
+  };
+
+  const getButtonStyle = () => {
+    if (isMzi) return 'bg-[#ef4444] text-white hover:bg-[#dc2626]';
+    if (isWeekly) return 'bg-[#FFD700] text-black hover:bg-[#FFA500]';
+    return 'bg-[#fbbf24] text-black hover:bg-[#f59e0b]';
+  };
+
+  const getMusicButtonStyle = () => {
+    if (isPlaying) return 'bg-red-500/20 text-red-400 hover:bg-red-500/30';
+    if (isMzi) return 'bg-[#ef4444]/20 text-[#ef4444] hover:bg-[#ef4444]/30';
+    if (isWeekly) return 'bg-[#FFD700]/20 text-[#FFD700] hover:bg-[#FFD700]/30';
+    return 'bg-[#fbbf24]/20 text-[#fbbf24] hover:bg-[#fbbf24]/30';
+  };
+
+  const getIcon = () => {
+    if (isMzi) return '💩';
+    if (isWeekly) return '🏆';
+    return '👑';
+  };
+
+  const getTitle = () => {
+    if (isMzi) return 'TU ES LE TYPE MZI DU JOUR !';
+    if (isWeekly) return 'TU ES LE DRÈRE OF THE WEEK !';
+    return 'TU ES LE DRÈRE DU JOUR !';
+  };
+
+  const getSubtitle = () => {
+    if (isMzi) return `Avec seulement ${celebrationData.points} point${celebrationData.points > 1 ? 's' : ''} aujourd'hui... 😢`;
+    if (isWeekly) return `Avec ${celebrationData.points} points cette semaine`;
+    return `Avec ${celebrationData.points} points aujourd'hui`;
+  };
+
+  const getCloseButtonText = () => {
+    if (isMzi) return 'Je ferai mieux demain... 😔';
+    if (isWeekly) return 'Champion! 🏆';
+    return 'Merci, je sais ! 😎';
+  };
 
   return (
     <>
       {/* Celebration Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-        <div className={`relative w-full max-w-md bg-gradient-to-br ${
-          isWeekly
-            ? 'from-[#2a1a0a] to-[#0f0a00] border-[#FFD700]'
-            : 'from-[#1a1a2e] to-[#0a0a0f] border-[#fbbf24]'
-        } rounded-3xl border-2 p-8 text-center animate-bounce-in`}>
+        <div className={`relative w-full max-w-md bg-gradient-to-br ${getGradient()} rounded-3xl border-2 ${getBorderColor()} p-8 text-center animate-bounce-in`}>
           {/* Icon animation */}
-          <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-7xl animate-bounce">
-            {isWeekly ? '🏆' : '👑'}
+          <div className={`absolute -top-8 left-1/2 -translate-x-1/2 text-7xl ${isMzi ? 'animate-pulse' : 'animate-bounce'}`}>
+            {getIcon()}
           </div>
 
           {/* Close button */}
@@ -281,41 +423,36 @@ export default function DrereCelebration() {
 
           {/* Content */}
           <div className="mt-8">
-            <h2 className={`text-2xl font-black mb-2 ${isWeekly ? 'text-[#FFD700]' : 'text-[#fbbf24]'}`}>
-              {isWeekly ? 'TU ES LE DRÈRE OF THE WEEK !' : 'TU ES LE DRÈRE DU JOUR !'}
+            <h2 className={`text-2xl font-black mb-2 ${getTextColor()}`}>
+              {getTitle()}
             </h2>
             <p className="text-gray-400 mb-6">
-              Avec <span className={`font-bold ${isWeekly ? 'text-[#FFD700]' : 'text-[#fbbf24]'}`}>
-                {drereData.points} points
-              </span> {isWeekly ? 'cette semaine' : "aujourd'hui"}
+              {getSubtitle()}
             </p>
 
             {/* Avatar */}
-            <div className={`relative w-32 h-32 mx-auto mb-6 rounded-full overflow-hidden ring-4 ${
-              isWeekly ? 'ring-[#FFD700]' : 'ring-[#fbbf24]'
-            }`}>
+            <div className={`relative w-32 h-32 mx-auto mb-6 rounded-full overflow-hidden ring-4 ${getRingColor()} ${isMzi ? 'grayscale' : ''}`}>
               <Image
-                src={`/members/${drereData.member_slug}.png`}
-                alt={drereData.member_name}
+                src={`/members/${celebrationData.member_slug}.png`}
+                alt={celebrationData.member_name}
                 fill
                 className="object-cover object-top"
               />
+              {isMzi && (
+                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                  <span className="text-4xl">😢</span>
+                </div>
+              )}
             </div>
 
             <p className="text-xl font-bold text-white mb-6">
-              {drereData.member_name}
+              {celebrationData.member_name}
             </p>
 
             {/* Music control button */}
             <button
-              onClick={() => toggleMusic(drereData?.type || 'daily')}
-              className={`mb-4 px-6 py-2 rounded-full transition-all flex items-center gap-2 mx-auto ${
-                isPlaying
-                  ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                  : isWeekly
-                    ? 'bg-[#FFD700]/20 text-[#FFD700] hover:bg-[#FFD700]/30'
-                    : 'bg-[#fbbf24]/20 text-[#fbbf24] hover:bg-[#fbbf24]/30'
-              }`}
+              onClick={() => toggleMusic(celebrationData?.type || 'daily')}
+              className={`mb-4 px-6 py-2 rounded-full transition-all flex items-center gap-2 mx-auto ${getMusicButtonStyle()}`}
             >
               <span className="text-xl">{isPlaying ? '⏸️' : '▶️'}</span>
               <span className="text-sm font-medium">
@@ -325,13 +462,9 @@ export default function DrereCelebration() {
 
             <button
               onClick={closeCelebration}
-              className={`px-8 py-3 font-bold rounded-xl transition-colors ${
-                isWeekly
-                  ? 'bg-[#FFD700] text-black hover:bg-[#FFA500]'
-                  : 'bg-[#fbbf24] text-black hover:bg-[#f59e0b]'
-              }`}
+              className={`px-8 py-3 font-bold rounded-xl transition-colors ${getButtonStyle()}`}
             >
-              {isWeekly ? 'Champion! 🏆' : 'Merci, je sais ! 😎'}
+              {getCloseButtonText()}
             </button>
           </div>
         </div>
@@ -340,11 +473,13 @@ export default function DrereCelebration() {
       {/* Floating music control (visible after closing modal) */}
       {!showCelebration && isPlaying && (
         <button
-          onClick={() => toggleMusic(drereData?.type || 'daily')}
+          onClick={() => toggleMusic(celebrationData?.type || 'daily')}
           className={`fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-colors ${
-            isWeekly
-              ? 'bg-[#FFD700] hover:bg-[#FFA500]'
-              : 'bg-[#fbbf24] hover:bg-[#f59e0b]'
+            isMzi
+              ? 'bg-[#ef4444] hover:bg-[#dc2626]'
+              : isWeekly
+                ? 'bg-[#FFD700] hover:bg-[#FFA500]'
+                : 'bg-[#fbbf24] hover:bg-[#f59e0b]'
           }`}
         >
           <span className="text-2xl">⏸️</span>

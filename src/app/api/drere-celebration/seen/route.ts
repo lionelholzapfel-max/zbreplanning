@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       awardDate = getWeekStartDate(now);
       awardType = 'drere_week';
     } else {
-      // Daily logic
+      // Daily logic (drere or mzi)
       const hour = now.getUTCHours();
       if (hour < 7) {
         const twoDaysAgo = new Date(now.getTime() - 2 * 86400000);
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
         const yesterday = new Date(now.getTime() - 86400000);
         awardDate = yesterday.toISOString().split('T')[0];
       }
-      awardType = 'drere';
+      awardType = type === 'mzi' ? 'mzi' : 'drere';
     }
 
     // Update the celebration_seen_at for this user's award
