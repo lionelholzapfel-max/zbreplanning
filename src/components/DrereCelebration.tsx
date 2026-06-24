@@ -166,15 +166,19 @@ export default function DrereCelebration() {
 
   // Play/pause music
   const toggleMusic = useCallback((type: 'daily' | 'weekly' | 'mzi' = 'daily') => {
+    // Always clear existing timeouts first
+    if (audioTimeoutRef.current) {
+      clearTimeout(audioTimeoutRef.current);
+      audioTimeoutRef.current = null;
+    }
+    if (loserIntervalRef.current) {
+      clearInterval(loserIntervalRef.current);
+      loserIntervalRef.current = null;
+    }
+
     if (isPlaying && audioRef.current) {
       audioRef.current.pause();
       setIsPlaying(false);
-      if (audioTimeoutRef.current) {
-        clearTimeout(audioTimeoutRef.current);
-      }
-      if (loserIntervalRef.current) {
-        clearInterval(loserIntervalRef.current);
-      }
       return;
     }
 
@@ -243,7 +247,11 @@ export default function DrereCelebration() {
         const data = await res.json();
 
         // Check weekly first (higher priority)
+        // Only show if: is drère week + server says not seen + localStorage doesn't have this week
         if (data.isDrereWeek && !data.alreadySeenWeek && lastSeenWeekly !== data.weekDate) {
+          // Double-check: set localStorage FIRST to prevent race conditions
+          localStorage.setItem('drere-week-celebration-seen', data.weekDate);
+
           setCelebrationData({
             member_name: data.member_name,
             member_slug: data.member_slug,
@@ -258,12 +266,14 @@ export default function DrereCelebration() {
             body: JSON.stringify({ type: 'weekly' }),
           }).catch(() => {});
 
-          localStorage.setItem('drere-week-celebration-seen', data.weekDate);
           return;
         }
 
         // Then check daily Drère
         if (data.isDrere && !data.alreadySeen && lastSeenDaily !== today) {
+          // Set localStorage FIRST
+          localStorage.setItem('drere-celebration-seen', today);
+
           setCelebrationData({
             member_name: data.member_name,
             member_slug: data.member_slug,
@@ -278,12 +288,14 @@ export default function DrereCelebration() {
             body: JSON.stringify({ type: 'daily' }),
           }).catch(() => {});
 
-          localStorage.setItem('drere-celebration-seen', today);
           return;
         }
 
         // Finally check MZI (lowest priority)
         if (data.isMzi && !data.alreadySeenMzi && lastSeenMzi !== today) {
+          // Set localStorage FIRST
+          localStorage.setItem('mzi-celebration-seen', today);
+
           setCelebrationData({
             member_name: data.member_name,
             member_slug: data.member_slug,
@@ -297,8 +309,6 @@ export default function DrereCelebration() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: 'mzi' }),
           }).catch(() => {});
-
-          localStorage.setItem('mzi-celebration-seen', today);
         }
       } catch {
         // Silently fail
