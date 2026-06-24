@@ -199,6 +199,7 @@ export default function DrereCelebration() {
         setIsPlaying(true);
       })
       .catch(() => {
+        // Autoplay blocked by browser - user needs to click play
         setIsPlaying(false);
       });
 
@@ -411,10 +412,22 @@ export default function DrereCelebration() {
     return 'Merci, je sais ! 😎';
   };
 
+  // Start music on first interaction (for browsers that block autoplay)
+  const handleModalClick = () => {
+    if (!isPlaying && audioRef.current) {
+      audioRef.current.play()
+        .then(() => setIsPlaying(true))
+        .catch(() => {});
+    }
+  };
+
   return (
     <>
       {/* Celebration Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+        onClick={handleModalClick}
+      >
         <div className={`relative w-full max-w-md bg-gradient-to-br ${getGradient()} rounded-3xl border-2 ${getBorderColor()} p-8 text-center animate-bounce-in`}>
           {/* Icon animation */}
           <div className={`absolute -top-8 left-1/2 -translate-x-1/2 text-7xl ${isMzi ? 'animate-pulse' : 'animate-bounce'}`}>
