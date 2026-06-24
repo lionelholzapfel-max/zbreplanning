@@ -52,7 +52,7 @@ export async function GET() {
     const hour = now.getUTCHours();
     let drereDisplayDate: string;
 
-    if (hour < 7) {
+    if (hour < 6) {
       // Before 07:00 UTC (09:00 Belgian) - still in "yesterday's" session
       // Show 2 days ago's Drère (last completed session)
       const twoDaysAgo = new Date(now.getTime() - 2 * 86400000);

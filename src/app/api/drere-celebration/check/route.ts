@@ -30,7 +30,7 @@ export async function GET() {
 
     // Get today's display date for daily Drère
     let drereDisplayDate: string;
-    if (hour < 7) {
+    if (hour < 6) {
       const twoDaysAgo = new Date(now.getTime() - 2 * 86400000);
       drereDisplayDate = twoDaysAgo.toISOString().split('T')[0];
     } else {

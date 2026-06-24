@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     } else {
       // Daily logic (drere or mzi)
       const hour = now.getUTCHours();
-      if (hour < 7) {
+      if (hour < 6) {
         const twoDaysAgo = new Date(now.getTime() - 2 * 86400000);
         awardDate = twoDaysAgo.toISOString().split('T')[0];
       } else {
