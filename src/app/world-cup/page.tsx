@@ -111,6 +111,8 @@ export default function WorldCupPage() {
   const [editingScore, setEditingScore] = useState<{ matchId: number; home: string; away: string } | null>(null);
   const [savingScore, setSavingScore] = useState<number | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Track matches with recent saves to protect from stale batch overwrites
+  const recentSavesRef = useRef<Map<number, number>>(new Map()); // matchId -> timestamp
 
   // Favorites state
   const [favorites, setFavorites] = useState<string[]>([]);
@@ -362,10 +364,19 @@ export default function WorldCupPage() {
           const matchId = parseInt(matchIdStr, 10);
           const existing = result[matchId];
 
-          // If we have an optimistic myPrediction that server doesn't have yet, preserve it
-          if (existing?.myPrediction && !newData.myPrediction) {
+          // CRITICAL: If we recently saved this match (within 5s), ALWAYS preserve our local prediction
+          // This prevents stale batch responses from overwriting fresh saves
+          const recentSaveTimestamp = recentSavesRef.current.get(matchId);
+          const hasRecentSave = recentSaveTimestamp && (Date.now() - recentSaveTimestamp) < 5000;
+
+          if (hasRecentSave && existing?.myPrediction) {
+            // Recent save - preserve our local prediction, merge other server data
+            result[matchId] = { ...newData, myPrediction: existing.myPrediction };
+          } else if (existing?.myPrediction && !newData.myPrediction) {
+            // No recent save, but we have local prediction and server doesn't - preserve ours
             result[matchId] = { ...newData, myPrediction: existing.myPrediction };
           } else {
+            // Server data is authoritative
             result[matchId] = newData;
           }
         }
@@ -395,15 +406,29 @@ export default function WorldCupPage() {
 
       toast.success('Pronostic enregistré !', { icon: '🎯' });
 
-      // Update local state
-      setScorePredictions(prev => ({
-        ...prev,
-        [matchId]: {
-          ...prev[matchId],
-          myPrediction: { home_score: homeScore, away_score: awayScore },
-          totalPredictions: (prev[matchId]?.totalPredictions || 0) + (prev[matchId]?.myPrediction ? 0 : 1),
-        },
-      }));
+      // Track this save to protect from stale batch overwrites (5 second window)
+      recentSavesRef.current.set(matchId, Date.now());
+      setTimeout(() => recentSavesRef.current.delete(matchId), 5000);
+
+      // CRITICAL: Update local state IMMEDIATELY with optimistic data
+      // Use functional update to ensure we're working with latest state
+      setScorePredictions(prev => {
+        const existingState = prev[matchId] || {};
+        return {
+          ...prev,
+          [matchId]: {
+            ...existingState,
+            myPrediction: { home_score: homeScore, away_score: awayScore },
+            totalPredictions: (existingState.totalPredictions || 0) + (existingState.myPrediction ? 0 : 1),
+            // Preserve other fields from existing state
+            matchStarted: existingState.matchStarted ?? false,
+            predictionLocked: existingState.predictionLocked ?? false,
+            timeUntilLock: existingState.timeUntilLock ?? -1,
+            result: existingState.result ?? null,
+            allPredictions: existingState.allPredictions ?? [],
+          },
+        };
+      });
 
       return true;
     } catch {
