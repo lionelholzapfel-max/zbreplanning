@@ -316,59 +316,73 @@ export default function WorldCupPage() {
   // Track which matches failed to load (for retry)
   const failedMatchIdsRef = useRef<Set<number>>(new Set());
 
-  // Load score predictions for matches (single batch API call)
-  const loadScorePredictions = useCallback(async (matchIds: number[], isRetry = false) => {
+  // Load a single batch of predictions (max 100 matches)
+  const loadPredictionBatch = useCallback(async (matchIds: number[]): Promise<Record<number, MatchPredictionState>> => {
+    const res = await fetch('/api/predictions/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ match_ids: matchIds }),
+    });
+
+    if (!res.ok) throw new Error('Batch fetch failed');
+
+    const data = await res.json();
+    const predictions: Record<number, MatchPredictionState> = {};
+
+    for (const [matchIdStr, pred] of Object.entries(data.predictions || {})) {
+      const matchId = parseInt(matchIdStr, 10);
+      const p = pred as {
+        myPrediction: { home_score: number; away_score: number } | null;
+        allPredictions: ScorePrediction[];
+        matchStarted: boolean;
+        predictionLocked: boolean;
+        timeUntilLock: number;
+        result: { home_score: number; away_score: number } | null;
+        totalPredictions: number;
+      };
+
+      predictions[matchId] = {
+        myPrediction: p.myPrediction || null,
+        allPredictions: p.allPredictions || [],
+        matchStarted: p.matchStarted,
+        predictionLocked: p.predictionLocked,
+        timeUntilLock: p.timeUntilLock ?? -1,
+        result: p.result || null,
+        totalPredictions: p.totalPredictions || 0,
+      };
+    }
+
+    return predictions;
+  }, []);
+
+  // Load score predictions for matches (splits into batches of 100 if needed)
+  const loadScorePredictions = useCallback(async (matchIds: number[]) => {
     if (matchIds.length === 0) return;
 
-    try {
-      const res = await fetch('/api/predictions/batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ match_ids: matchIds }),
-      });
+    const BATCH_SIZE = 100;
+    const allNewPredictions: Record<number, MatchPredictionState> = {};
 
-      if (!res.ok) {
-        // Mark as failed for potential retry
-        matchIds.forEach(id => failedMatchIdsRef.current.add(id));
-        return;
+    try {
+      // Split into batches of 100 and load in parallel
+      const batches: number[][] = [];
+      for (let i = 0; i < matchIds.length; i += BATCH_SIZE) {
+        batches.push(matchIds.slice(i, i + BATCH_SIZE));
       }
 
-      const data = await res.json();
-      const newPredictions: Record<number, MatchPredictionState> = {};
-      const loadedIds: number[] = [];
+      const results = await Promise.all(batches.map(batch => loadPredictionBatch(batch)));
 
-      for (const [matchIdStr, pred] of Object.entries(data.predictions || {})) {
-        const matchId = parseInt(matchIdStr, 10);
-        loadedIds.push(matchId);
-        const p = pred as {
-          myPrediction: { home_score: number; away_score: number } | null;
-          allPredictions: ScorePrediction[];
-          matchStarted: boolean;
-          predictionLocked: boolean;
-          timeUntilLock: number;
-          result: { home_score: number; away_score: number } | null;
-          totalPredictions: number;
-        };
-
-        newPredictions[matchId] = {
-          myPrediction: p.myPrediction || null,
-          allPredictions: p.allPredictions || [],
-          matchStarted: p.matchStarted,
-          predictionLocked: p.predictionLocked,
-          timeUntilLock: p.timeUntilLock ?? -1,
-          result: p.result || null,
-          totalPredictions: p.totalPredictions || 0,
-        };
+      // Merge all batch results
+      for (const batchResult of results) {
+        Object.assign(allNewPredictions, batchResult);
       }
 
       // Remove successfully loaded matches from failed set
-      loadedIds.forEach(id => failedMatchIdsRef.current.delete(id));
+      Object.keys(allNewPredictions).forEach(id => failedMatchIdsRef.current.delete(parseInt(id, 10)));
 
-      // Merge carefully to preserve any optimistic myPrediction updates
-      // (user might have saved while batch was loading)
+      // Update state
       setScorePredictions(prev => {
         const result = { ...prev };
-        for (const [matchIdStr, newData] of Object.entries(newPredictions)) {
+        for (const [matchIdStr, newData] of Object.entries(allNewPredictions)) {
           const matchId = parseInt(matchIdStr, 10);
           const existing = result[matchId];
 
@@ -381,18 +395,11 @@ export default function WorldCupPage() {
         }
         return result;
       });
-
-      // Retry failed matches that weren't in this batch
-      if (!isRetry && failedMatchIdsRef.current.size > 0) {
-        const retryIds = Array.from(failedMatchIdsRef.current);
-        failedMatchIdsRef.current.clear();
-        setTimeout(() => loadScorePredictions(retryIds, true), 1000);
-      }
     } catch {
       // Mark as failed for potential retry
       matchIds.forEach(id => failedMatchIdsRef.current.add(id));
     }
-  }, []);
+  }, [loadPredictionBatch]);
 
   // Save score prediction
   const saveScorePrediction = useCallback(async (matchId: number, homeScore: number, awayScore: number) => {
