@@ -654,9 +654,24 @@ export default function WorldCupPage() {
     return participations[matchId]?.filter(p => p.status === status).length || 0;
   };
 
-  const worldCupStart = new Date('2026-06-11');
-  const today = new Date();
-  const daysUntil = Math.ceil((worldCupStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  // Calculate days until World Cup only on client to avoid hydration mismatch
+  const daysUntil = useMemo(() => {
+    if (!mounted) return null; // Return null on server to avoid hydration mismatch
+    const worldCupStart = new Date('2026-06-11');
+    const today = new Date();
+    return Math.ceil((worldCupStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  }, [mounted]);
+
+  // Format today's date only on client
+  const todayFormatted = useMemo(() => {
+    if (!mounted) return '';
+    return new Date().toLocaleDateString('fr-FR');
+  }, [mounted]);
+
+  const weekEndFormatted = useMemo(() => {
+    if (!mounted) return '';
+    return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('fr-FR');
+  }, [mounted]);
 
   // Show loading spinner while validating session
   if (userLoading) {
@@ -689,7 +704,7 @@ export default function WorldCupPage() {
         <div className="absolute top-0 left-1/2 w-[800px] h-[400px] -translate-x-1/2 bg-[#fbbf24]/10 rounded-full blur-[128px]" />
 
         <div className={`max-w-7xl mx-auto text-center relative transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-          {daysUntil > 0 && (
+          {mounted && daysUntil !== null && daysUntil > 0 && (
             <div className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 bg-[#fbbf24]/20 rounded-full text-[#fbbf24] font-bold mb-4 sm:mb-6 border border-[#fbbf24]/30">
               <span className="text-lg sm:text-2xl">⏰</span>
               <span className="text-base sm:text-xl">{daysUntil} jours</span>
@@ -777,7 +792,7 @@ export default function WorldCupPage() {
                   ? 'bg-[#fbbf24] text-black'
                   : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
               }`}
-              title={`Matchs du ${new Date().toLocaleDateString('fr-FR')}`}
+              title={mounted ? `Matchs du ${todayFormatted}` : undefined}
             >
               <span>📅</span>
               <span className="hidden xs:inline">Aujourd&apos;hui</span>
@@ -790,7 +805,7 @@ export default function WorldCupPage() {
                   ? 'bg-[#fbbf24] text-black'
                   : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
               }`}
-              title={`Du ${new Date().toLocaleDateString('fr-FR')} au ${new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('fr-FR')}`}
+              title={mounted ? `Du ${todayFormatted} au ${weekEndFormatted}` : undefined}
             >
               <span>📆</span>
               <span className="hidden xs:inline">Cette semaine</span>
@@ -1603,11 +1618,11 @@ export default function WorldCupPage() {
           <div className="text-center py-16">
             <span className="text-6xl mb-4 block">🔍</span>
             <p className="text-gray-500 text-lg">Aucun match trouvé</p>
-            {filters.time !== 'all' && (
+            {filters.time !== 'all' && mounted && (
               <p className="text-gray-600 text-sm mt-2">
                 {filters.time === 'today'
-                  ? `Pas de match le ${new Date().toLocaleDateString('fr-FR')}`
-                  : `Pas de match du ${new Date().toLocaleDateString('fr-FR')} au ${new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('fr-FR')}`}
+                  ? `Pas de match le ${todayFormatted}`
+                  : `Pas de match du ${todayFormatted} au ${weekEndFormatted}`}
               </p>
             )}
             {filters.time !== 'all' && (
