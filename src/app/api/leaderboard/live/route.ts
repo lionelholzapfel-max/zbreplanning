@@ -60,7 +60,89 @@ function getMatchesForCompetitionDay(dateStr: string): number[] {
   return matchIds;
 }
 
-// GET /api/leaderboard/live - Get live ranking for current day
+/**
+ * Get ranking for a specific competition day
+ */
+async function getRankingForDay(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  dateStr: string
+): Promise<{
+  date: string;
+  matchesToday: number;
+  matchesCompleted: number;
+  ranking: LiveRankingEntry[];
+  currentLeader: LiveRankingEntry | null;
+}> {
+  const matchIds = getMatchesForCompetitionDay(dateStr);
+
+  if (matchIds.length === 0) {
+    return {
+      date: dateStr,
+      matchesToday: 0,
+      matchesCompleted: 0,
+      ranking: [],
+      currentLeader: null,
+    };
+  }
+
+  // Get completed matches for this day
+  const { data: resultsData } = await supabase
+    .from('match_results')
+    .select('match_id')
+    .in('match_id', matchIds);
+
+  const completedMatchIds = (resultsData || []).map(r => r.match_id);
+
+  if (completedMatchIds.length === 0) {
+    return {
+      date: dateStr,
+      matchesToday: matchIds.length,
+      matchesCompleted: 0,
+      ranking: [],
+      currentLeader: null,
+    };
+  }
+
+  // Get points for completed matches
+  const { data: pointsData } = await supabase
+    .from('points_log')
+    .select('user_id, total_points, match_id')
+    .in('match_id', completedMatchIds);
+
+  // Sum points per user
+  const userPoints: Record<string, { points: number; matches: number }> = {};
+  for (const p of pointsData || []) {
+    if (!userPoints[p.user_id]) {
+      userPoints[p.user_id] = { points: 0, matches: 0 };
+    }
+    userPoints[p.user_id].points += p.total_points;
+    userPoints[p.user_id].matches += 1;
+  }
+
+  // Build ranking
+  const ranking: LiveRankingEntry[] = Object.entries(userPoints)
+    .map(([userId, data]) => {
+      const member = MEMBERS.find(m => m.id === userId);
+      return {
+        user_id: userId,
+        member_name: member?.name || 'Inconnu',
+        member_slug: member?.slug || 'unknown',
+        day_points: data.points,
+        matches_today: data.matches,
+      };
+    })
+    .sort((a, b) => b.day_points - a.day_points);
+
+  return {
+    date: dateStr,
+    matchesToday: matchIds.length,
+    matchesCompleted: completedMatchIds.length,
+    ranking,
+    currentLeader: ranking[0] || null,
+  };
+}
+
+// GET /api/leaderboard/live - Get live ranking for current day (or previous day if no results yet)
 export async function GET() {
   try {
     const user = await getSessionUser();
@@ -70,71 +152,42 @@ export async function GET() {
 
     const supabase = getSupabaseAdmin();
     const currentDay = getCurrentCompetitionDay();
-    const matchIds = getMatchesForCompetitionDay(currentDay);
 
-    if (matchIds.length === 0) {
+    // Get current day's ranking
+    const currentRanking = await getRankingForDay(supabase, currentDay);
+
+    // If current session has completed matches, show it
+    if (currentRanking.matchesCompleted > 0) {
       return NextResponse.json({
-        date: currentDay,
-        matchesToday: 0,
-        matchesCompleted: 0,
-        ranking: [],
+        ...currentRanking,
+        isLive: true, // Current session in progress
+        isPreviousDay: false,
       });
     }
 
-    // Get completed matches for today
-    const { data: resultsData } = await supabase
-      .from('match_results')
-      .select('match_id')
-      .in('match_id', matchIds);
+    // No results yet for current session - show previous day's ranking instead
+    const previousDay = new Date(currentDay);
+    previousDay.setDate(previousDay.getDate() - 1);
+    const previousDayStr = previousDay.toISOString().split('T')[0];
 
-    const completedMatchIds = (resultsData || []).map(r => r.match_id);
+    const previousRanking = await getRankingForDay(supabase, previousDayStr);
 
-    if (completedMatchIds.length === 0) {
-      // No results yet, return empty ranking
+    // If previous day has results, show it as "Drère du jour"
+    if (previousRanking.matchesCompleted > 0) {
       return NextResponse.json({
-        date: currentDay,
-        matchesToday: matchIds.length,
-        matchesCompleted: 0,
-        ranking: [],
+        ...previousRanking,
+        isLive: false,
+        isPreviousDay: true,
+        // Also include current day info for context
+        currentDayMatchCount: currentRanking.matchesToday,
       });
     }
 
-    // Get points for completed matches today
-    const { data: pointsData } = await supabase
-      .from('points_log')
-      .select('user_id, total_points, match_id')
-      .in('match_id', completedMatchIds);
-
-    // Sum points per user
-    const userPoints: Record<string, { points: number; matches: number }> = {};
-    for (const p of pointsData || []) {
-      if (!userPoints[p.user_id]) {
-        userPoints[p.user_id] = { points: 0, matches: 0 };
-      }
-      userPoints[p.user_id].points += p.total_points;
-      userPoints[p.user_id].matches += 1;
-    }
-
-    // Build ranking
-    const ranking: LiveRankingEntry[] = Object.entries(userPoints)
-      .map(([userId, data]) => {
-        const member = MEMBERS.find(m => m.id === userId);
-        return {
-          user_id: userId,
-          member_name: member?.name || 'Inconnu',
-          member_slug: member?.slug || 'unknown',
-          day_points: data.points,
-          matches_today: data.matches,
-        };
-      })
-      .sort((a, b) => b.day_points - a.day_points);
-
+    // No results in either day - return current day info
     return NextResponse.json({
-      date: currentDay,
-      matchesToday: matchIds.length,
-      matchesCompleted: completedMatchIds.length,
-      ranking,
-      currentLeader: ranking[0] || null,
+      ...currentRanking,
+      isLive: false,
+      isPreviousDay: false,
     });
   } catch (error) {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });

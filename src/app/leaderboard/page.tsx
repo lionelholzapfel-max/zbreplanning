@@ -50,6 +50,9 @@ interface LiveRankingData {
   matchesCompleted: number;
   ranking: LiveRankingEntry[];
   currentLeader: LiveRankingEntry | null;
+  isLive?: boolean;
+  isPreviousDay?: boolean;
+  currentDayMatchCount?: number;
 }
 
 export default function LeaderboardPage() {
@@ -462,33 +465,51 @@ export default function LeaderboardPage() {
         </section>
       )}
 
-      {/* Live Ranking - Current Day */}
-      {liveRanking && liveRanking.matchesToday > 0 && (
+      {/* Live Ranking - Current Day or Previous Day's Drère du jour */}
+      {liveRanking && (liveRanking.matchesToday > 0 || liveRanking.isPreviousDay) && (
         <section className="max-w-4xl mx-auto px-4 pb-6">
-          <div className="relative overflow-hidden rounded-3xl border border-[#6366f1]/50 bg-gradient-to-br from-[#6366f1]/10 via-[#0a0a0f] to-[#0a0a0f] p-5">
-            <div className="absolute top-0 right-0 w-48 h-48 bg-[#6366f1]/10 rounded-full blur-3xl" />
+          <div className={`relative overflow-hidden rounded-3xl border p-5 ${
+            liveRanking.isPreviousDay
+              ? 'border-[#fbbf24]/50 bg-gradient-to-br from-[#fbbf24]/10 via-[#0a0a0f] to-[#0a0a0f]'
+              : 'border-[#6366f1]/50 bg-gradient-to-br from-[#6366f1]/10 via-[#0a0a0f] to-[#0a0a0f]'
+          }`}>
+            <div className={`absolute top-0 right-0 w-48 h-48 rounded-full blur-3xl ${
+              liveRanking.isPreviousDay ? 'bg-[#fbbf24]/10' : 'bg-[#6366f1]/10'
+            }`} />
 
             {/* Header */}
             <div className="relative flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <div className="relative">
-                  <span className="text-2xl">📊</span>
-                  <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                  </span>
+                  <span className="text-2xl">{liveRanking.isPreviousDay ? '🏅' : '📊'}</span>
+                  {liveRanking.isLive && (
+                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                    </span>
+                  )}
                 </div>
                 <div>
-                  <h3 className="text-white font-bold">Classement Live</h3>
+                  <h3 className="text-white font-bold">
+                    {liveRanking.isPreviousDay ? 'Points du Drère du jour' : 'Classement Live'}
+                  </h3>
                   <p className="text-gray-500 text-xs">
-                    {liveRanking.matchesCompleted}/{liveRanking.matchesToday} matchs joués aujourd&apos;hui
+                    {liveRanking.isPreviousDay ? (
+                      <>Session terminée • {liveRanking.matchesCompleted} matchs</>
+                    ) : (
+                      <>{liveRanking.matchesCompleted}/{liveRanking.matchesToday} matchs joués aujourd&apos;hui</>
+                    )}
                   </p>
                 </div>
               </div>
               {liveRanking.currentLeader && (
-                <div className="flex items-center gap-2 bg-[#6366f1]/20 px-3 py-1.5 rounded-full">
-                  <span className="text-sm">🔥</span>
-                  <span className="text-[#6366f1] text-sm font-bold">{liveRanking.currentLeader.member_name.split(' ')[0]}</span>
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${
+                  liveRanking.isPreviousDay ? 'bg-[#fbbf24]/20' : 'bg-[#6366f1]/20'
+                }`}>
+                  <span className="text-sm">{liveRanking.isPreviousDay ? '👑' : '🔥'}</span>
+                  <span className={`text-sm font-bold ${
+                    liveRanking.isPreviousDay ? 'text-[#fbbf24]' : 'text-[#6366f1]'
+                  }`}>{liveRanking.currentLeader.member_name.split(' ')[0]}</span>
                   <span className="text-white text-sm font-bold">{liveRanking.currentLeader.day_points} pts</span>
                 </div>
               )}
@@ -500,18 +521,22 @@ export default function LeaderboardPage() {
                 {liveRanking.ranking.map((entry, index) => {
                   const isLeader = index === 0;
                   const isCurrentUser = entry.user_id === currentUserId;
+                  const accentColor = liveRanking.isPreviousDay ? '#fbbf24' : '#6366f1';
 
                   return (
                     <div
                       key={entry.user_id}
                       className={`flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl transition-all ${
-                        isLeader ? 'bg-[#6366f1]/20 border border-[#6366f1]/30' :
-                        isCurrentUser ? 'bg-white/5' : ''
+                        isLeader
+                          ? liveRanking.isPreviousDay
+                            ? 'bg-[#fbbf24]/20 border border-[#fbbf24]/30'
+                            : 'bg-[#6366f1]/20 border border-[#6366f1]/30'
+                          : isCurrentUser ? 'bg-white/5' : ''
                       }`}
                     >
-                      <span className={`w-5 sm:w-6 text-center font-bold text-sm ${
-                        isLeader ? 'text-[#6366f1]' : 'text-gray-500'
-                      }`}>
+                      <span className={`w-5 sm:w-6 text-center font-bold text-sm`} style={{
+                        color: isLeader ? accentColor : '#6b7280'
+                      }}>
                         {index + 1}
                       </span>
                       <div className="relative w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden ring-2 ring-white/10 flex-shrink-0">
@@ -528,9 +553,9 @@ export default function LeaderboardPage() {
                         {entry.member_name.split(' ')[0]}
                       </span>
                       <div className="text-right flex-shrink-0">
-                        <span className={`font-bold text-sm ${
-                          isLeader ? 'text-[#6366f1]' : 'text-white'
-                        }`}>
+                        <span className="font-bold text-sm" style={{
+                          color: isLeader ? accentColor : 'white'
+                        }}>
                           {entry.day_points}
                         </span>
                         <span className="text-gray-500 text-xs ml-0.5">pts</span>
