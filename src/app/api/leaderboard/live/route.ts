@@ -21,7 +21,7 @@ function getCurrentCompetitionDay(): string {
   const hour = now.getUTCHours();
 
   // Before 07:00 UTC (09:00 Belgian) - still in previous day's session
-  if (hour < 6) {
+  if (hour < 7) {
     const yesterday = new Date(now.getTime() - 86400000);
     return yesterday.toISOString().split('T')[0];
   }

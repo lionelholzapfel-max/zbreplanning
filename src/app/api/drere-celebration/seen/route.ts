@@ -35,8 +35,9 @@ export async function POST(request: NextRequest) {
       awardType = 'drere_week';
     } else {
       // Daily logic (drere or mzi)
+      // Session boundary: 07:00 UTC (09:00 Belgian)
       const hour = now.getUTCHours();
-      if (hour < 6) {
+      if (hour < 7) {
         const twoDaysAgo = new Date(now.getTime() - 2 * 86400000);
         awardDate = twoDaysAgo.toISOString().split('T')[0];
       } else {

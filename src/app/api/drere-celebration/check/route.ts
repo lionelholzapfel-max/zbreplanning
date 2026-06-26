@@ -29,8 +29,9 @@ export async function GET() {
     const hour = now.getUTCHours();
 
     // Get today's display date for daily Drère
+    // Session boundary: 07:00 UTC (09:00 Belgian)
     let drereDisplayDate: string;
-    if (hour < 6) {
+    if (hour < 7) {
       const twoDaysAgo = new Date(now.getTime() - 2 * 86400000);
       drereDisplayDate = twoDaysAgo.toISOString().split('T')[0];
     } else {

@@ -369,11 +369,13 @@ export default function LeaderboardPage() {
                     <p className={`font-medium ${isMe ? 'text-[#6366f1]' : 'text-white'}`}>
                       {entry.member_name.split(' ')[0]}
                     </p>
-                    {entry.crown_count > 0 && (
-                      <p className="text-xs text-[#fbbf24]">{entry.crown_count}x 👑</p>
-                    )}
-                    {entry.mzi_count > 0 && (
-                      <p className="text-xs text-[#ef4444]">{entry.mzi_count}x 💀</p>
+                    {/* K/D ratio style: Drère vs MZI */}
+                    {(entry.crown_count > 0 || entry.mzi_count > 0) && (
+                      <p className="text-xs">
+                        <span className="text-[#fbbf24]">👑 {entry.crown_count}</span>
+                        <span className="text-gray-500 mx-1">/</span>
+                        <span className="text-[#ef4444]">{entry.mzi_count} 💀</span>
+                      </p>
                     )}
                   </div>
                 </div>
