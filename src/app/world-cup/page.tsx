@@ -318,21 +318,15 @@ export default function WorldCupPage() {
     if (matchIds.length === 0) return;
 
     try {
-      console.log('[DEBUG] loadScorePredictions called with matchIds:', matchIds);
       const res = await fetch('/api/predictions/batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ match_ids: matchIds }),
       });
 
-      console.log('[DEBUG] batch response status:', res.status);
-      if (!res.ok) {
-        console.error('[DEBUG] batch response not ok');
-        return;
-      }
+      if (!res.ok) return;
 
       const data = await res.json();
-      console.log('[DEBUG] batch data received:', JSON.stringify(data).substring(0, 500));
       const newPredictions: Record<number, MatchPredictionState> = {};
 
       for (const [matchIdStr, pred] of Object.entries(data.predictions || {})) {
@@ -375,9 +369,8 @@ export default function WorldCupPage() {
         }
         return result;
       });
-      console.log('[DEBUG] scorePredictions state updated');
-    } catch (err) {
-      console.error('[DEBUG] loadScorePredictions error:', err);
+    } catch {
+      // Silently fail - predictions will show as empty
     }
   }, []);
 
