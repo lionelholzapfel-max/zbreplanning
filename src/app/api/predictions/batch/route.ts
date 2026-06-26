@@ -26,8 +26,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Limit to 50 matches per request
-    const limitedIds = matchIds.slice(0, 50);
+    // Limit to 100 matches per request (enough for all group stage + knockout)
+    const limitedIds = matchIds.slice(0, 100);
 
     const supabase = getSupabaseAdmin();
 
