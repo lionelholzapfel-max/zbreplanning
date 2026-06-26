@@ -15,12 +15,14 @@ import { PHASES, PHASE_DISPLAY, PHASE_ORDER, GROUPS, isKnockoutPhase, getPhaseBa
 // Filter types
 type TimeFilter = 'all' | 'today' | 'week';
 type TimeSlot = 'all' | 'evening' | 'night';
+type ResultsFilter = 'all' | 'last24h' | 'last10';
 
 interface FilterState {
   time: TimeFilter;
   myTeams: boolean;
   toPredictOnly: boolean;
   timeSlot: TimeSlot;
+  resultsOnly: ResultsFilter;
 }
 
 interface Match {
@@ -122,6 +124,7 @@ export default function WorldCupPage() {
     myTeams: false,
     toPredictOnly: false,
     timeSlot: 'all',
+    resultsOnly: 'all',
   });
 
   // Helper to parse match datetime
@@ -248,6 +251,46 @@ export default function WorldCupPage() {
     }, { evening: 0, night: 0 });
   }, []);
 
+  // Get matches with results (for results filter)
+  const matchesWithResults = useMemo(() => {
+    return (matches as Match[])
+      .filter(m => {
+        const predState = scorePredictions[m.id];
+        return predState?.result !== null && predState?.result !== undefined;
+      })
+      .sort((a, b) => {
+        // Sort by date descending (most recent first)
+        const dateA = getMatchDateTime(a);
+        const dateB = getMatchDateTime(b);
+        return dateB.getTime() - dateA.getTime();
+      });
+  }, [scorePredictions, getMatchDateTime]);
+
+  // Count of matches with results
+  const resultsCount = matchesWithResults.length;
+
+  // Get match IDs for last 24h or last 10 results
+  const getResultsFilterMatchIds = useCallback((filter: ResultsFilter): Set<number> => {
+    if (filter === 'all') return new Set();
+
+    const now = new Date();
+    const last24hStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    if (filter === 'last24h') {
+      return new Set(
+        matchesWithResults
+          .filter(m => getMatchDateTime(m) >= last24hStart)
+          .map(m => m.id)
+      );
+    }
+
+    if (filter === 'last10') {
+      return new Set(matchesWithResults.slice(0, 10).map(m => m.id));
+    }
+
+    return new Set();
+  }, [matchesWithResults, getMatchDateTime]);
+
   const filteredMatches = useMemo(() => {
     const now = new Date();
 
@@ -282,18 +325,30 @@ export default function WorldCupPage() {
         toPredictMatch = !isLocked && hasNoPrediction;
       }
 
-      return phaseMatch && groupMatch && timeMatch && timeSlotMatch && myTeamsMatch && toPredictMatch;
+      // Results filter - show only matches with results
+      let resultsMatch = true;
+      if (filters.resultsOnly !== 'all') {
+        const resultsMatchIds = getResultsFilterMatchIds(filters.resultsOnly);
+        resultsMatch = resultsMatchIds.has(m.id);
+      }
+
+      return phaseMatch && groupMatch && timeMatch && timeSlotMatch && myTeamsMatch && toPredictMatch && resultsMatch;
     });
 
-    // Sort by date/time (next match first)
+    // Sort by date/time
     result.sort((a, b) => {
       const dateA = getMatchDateTime(a);
       const dateB = getMatchDateTime(b);
+      // If results filter is active, sort by most recent first
+      if (filters.resultsOnly !== 'all') {
+        return dateB.getTime() - dateA.getTime();
+      }
+      // Otherwise, sort by next match first
       return dateA.getTime() - dateB.getTime();
     });
 
     return result;
-  }, [selectedPhase, selectedGroup, filters, favorites, scorePredictions, getMatchDateTime, isMatchInTimeRange, isMatchInTimeSlot]);
+  }, [selectedPhase, selectedGroup, filters, favorites, scorePredictions, getMatchDateTime, isMatchInTimeRange, isMatchInTimeSlot, getResultsFilterMatchIds]);
 
   // Load data for visible matches
   const loadMatchData = useCallback(async (matchIds: number[]) => {
@@ -938,16 +993,48 @@ export default function WorldCupPage() {
                 {timeSlotCounts.night}
               </span>
             </button>
+
+            {resultsCount > 0 && (
+              <>
+                <div className="w-px bg-white/20 mx-0.5 sm:mx-1 flex-shrink-0" />
+
+                {/* Results filters */}
+                <button
+                  onClick={() => setFilters(f => ({ ...f, resultsOnly: f.resultsOnly === 'last24h' ? 'all' : 'last24h' }))}
+                  className={`flex-shrink-0 min-h-[36px] sm:min-h-[44px] px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1 sm:gap-2 ${
+                    filters.resultsOnly === 'last24h'
+                      ? 'bg-[#ef4444] text-white'
+                      : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
+                  }`}
+                >
+                  <span>🕐</span>
+                  <span className="hidden sm:inline">24h</span>
+                  <span className="sm:hidden">24h</span>
+                </button>
+                <button
+                  onClick={() => setFilters(f => ({ ...f, resultsOnly: f.resultsOnly === 'last10' ? 'all' : 'last10' }))}
+                  className={`flex-shrink-0 min-h-[36px] sm:min-h-[44px] px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1 sm:gap-2 ${
+                    filters.resultsOnly === 'last10'
+                      ? 'bg-[#ef4444] text-white'
+                      : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
+                  }`}
+                >
+                  <span>🏆</span>
+                  <span className="hidden sm:inline">10 derniers</span>
+                  <span className="sm:hidden">10</span>
+                </button>
+              </>
+            )}
           </div>
 
           {/* Active filters summary */}
-          {(filters.time !== 'all' || filters.myTeams || filters.toPredictOnly || filters.timeSlot !== 'all') && (
+          {(filters.time !== 'all' || filters.myTeams || filters.toPredictOnly || filters.timeSlot !== 'all' || filters.resultsOnly !== 'all') && (
             <div className="flex items-center justify-between mt-2 text-sm">
               <span className="text-gray-400">
                 {filteredMatches.length} match{filteredMatches.length > 1 ? 's' : ''} trouvé{filteredMatches.length > 1 ? 's' : ''}
               </span>
               <button
-                onClick={() => setFilters({ time: 'all', myTeams: false, toPredictOnly: false, timeSlot: 'all' })}
+                onClick={() => setFilters({ time: 'all', myTeams: false, toPredictOnly: false, timeSlot: 'all', resultsOnly: 'all' })}
                 className="text-[#ef4444] hover:text-[#f87171] transition-colors"
               >
                 Réinitialiser

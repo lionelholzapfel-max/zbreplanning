@@ -1,6 +1,46 @@
 import { NextResponse } from 'next/server';
 import { getSessionUser, getSupabaseAdmin } from '@/lib/auth/session';
 import { MEMBERS } from '@/data/members';
+import matches from '@/data/matches.json';
+
+/**
+ * Get the first match datetime of a competition day session
+ * A session runs from 09:00 Belgian (07:00 UTC) to 08:59 next day
+ */
+function getFirstMatchOfSession(sessionDate: string): Date | null {
+  const sessionMatches: { id: number; datetime: Date }[] = [];
+
+  for (const match of matches as Array<{ id: number; date: string; time: string }>) {
+    const [matchYear, matchMonth, matchDay] = match.date.split('-').map(Number);
+    const [matchHour, matchMin] = match.time.split(':').map(Number);
+    const matchDatetime = new Date(Date.UTC(matchYear, matchMonth - 1, matchDay, matchHour, matchMin));
+
+    const hour = matchHour;
+
+    // Match belongs to previous day's session if it's before 09:00
+    if (hour < 9) {
+      // Check if match date is day AFTER the session date
+      const compDate = new Date(sessionDate);
+      compDate.setDate(compDate.getDate() + 1);
+      const compDateStr = compDate.toISOString().split('T')[0];
+
+      if (match.date === compDateStr) {
+        sessionMatches.push({ id: match.id, datetime: matchDatetime });
+      }
+    } else {
+      // Match is 09:00 or later, belongs to its own date's session
+      if (match.date === sessionDate) {
+        sessionMatches.push({ id: match.id, datetime: matchDatetime });
+      }
+    }
+  }
+
+  if (sessionMatches.length === 0) return null;
+
+  // Sort by datetime and return the first one
+  sessionMatches.sort((a, b) => a.datetime.getTime() - b.datetime.getTime());
+  return sessionMatches[0].datetime;
+}
 
 export interface LeaderboardEntry {
   rank: number;
@@ -42,24 +82,44 @@ export async function GET() {
     const supabase = getSupabaseAdmin();
 
     // Get the "display date" for Drère - based on Belgian viewing sessions
-    // Session = 18h00 jour N → 08h59 jour N+1 (heure belge)
-    // Nouvelle session à 09h00 belge = 07:00 UTC (summer time, UTC+2)
-    // Drère calculé et affiché à 09h01 chaque jour
+    // Session = 09h00 jour N → 08h59 jour N+1 (heure belge = UTC+2)
+    // In UTC: 07:00 jour N → 06:59 jour N+1
     //
-    // Exemple: on est le 16 juin à 10h belge (session "16 juin" a commencé à 09h)
-    // → on affiche le Drère de la session "15 juin" (qui s'est terminée à 08h59)
+    // IMPORTANT: Keep showing previous session's Drère until the first match
+    // of the new session starts. This keeps the Drère visible during the morning
+    // when no matches are playing yet.
     const now = new Date();
     const hour = now.getUTCHours();
     let drereDisplayDate: string;
 
+    // Determine current session date
+    let currentSessionDate: string;
     if (hour < 7) {
-      // Before 07:00 UTC (09:00 Belgian) - still in "yesterday's" session
+      // Before 07:00 UTC - still in previous day's session
+      const yesterday = new Date(now.getTime() - 86400000);
+      currentSessionDate = yesterday.toISOString().split('T')[0];
+    } else {
+      // After 07:00 UTC - new session has technically started
+      currentSessionDate = now.toISOString().split('T')[0];
+    }
+
+    // Check if the first match of the current session has started
+    const firstMatchOfSession = getFirstMatchOfSession(currentSessionDate);
+    const firstMatchStarted = firstMatchOfSession && now >= firstMatchOfSession;
+
+    if (hour < 7) {
+      // Before 07:00 UTC (09:00 Belgian) - still in previous day's session
       // Show 2 days ago's Drère (last completed session)
       const twoDaysAgo = new Date(now.getTime() - 2 * 86400000);
       drereDisplayDate = twoDaysAgo.toISOString().split('T')[0];
+    } else if (!firstMatchStarted) {
+      // After 07:00 UTC but first match of new session hasn't started yet
+      // Keep showing 2 days ago's Drère (same as before the session boundary)
+      const twoDaysAgo = new Date(now.getTime() - 2 * 86400000);
+      drereDisplayDate = twoDaysAgo.toISOString().split('T')[0];
     } else {
-      // After 07:00 UTC (09:00 Belgian) - new session started
-      // Show yesterday's Drère (just completed session)
+      // After 07:00 UTC and first match has started
+      // Show yesterday's Drère (the completed session we just switched from)
       const yesterday = new Date(now.getTime() - 86400000);
       drereDisplayDate = yesterday.toISOString().split('T')[0];
     }
