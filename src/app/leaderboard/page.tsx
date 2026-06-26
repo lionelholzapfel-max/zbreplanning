@@ -549,6 +549,110 @@ export default function LeaderboardPage() {
         </section>
       )}
 
+      {/* K/D Ratio Leaderboard - Call of Duty style */}
+      {(() => {
+        // Calculate K/D ratios and sort
+        const kdRanking = leaderboard
+          .filter(e => e.crown_count > 0 || e.mzi_count > 0)
+          .map(e => ({
+            ...e,
+            kd_ratio: e.mzi_count === 0
+              ? e.crown_count // Perfect ratio if no deaths
+              : e.crown_count / e.mzi_count,
+          }))
+          .sort((a, b) => {
+            // Sort by K/D ratio descending, then by crown count
+            if (b.kd_ratio !== a.kd_ratio) return b.kd_ratio - a.kd_ratio;
+            return b.crown_count - a.crown_count;
+          });
+
+        if (kdRanking.length === 0) return null;
+
+        return (
+          <section className="max-w-4xl mx-auto px-4 pb-6">
+            <div className="relative overflow-hidden rounded-3xl border border-[#22c55e]/50 bg-gradient-to-br from-[#22c55e]/10 via-[#0a0a0f] to-[#0a0a0f] p-5">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-[#22c55e]/10 rounded-full blur-3xl" />
+
+              {/* Header */}
+              <div className="relative flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <span className="text-2xl">⚔️</span>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-bold">Classement K/D</h3>
+                    <p className="text-gray-500 text-xs">
+                      👑 Drère vs 💀 MZI ratio
+                    </p>
+                  </div>
+                </div>
+                {kdRanking[0] && (
+                  <div className="flex items-center gap-2 bg-[#22c55e]/20 px-3 py-1.5 rounded-full">
+                    <span className="text-sm">🎖️</span>
+                    <span className="text-[#22c55e] text-sm font-bold">{kdRanking[0].member_name.split(' ')[0]}</span>
+                    <span className="text-white text-sm font-bold">
+                      {kdRanking[0].kd_ratio === Infinity ? '∞' : kdRanking[0].kd_ratio.toFixed(2)}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Ranking List */}
+              <div className="relative grid gap-1.5 max-h-[300px] overflow-y-auto">
+                {kdRanking.map((entry, index) => {
+                  const isLeader = index === 0;
+                  const isCurrentUser = entry.user_id === currentUserId;
+                  const kdDisplay = entry.mzi_count === 0
+                    ? `${entry.crown_count}.00`
+                    : entry.kd_ratio.toFixed(2);
+
+                  return (
+                    <div
+                      key={entry.user_id}
+                      className={`flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl transition-all ${
+                        isLeader ? 'bg-[#22c55e]/20 border border-[#22c55e]/30' :
+                        isCurrentUser ? 'bg-white/5' : ''
+                      }`}
+                    >
+                      <span className={`w-5 sm:w-6 text-center font-bold text-sm ${
+                        isLeader ? 'text-[#22c55e]' : 'text-gray-500'
+                      }`}>
+                        {index + 1}
+                      </span>
+                      <div className="relative w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden ring-2 ring-white/10 flex-shrink-0">
+                        <Image
+                          src={`/members/${entry.member_slug}.png`}
+                          alt={entry.member_name}
+                          fill
+                          className="object-cover object-top"
+                        />
+                      </div>
+                      <span className={`flex-1 text-xs sm:text-sm font-medium truncate ${
+                        isLeader ? 'text-white' : 'text-gray-400'
+                      }`}>
+                        {entry.member_name.split(' ')[0]}
+                      </span>
+                      <div className="text-center flex-shrink-0 min-w-[60px]">
+                        <span className="text-[#fbbf24] text-sm font-bold">{entry.crown_count}</span>
+                        <span className="text-gray-500 text-xs mx-1">/</span>
+                        <span className="text-[#ef4444] text-sm font-bold">{entry.mzi_count}</span>
+                      </div>
+                      <div className="text-right flex-shrink-0 min-w-[50px]">
+                        <span className={`font-bold text-sm ${
+                          entry.kd_ratio >= 1 ? 'text-[#22c55e]' : 'text-[#ef4444]'
+                        }`}>
+                          {kdDisplay}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        );
+      })()}
+
       {/* Evolution Chart */}
       <section className="max-w-4xl mx-auto px-4 pb-6">
         <EvolutionChart />
