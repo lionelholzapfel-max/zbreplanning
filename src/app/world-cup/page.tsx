@@ -313,8 +313,11 @@ export default function WorldCupPage() {
     setLocations(prev => ({ ...prev, ...newLocations }));
   }, [getMatchParticipations, getWatchLocations]);
 
+  // Track which matches failed to load (for retry)
+  const failedMatchIdsRef = useRef<Set<number>>(new Set());
+
   // Load score predictions for matches (single batch API call)
-  const loadScorePredictions = useCallback(async (matchIds: number[]) => {
+  const loadScorePredictions = useCallback(async (matchIds: number[], isRetry = false) => {
     if (matchIds.length === 0) return;
 
     try {
@@ -324,13 +327,19 @@ export default function WorldCupPage() {
         body: JSON.stringify({ match_ids: matchIds }),
       });
 
-      if (!res.ok) return;
+      if (!res.ok) {
+        // Mark as failed for potential retry
+        matchIds.forEach(id => failedMatchIdsRef.current.add(id));
+        return;
+      }
 
       const data = await res.json();
       const newPredictions: Record<number, MatchPredictionState> = {};
+      const loadedIds: number[] = [];
 
       for (const [matchIdStr, pred] of Object.entries(data.predictions || {})) {
         const matchId = parseInt(matchIdStr, 10);
+        loadedIds.push(matchId);
         const p = pred as {
           myPrediction: { home_score: number; away_score: number } | null;
           allPredictions: ScorePrediction[];
@@ -352,6 +361,9 @@ export default function WorldCupPage() {
         };
       }
 
+      // Remove successfully loaded matches from failed set
+      loadedIds.forEach(id => failedMatchIdsRef.current.delete(id));
+
       // Merge carefully to preserve any optimistic myPrediction updates
       // (user might have saved while batch was loading)
       setScorePredictions(prev => {
@@ -369,8 +381,16 @@ export default function WorldCupPage() {
         }
         return result;
       });
+
+      // Retry failed matches that weren't in this batch
+      if (!isRetry && failedMatchIdsRef.current.size > 0) {
+        const retryIds = Array.from(failedMatchIdsRef.current);
+        failedMatchIdsRef.current.clear();
+        setTimeout(() => loadScorePredictions(retryIds, true), 1000);
+      }
     } catch {
-      // Silently fail - predictions will show as empty
+      // Mark as failed for potential retry
+      matchIds.forEach(id => failedMatchIdsRef.current.add(id));
     }
   }, []);
 
@@ -516,22 +536,40 @@ export default function WorldCupPage() {
 
   // Track which matches we've already loaded predictions for to avoid infinite loops
   const loadedMatchIdsRef = useRef<Set<number>>(new Set());
+  const loadingMatchIdsRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     if (!currentUser || filteredMatches.length === 0) return;
 
-    // Only load data for matches we haven't loaded yet
+    // Only load data for matches we haven't loaded yet AND aren't currently loading
     const newMatchIds = filteredMatches
       .map(m => m.id)
-      .filter(id => !loadedMatchIdsRef.current.has(id));
+      .filter(id => !loadedMatchIdsRef.current.has(id) && !loadingMatchIdsRef.current.has(id));
 
     if (newMatchIds.length === 0) return;
 
-    // Mark these as loaded before fetching to prevent re-triggering
-    newMatchIds.forEach(id => loadedMatchIdsRef.current.add(id));
+    // Mark as "loading" (not "loaded" yet)
+    newMatchIds.forEach(id => loadingMatchIdsRef.current.add(id));
 
-    loadMatchData(newMatchIds);
-    loadScorePredictions(newMatchIds);
+    // Load data and mark as loaded on success
+    const loadAll = async () => {
+      try {
+        await Promise.all([
+          loadMatchData(newMatchIds),
+          loadScorePredictions(newMatchIds),
+        ]);
+        // Only mark as loaded AFTER successful fetch
+        newMatchIds.forEach(id => {
+          loadedMatchIdsRef.current.add(id);
+          loadingMatchIdsRef.current.delete(id);
+        });
+      } catch {
+        // On failure, remove from loading so they can be retried
+        newMatchIds.forEach(id => loadingMatchIdsRef.current.delete(id));
+      }
+    };
+
+    loadAll();
   }, [currentUser, filteredMatches, loadMatchData, loadScorePredictions]);
 
   // Cleanup timeout on unmount
