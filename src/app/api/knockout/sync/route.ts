@@ -8,7 +8,7 @@ interface SyncedTeam {
   placeholder: string;
   homeTeam: string;
   awayTeam: string;
-  source: 'api';
+  source: 'auto';
 }
 
 interface SyncResponse {
@@ -49,13 +49,13 @@ export async function GET() {
 
     // Match API matches to our matches and extract teams
     for (const apiMatch of knockoutApiMatches) {
+      // Skip if teams are null/undefined (TBD matches)
+      if (!apiMatch.homeTeam?.name || !apiMatch.awayTeam?.name) {
+        continue;
+      }
+
       // Find corresponding match in our list by date
       const apiDate = new Date(apiMatch.utcDate);
-      const apiDateStr = apiDate.toISOString().split('T')[0];
-
-      // Convert API team names to our French names
-      const homeTeam = apiTeamNameToOurs(apiMatch.homeTeam.name) || apiMatch.homeTeam.name;
-      const awayTeam = apiTeamNameToOurs(apiMatch.awayTeam.name) || apiMatch.awayTeam.name;
 
       // Skip if teams are TBD/placeholders
       if (apiMatch.homeTeam.name.includes('Winner') ||
@@ -64,6 +64,10 @@ export async function GET() {
           apiMatch.awayTeam.name.includes('Loser')) {
         continue;
       }
+
+      // Convert API team names to our French names
+      const homeTeam = apiTeamNameToOurs(apiMatch.homeTeam.name) || apiMatch.homeTeam.name;
+      const awayTeam = apiTeamNameToOurs(apiMatch.awayTeam.name) || apiMatch.awayTeam.name;
 
       // Find our match by date (with 1 day tolerance for timezone)
       const ourMatch = (matches as any[]).find(m => {
@@ -74,14 +78,14 @@ export async function GET() {
 
       if (!ourMatch) continue;
 
-      // Upsert to match_team_overrides
+      // Upsert to match_team_overrides (use 'auto' to match DB constraint)
       const { error } = await supabase
         .from('match_team_overrides')
         .upsert({
           match_id: ourMatch.id,
           home_team: homeTeam,
           away_team: awayTeam,
-          source: 'api',
+          source: 'auto',
           updated_at: new Date().toISOString(),
         }, { onConflict: 'match_id' });
 
@@ -93,7 +97,7 @@ export async function GET() {
           placeholder: ourMatch.match,
           homeTeam,
           awayTeam,
-          source: 'api',
+          source: 'auto',
         });
       }
     }

@@ -102,7 +102,7 @@ const parseMatch = (matchStr: string) => {
 
 // Determine the current phase based on today's date
 // Prioritize knockout phases over group stage when both have matches today
-const getCurrentPhase = (): string => {
+const getCurrentPhase = (): Phase => {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
@@ -121,7 +121,7 @@ const getCurrentPhase = (): string => {
   // Prioritize knockout over group stage
   const knockoutMatch = upcomingMatches.find(m => m.phase !== PHASES.GROUP_STAGE);
   if (knockoutMatch) {
-    return knockoutMatch.phase;
+    return knockoutMatch.phase as Phase;
   }
 
   // Otherwise return group stage
@@ -133,7 +133,7 @@ export default function WorldCupPage() {
   const { currentUser, loading: userLoading, getMatchParticipations, setMatchParticipation, getWatchLocations, addWatchLocation, toggleVoteLocation } = useSupabase();
   const { getTeamNames } = useTeamOverrides();
 
-  const [selectedPhase, setSelectedPhase] = useState(PHASES.ROUND_OF_32);
+  const [selectedPhase, setSelectedPhase] = useState<Phase>(PHASES.ROUND_OF_32);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [participations, setParticipations] = useState<Record<number, MatchParticipation[]>>({});
   const [locations, setLocations] = useState<Record<number, WatchLocation[]>>({});
