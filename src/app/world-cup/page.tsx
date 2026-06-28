@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import matches from '@/data/matches.json';
 import { useSupabase, MatchParticipation, WatchLocation } from '@/hooks/useSupabase';
+import { useTeamOverrides } from '@/hooks/useTeamOverrides';
 import { MEMBERS } from '@/data/members';
 import { toast } from 'sonner';
 import confetti from 'canvas-confetti';
@@ -79,6 +80,10 @@ const getFlag = (country: string): string => {
     'Portugal': '🇵🇹', 'Italie': '🇮🇹', 'Irlande': '🇮🇪', 'Égypte': '🇪🇬',
     'USA': '🇺🇸', 'États-Unis': '🇺🇸', 'Chili': '🇨🇱', 'Arabie Saoudite': '🇸🇦',
     'Uruguay': '🇺🇾', 'Nigeria': '🇳🇬', 'Pérou': '🇵🇪', 'Tunisie': '🇹🇳',
+    'Suède': '🇸🇪', 'Paraguay': '🇵🇾', 'Côte d\'Ivoire': '🇨🇮', 'Norvège': '🇳🇴',
+    'RD Congo': '🇨🇩', 'Congo': '🇨🇩', 'Algérie': '🇩🇿', 'Autriche': '🇦🇹',
+    'Cap-Vert': '🇨🇻', 'Ghana': '🇬🇭', 'Iran': '🇮🇷', 'Irak': '🇮🇶',
+    'Jordanie': '🇯🇴', 'Ouzbékistan': '🇺🇿', 'Curaçao': '🇨🇼',
     'Vainqueur': '🎯', 'Perdant': '❌',
   };
   for (const [key, flag] of Object.entries(flags)) {
@@ -98,6 +103,7 @@ const parseMatch = (matchStr: string) => {
 export default function WorldCupPage() {
   const router = useRouter();
   const { currentUser, loading: userLoading, getMatchParticipations, setMatchParticipation, getWatchLocations, addWatchLocation, toggleVoteLocation } = useSupabase();
+  const { getTeamNames } = useTeamOverrides();
 
   const [selectedPhase, setSelectedPhase] = useState('PHASE DE GROUPES');
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
@@ -1057,7 +1063,11 @@ export default function WorldCupPage() {
             const isExpanded = expandedMatch === match.id;
             const matchLocations = locations[match.id] || [];
             const matchParticipants = participations[match.id] || [];
-            const { team1, team2 } = parseMatch(match.match);
+            // Parse default teams from match string, then check for overrides (for knockout matches)
+            const defaultTeams = parseMatch(match.match);
+            const resolvedTeams = getTeamNames(match.id, defaultTeams.team1, defaultTeams.team2);
+            const team1 = resolvedTeams.home;
+            const team2 = resolvedTeams.away;
             const isLoading = loadingMatch === match.id;
 
             // Score prediction state
