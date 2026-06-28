@@ -8,6 +8,8 @@ const PUBLIC_PATHS = [
   '/api/auth/me',
   '/api/auth/logout',
   '/api/results/sync', // Cron job (protected by CRON_SECRET)
+  '/api/knockout/teams', // Public: get resolved knockout teams
+  '/api/knockout/sync', // Public: sync knockout teams from API
 ];
 
 export async function middleware(request: NextRequest) {
