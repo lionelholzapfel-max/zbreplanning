@@ -100,12 +100,30 @@ const parseMatch = (matchStr: string) => {
   return { team1: matchStr, team2: '' };
 };
 
+// Determine the current phase based on today's date
+const getCurrentPhase = (): string => {
+  const now = new Date();
+  // Find the first match that hasn't started yet or is today
+  const upcomingMatch = (matches as Match[]).find(m => {
+    const [year, month, day] = m.date.split('-').map(Number);
+    const matchDate = new Date(year, month - 1, day);
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return matchDate >= today;
+  });
+
+  if (upcomingMatch) {
+    return upcomingMatch.phase;
+  }
+  // If all matches are in the past, show the final
+  return PHASES.FINAL;
+};
+
 export default function WorldCupPage() {
   const router = useRouter();
   const { currentUser, loading: userLoading, getMatchParticipations, setMatchParticipation, getWatchLocations, addWatchLocation, toggleVoteLocation } = useSupabase();
   const { getTeamNames } = useTeamOverrides();
 
-  const [selectedPhase, setSelectedPhase] = useState('PHASE DE GROUPES');
+  const [selectedPhase, setSelectedPhase] = useState(getCurrentPhase);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [participations, setParticipations] = useState<Record<number, MatchParticipation[]>>({});
   const [locations, setLocations] = useState<Record<number, WatchLocation[]>>({});
