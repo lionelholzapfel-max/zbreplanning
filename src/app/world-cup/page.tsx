@@ -101,21 +101,31 @@ const parseMatch = (matchStr: string) => {
 };
 
 // Determine the current phase based on today's date
+// Prioritize knockout phases over group stage when both have matches today
 const getCurrentPhase = (): string => {
   const now = new Date();
-  // Find the first match that hasn't started yet or is today
-  const upcomingMatch = (matches as Match[]).find(m => {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  // Get all matches happening today or in the future
+  const upcomingMatches = (matches as Match[]).filter(m => {
     const [year, month, day] = m.date.split('-').map(Number);
     const matchDate = new Date(year, month - 1, day);
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     return matchDate >= today;
   });
 
-  if (upcomingMatch) {
-    return upcomingMatch.phase;
+  if (upcomingMatches.length === 0) {
+    return PHASES.FINAL;
   }
-  // If all matches are in the past, show the final
-  return PHASES.FINAL;
+
+  // Check if there are knockout matches today or upcoming
+  // Prioritize knockout over group stage
+  const knockoutMatch = upcomingMatches.find(m => m.phase !== PHASES.GROUP_STAGE);
+  if (knockoutMatch) {
+    return knockoutMatch.phase;
+  }
+
+  // Otherwise return group stage
+  return PHASES.GROUP_STAGE;
 };
 
 export default function WorldCupPage() {
