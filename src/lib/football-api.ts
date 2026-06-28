@@ -93,7 +93,7 @@ export const TEAM_NAME_MAPPING: Record<string, string[]> = {
   // Additional Africa
   'Tunisie': ['Tunisia'],
   'Ghana': ['Ghana'],
-  'Cap-Vert': ['Cape Verde', 'Cabo Verde'],
+  'Cap-Vert': ['Cape Verde', 'Cabo Verde', 'Cape Verde Islands'],
 
   // Additional Asia
   'Irak': ['Iraq'],
