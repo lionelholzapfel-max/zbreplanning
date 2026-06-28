@@ -8,10 +8,45 @@ import {
   findOurMatchId,
   getFinalScore,
   testApiConnection,
+  apiTeamNameToOurs,
   ApiMatch,
   MatchScore,
 } from '@/lib/football-api';
 import matches from '@/data/matches.json';
+
+// For knockout matches, find by team overrides since our match names are placeholders
+async function findKnockoutMatchId(
+  apiMatch: ApiMatch,
+  supabase: ReturnType<typeof getSupabaseAdmin>
+): Promise<number | null> {
+  // Skip if teams are not determined
+  if (!apiMatch.homeTeam?.name || !apiMatch.awayTeam?.name) return null;
+
+  // Convert API team names to our French names
+  const homeTeam = apiTeamNameToOurs(apiMatch.homeTeam.name) || apiMatch.homeTeam.name;
+  const awayTeam = apiTeamNameToOurs(apiMatch.awayTeam.name) || apiMatch.awayTeam.name;
+
+  // Find match in overrides by team names
+  const { data: overrides } = await supabase
+    .from('match_team_overrides')
+    .select('match_id, home_team, away_team')
+    .or(`home_team.ilike.${homeTeam},home_team.ilike.${apiMatch.homeTeam.name}`);
+
+  if (!overrides || overrides.length === 0) return null;
+
+  // Find exact match (both home and away teams match)
+  for (const override of overrides) {
+    const homeMatch = override.home_team.toLowerCase() === homeTeam.toLowerCase() ||
+                      override.home_team.toLowerCase() === apiMatch.homeTeam.name.toLowerCase();
+    const awayMatch = override.away_team.toLowerCase() === awayTeam.toLowerCase() ||
+                      override.away_team.toLowerCase() === apiMatch.awayTeam.name.toLowerCase();
+    if (homeMatch && awayMatch) {
+      return override.match_id;
+    }
+  }
+
+  return null;
+}
 
 // Verify cron secret for security (supports both header and Vercel cron)
 function verifyCronSecret(request: NextRequest): boolean {
@@ -116,10 +151,16 @@ async function runSync() {
     // 3. Process each finished match from API
     for (const apiMatch of apiMatches) {
       // Find corresponding match in our database
-      const ourMatchId = findOurMatchId(apiMatch, matches as any);
+      // First try by team names (works for group stage)
+      let ourMatchId = findOurMatchId(apiMatch, matches as any);
+
+      // If not found, try knockout match lookup via team overrides
+      if (!ourMatchId) {
+        ourMatchId = await findKnockoutMatchId(apiMatch, supabase);
+      }
 
       if (!ourMatchId) {
-        // Could be a match not in our list (shouldn't happen for group stage)
+        // Could be a match not in our list
         continue;
       }
 
