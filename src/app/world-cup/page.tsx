@@ -133,7 +133,7 @@ export default function WorldCupPage() {
   const { currentUser, loading: userLoading, getMatchParticipations, setMatchParticipation, getWatchLocations, addWatchLocation, toggleVoteLocation } = useSupabase();
   const { getTeamNames } = useTeamOverrides();
 
-  const [selectedPhase, setSelectedPhase] = useState(getCurrentPhase);
+  const [selectedPhase, setSelectedPhase] = useState(PHASES.ROUND_OF_32);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [participations, setParticipations] = useState<Record<number, MatchParticipation[]>>({});
   const [locations, setLocations] = useState<Record<number, WatchLocation[]>>({});
@@ -628,6 +628,8 @@ export default function WorldCupPage() {
 
   useEffect(() => {
     setMounted(true);
+    // Auto-select current phase on mount (client-side)
+    setSelectedPhase(getCurrentPhase());
   }, []);
 
   // Track which matches we've already loaded predictions for to avoid infinite loops
