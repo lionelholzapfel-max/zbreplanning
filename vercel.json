@@ -5,6 +5,10 @@
       "schedule": "*/10 16-23,0-7 * 6-7 *"
     },
     {
+      "path": "/api/knockout/sync",
+      "schedule": "0 8 * 6-7 *"
+    },
+    {
       "path": "/api/awards/weekly",
       "schedule": "0 6 * * 1"
     }
