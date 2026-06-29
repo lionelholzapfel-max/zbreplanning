@@ -56,6 +56,15 @@ interface RecordEntry {
   date: string;
 }
 
+interface StreakRecord {
+  user_id: string;
+  member_name: string;
+  member_slug: string;
+  streak: number;
+  start_date: string;
+  end_date: string;
+}
+
 interface LeaderboardStats {
   most_optimistic: { user_id: string; member_name: string; avg_goals: number } | null;
   top_visionary: { user_id: string; member_name: string; count: number } | null;
@@ -97,6 +106,8 @@ export default function LeaderboardPage() {
   const [weekRaceEnd, setWeekRaceEnd] = useState<string>('');
   const [dailyRecord, setDailyRecord] = useState<RecordEntry | null>(null);
   const [weeklyRecord, setWeeklyRecord] = useState<RecordEntry | null>(null);
+  const [dailyStreakRecord, setDailyStreakRecord] = useState<StreakRecord | null>(null);
+  const [weeklyStreakRecord, setWeeklyStreakRecord] = useState<StreakRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
@@ -126,6 +137,8 @@ export default function LeaderboardPage() {
         setWeekRaceEnd(data.week_race_end || '');
         setDailyRecord(data.daily_record || null);
         setWeeklyRecord(data.weekly_record || null);
+        setDailyStreakRecord(data.daily_streak_record || null);
+        setWeeklyStreakRecord(data.weekly_streak_record || null);
 
         // Fetch live ranking
         const liveRes = await fetch('/api/leaderboard/live');
@@ -906,7 +919,7 @@ export default function LeaderboardPage() {
       </section>
 
       {/* Records */}
-      {(dailyRecord || weeklyRecord) && (
+      {(dailyRecord || weeklyRecord || dailyStreakRecord || weeklyStreakRecord) && (
         <section className="max-w-4xl mx-auto px-4 pb-6">
           <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
             <span>🏅</span>
@@ -973,6 +986,70 @@ export default function LeaderboardPage() {
                         (sem. du {new Date(weeklyRecord.date).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })})
                       </span>
                     </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Daily Streak Record */}
+            {dailyStreakRecord && (
+              <div className="relative overflow-hidden bg-gradient-to-br from-[#f97316]/20 to-[#0a0a0f] rounded-2xl border border-[#f97316]/30 p-5">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#f97316]/10 rounded-full blur-2xl" />
+                <div className="relative flex items-center gap-4">
+                  <div className="relative w-14 h-14 rounded-full overflow-hidden ring-4 ring-[#f97316] flex-shrink-0">
+                    <Image
+                      src={`/members/${dailyStreakRecord.member_slug}.png`}
+                      alt={dailyStreakRecord.member_name}
+                      fill
+                      className="object-cover object-top"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[#f97316] text-xs font-bold uppercase tracking-wide">
+                      Série Drère du Jour
+                    </p>
+                    <p className="text-white font-bold text-lg">
+                      {dailyStreakRecord.member_name.split(' ')[0]}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#f97316] font-black text-2xl">{dailyStreakRecord.streak}</span>
+                      <span className="text-gray-400 text-sm">jours d&apos;affilée</span>
+                    </div>
+                    <p className="text-gray-500 text-xs mt-1">
+                      {new Date(dailyStreakRecord.start_date).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })} → {new Date(dailyStreakRecord.end_date).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Weekly Streak Record */}
+            {weeklyStreakRecord && (
+              <div className="relative overflow-hidden bg-gradient-to-br from-[#a855f7]/20 to-[#0a0a0f] rounded-2xl border border-[#a855f7]/30 p-5">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#a855f7]/10 rounded-full blur-2xl" />
+                <div className="relative flex items-center gap-4">
+                  <div className="relative w-14 h-14 rounded-full overflow-hidden ring-4 ring-[#a855f7] flex-shrink-0">
+                    <Image
+                      src={`/members/${weeklyStreakRecord.member_slug}.png`}
+                      alt={weeklyStreakRecord.member_name}
+                      fill
+                      className="object-cover object-top"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[#a855f7] text-xs font-bold uppercase tracking-wide">
+                      Série Drère of the Week
+                    </p>
+                    <p className="text-white font-bold text-lg">
+                      {weeklyStreakRecord.member_name.split(' ')[0]}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#a855f7] font-black text-2xl">{weeklyStreakRecord.streak}</span>
+                      <span className="text-gray-400 text-sm">semaines d&apos;affilée</span>
+                    </div>
+                    <p className="text-gray-500 text-xs mt-1">
+                      sem. {new Date(weeklyStreakRecord.start_date).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })} → {new Date(weeklyStreakRecord.end_date).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })}
+                    </p>
                   </div>
                 </div>
               </div>

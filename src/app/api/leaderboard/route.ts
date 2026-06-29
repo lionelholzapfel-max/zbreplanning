@@ -54,6 +54,15 @@ export interface RecordEntry {
   date: string;
 }
 
+export interface StreakRecord {
+  user_id: string;
+  member_name: string;
+  member_slug: string;
+  streak: number;
+  start_date: string;
+  end_date: string;
+}
+
 /**
  * Get the boundaries of the CURRENT week (ongoing)
  * Week starts Monday at 6am UTC and runs until next Monday 6am
@@ -167,6 +176,20 @@ export async function GET() {
       .eq('award_type', 'drere_week')
       .order('points_earned', { ascending: false })
       .limit(1);
+
+    // Get all daily drère awards for streak calculation (sorted by date)
+    const { data: allDailyDrere } = await supabase
+      .from('daily_awards')
+      .select('user_id, award_date')
+      .eq('award_type', 'drere')
+      .order('award_date', { ascending: true });
+
+    // Get all weekly drère awards for streak calculation (sorted by date)
+    const { data: allWeeklyDrere } = await supabase
+      .from('daily_awards')
+      .select('user_id, award_date')
+      .eq('award_type', 'drere_week')
+      .order('award_date', { ascending: true });
 
     // Get Drère for display (previous competition day) with points earned
     const { data: todayDrere } = await supabase
@@ -409,6 +432,113 @@ export async function GET() {
       }
     }
 
+    // Calculate daily streak record
+    // A streak is consecutive days where the same user won
+    let dailyStreakRecord: StreakRecord | null = null;
+    if (allDailyDrere && allDailyDrere.length > 0) {
+      let bestStreak = { userId: '', streak: 0, startDate: '', endDate: '' };
+      let currentStreak = { userId: '', streak: 0, startDate: '', endDate: '' };
+      let lastDate: Date | null = null;
+
+      for (const award of allDailyDrere) {
+        const awardDate = new Date(award.award_date);
+
+        // Check if this continues a streak (same user, consecutive day)
+        if (lastDate && currentStreak.userId === award.user_id) {
+          const daysDiff = Math.round((awardDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysDiff === 1) {
+            // Consecutive day, extend streak
+            currentStreak.streak++;
+            currentStreak.endDate = award.award_date;
+          } else {
+            // Gap in days, start new streak
+            if (currentStreak.streak > bestStreak.streak) {
+              bestStreak = { ...currentStreak };
+            }
+            currentStreak = { userId: award.user_id, streak: 1, startDate: award.award_date, endDate: award.award_date };
+          }
+        } else {
+          // Different user or first entry
+          if (currentStreak.streak > bestStreak.streak) {
+            bestStreak = { ...currentStreak };
+          }
+          currentStreak = { userId: award.user_id, streak: 1, startDate: award.award_date, endDate: award.award_date };
+        }
+        lastDate = awardDate;
+      }
+      // Check final streak
+      if (currentStreak.streak > bestStreak.streak) {
+        bestStreak = { ...currentStreak };
+      }
+
+      if (bestStreak.streak > 1) {
+        const member = MEMBERS.find(m => m.id === bestStreak.userId);
+        if (member) {
+          dailyStreakRecord = {
+            user_id: bestStreak.userId,
+            member_name: member.name,
+            member_slug: member.slug,
+            streak: bestStreak.streak,
+            start_date: bestStreak.startDate,
+            end_date: bestStreak.endDate,
+          };
+        }
+      }
+    }
+
+    // Calculate weekly streak record
+    let weeklyStreakRecord: StreakRecord | null = null;
+    if (allWeeklyDrere && allWeeklyDrere.length > 0) {
+      let bestStreak = { userId: '', streak: 0, startDate: '', endDate: '' };
+      let currentStreak = { userId: '', streak: 0, startDate: '', endDate: '' };
+      let lastDate: Date | null = null;
+
+      for (const award of allWeeklyDrere) {
+        const awardDate = new Date(award.award_date);
+
+        // Check if this continues a streak (same user, consecutive week = 7 days apart)
+        if (lastDate && currentStreak.userId === award.user_id) {
+          const daysDiff = Math.round((awardDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysDiff === 7) {
+            // Consecutive week, extend streak
+            currentStreak.streak++;
+            currentStreak.endDate = award.award_date;
+          } else {
+            // Gap in weeks, start new streak
+            if (currentStreak.streak > bestStreak.streak) {
+              bestStreak = { ...currentStreak };
+            }
+            currentStreak = { userId: award.user_id, streak: 1, startDate: award.award_date, endDate: award.award_date };
+          }
+        } else {
+          // Different user or first entry
+          if (currentStreak.streak > bestStreak.streak) {
+            bestStreak = { ...currentStreak };
+          }
+          currentStreak = { userId: award.user_id, streak: 1, startDate: award.award_date, endDate: award.award_date };
+        }
+        lastDate = awardDate;
+      }
+      // Check final streak
+      if (currentStreak.streak > bestStreak.streak) {
+        bestStreak = { ...currentStreak };
+      }
+
+      if (bestStreak.streak > 1) {
+        const member = MEMBERS.find(m => m.id === bestStreak.userId);
+        if (member) {
+          weeklyStreakRecord = {
+            user_id: bestStreak.userId,
+            member_name: member.name,
+            member_slug: member.slug,
+            streak: bestStreak.streak,
+            start_date: bestStreak.startDate,
+            end_date: bestStreak.endDate,
+          };
+        }
+      }
+    }
+
     return NextResponse.json({
       leaderboard: entries,
       stats,
@@ -425,6 +555,8 @@ export async function GET() {
       week_race_end: weekEnd.toISOString(),
       daily_record: dailyRecord,
       weekly_record: weeklyRecord,
+      daily_streak_record: dailyStreakRecord,
+      weekly_streak_record: weeklyStreakRecord,
     });
   } catch (error) {
     return NextResponse.json(
