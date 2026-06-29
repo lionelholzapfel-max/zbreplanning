@@ -16,16 +16,65 @@ export interface LeaderboardEntry {
   global_correct: number; // Number of correct global predictions (0-5)
   crown_count: number;
   mzi_count: number; // Number of times this user got 0 points in a day
+  drere_week_count: number; // Number of Drère of the Week awards
   is_drere_today: boolean;
   is_mzi_today: boolean; // Type mzi du jour (0 points)
   is_drere_week: boolean; // Drère of the Week
   rank_change: number; // positive = up, negative = down, 0 = same
 }
 
+export interface DrereWeekLeaderboardEntry {
+  rank: number;
+  user_id: string;
+  member_name: string;
+  member_slug: string;
+  drere_week_count: number;
+  total_points_earned: number; // Sum of points from all drere_week wins
+}
+
+export interface WeekRaceEntry {
+  rank: number;
+  user_id: string;
+  member_name: string;
+  member_slug: string;
+  week_points: number;
+}
+
 export interface LeaderboardStats {
   most_optimistic: { user_id: string; member_name: string; avg_goals: number } | null;
   top_visionary: { user_id: string; member_name: string; count: number } | null;
   top_follower: { user_id: string; member_name: string; count: number } | null;
+}
+
+/**
+ * Get the boundaries of the CURRENT week (ongoing)
+ * Week starts Monday at 6am UTC and runs until next Monday 6am
+ */
+function getCurrentWeekBoundaries(now: Date): { weekStart: Date; weekEnd: Date } {
+  const d = new Date(now);
+  const day = d.getUTCDay();
+  const hour = d.getUTCHours();
+
+  // Find days to most recent Monday 6am
+  let daysToMostRecentMonday: number;
+  if (day === 0) {
+    daysToMostRecentMonday = 6;
+  } else if (day === 1 && hour < 6) {
+    // Monday before 6am - still in previous week
+    daysToMostRecentMonday = 7;
+  } else {
+    daysToMostRecentMonday = day - 1;
+  }
+
+  const weekStart = new Date(d);
+  weekStart.setUTCDate(weekStart.getUTCDate() - daysToMostRecentMonday);
+  weekStart.setUTCHours(6, 0, 0, 0);
+
+  // Week end is next Monday at 6am
+  const weekEnd = new Date(weekStart);
+  weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+
+  return { weekStart, weekEnd };
 }
 
 // GET /api/leaderboard
@@ -89,6 +138,12 @@ export async function GET() {
       .from('daily_awards')
       .select('user_id')
       .eq('award_type', 'mzi');
+
+    // Get Drère of the Week counts and total points
+    const { data: drereWeekData } = await supabase
+      .from('daily_awards')
+      .select('user_id, points_earned')
+      .eq('award_type', 'drere_week');
 
     // Get Drère for display (previous competition day) with points earned
     const { data: todayDrere } = await supabase
@@ -187,6 +242,14 @@ export async function GET() {
       mziCounts[m.user_id] = (mziCounts[m.user_id] || 0) + 1;
     }
 
+    // Count Drère of the Week and sum points
+    const drereWeekCounts: Record<string, number> = {};
+    const drereWeekTotalPoints: Record<string, number> = {};
+    for (const d of drereWeekData || []) {
+      drereWeekCounts[d.user_id] = (drereWeekCounts[d.user_id] || 0) + 1;
+      drereWeekTotalPoints[d.user_id] = (drereWeekTotalPoints[d.user_id] || 0) + (d.points_earned || 0);
+    }
+
     // Build leaderboard
     const entries: LeaderboardEntry[] = MEMBERS.map(member => {
       const stats = userStats[member.id] || {
@@ -207,6 +270,7 @@ export async function GET() {
         global_correct: stats.global_correct,
         crown_count: crownCounts[member.id] || 0,
         mzi_count: mziCounts[member.id] || 0,
+        drere_week_count: drereWeekCounts[member.id] || 0,
         is_drere_today: todayDrereIds.has(member.id),
         is_mzi_today: todayMziIds.has(member.id),
         is_drere_week: weeklyDrereIds.has(member.id),
@@ -234,6 +298,63 @@ export async function GET() {
       .from('match_results')
       .select('*', { count: 'exact', head: true });
 
+    // Build Drère of the Week leaderboard (sorted by count, then total points)
+    const drereWeekLeaderboard: DrereWeekLeaderboardEntry[] = MEMBERS
+      .filter(member => (drereWeekCounts[member.id] || 0) > 0)
+      .map(member => ({
+        rank: 0,
+        user_id: member.id,
+        member_name: member.name,
+        member_slug: member.slug,
+        drere_week_count: drereWeekCounts[member.id] || 0,
+        total_points_earned: drereWeekTotalPoints[member.id] || 0,
+      }))
+      .sort((a, b) => {
+        if (b.drere_week_count !== a.drere_week_count) return b.drere_week_count - a.drere_week_count;
+        return b.total_points_earned - a.total_points_earned;
+      });
+
+    // Assign ranks to drere week leaderboard
+    drereWeekLeaderboard.forEach((entry, index) => {
+      entry.rank = index + 1;
+    });
+
+    // Calculate current week race (points accumulated this week so far)
+    const { weekStart, weekEnd } = getCurrentWeekBoundaries(now);
+
+    const { data: weekPointsData } = await supabase
+      .from('points_log')
+      .select(`
+        user_id,
+        total_points,
+        match_results!inner(entered_at)
+      `)
+      .gte('match_results.entered_at', weekStart.toISOString())
+      .lt('match_results.entered_at', weekEnd.toISOString());
+
+    // Sum points per user for the current week
+    const weekPointsByUser: Record<string, number> = {};
+    for (const p of weekPointsData || []) {
+      weekPointsByUser[p.user_id] = (weekPointsByUser[p.user_id] || 0) + p.total_points;
+    }
+
+    // Build week race leaderboard
+    const weekRace: WeekRaceEntry[] = MEMBERS
+      .filter(member => (weekPointsByUser[member.id] || 0) > 0)
+      .map(member => ({
+        rank: 0,
+        user_id: member.id,
+        member_name: member.name,
+        member_slug: member.slug,
+        week_points: weekPointsByUser[member.id] || 0,
+      }))
+      .sort((a, b) => b.week_points - a.week_points);
+
+    // Assign ranks
+    weekRace.forEach((entry, index) => {
+      entry.rank = index + 1;
+    });
+
     return NextResponse.json({
       leaderboard: entries,
       stats,
@@ -243,7 +364,11 @@ export async function GET() {
       mzi_day_points: mziPoints,
       drere_week_points: weeklyDrerePoints,
       drere_week_users: (weeklyDrere || []).map(d => d.user_id),
+      drere_week_leaderboard: drereWeekLeaderboard,
       drere_display_date: drereDisplayDate,
+      week_race: weekRace,
+      week_race_start: weekStart.toISOString(),
+      week_race_end: weekEnd.toISOString(),
     });
   } catch (error) {
     return NextResponse.json(

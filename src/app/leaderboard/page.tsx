@@ -24,10 +24,28 @@ interface LeaderboardEntry {
   global_correct: number;
   crown_count: number;
   mzi_count: number;
+  drere_week_count: number;
   is_drere_today: boolean;
   is_mzi_today: boolean;
   is_drere_week: boolean;
   rank_change: number;
+}
+
+interface DrereWeekLeaderboardEntry {
+  rank: number;
+  user_id: string;
+  member_name: string;
+  member_slug: string;
+  drere_week_count: number;
+  total_points_earned: number;
+}
+
+interface WeekRaceEntry {
+  rank: number;
+  user_id: string;
+  member_name: string;
+  member_slug: string;
+  week_points: number;
 }
 
 interface LeaderboardStats {
@@ -66,6 +84,9 @@ export default function LeaderboardPage() {
   const [drereWeekPoints, setDrereWeekPoints] = useState(0);
   const [drereDisplayDate, setDrereDisplayDate] = useState('');
   const [liveRanking, setLiveRanking] = useState<LiveRankingData | null>(null);
+  const [drereWeekLeaderboard, setDrereWeekLeaderboard] = useState<DrereWeekLeaderboardEntry[]>([]);
+  const [weekRace, setWeekRace] = useState<WeekRaceEntry[]>([]);
+  const [weekRaceEnd, setWeekRaceEnd] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
@@ -90,6 +111,9 @@ export default function LeaderboardPage() {
         setMziDayPoints(data.mzi_day_points ?? null);
         setDrereWeekPoints(data.drere_week_points || 0);
         setDrereDisplayDate(data.drere_display_date || '');
+        setDrereWeekLeaderboard(data.drere_week_leaderboard || []);
+        setWeekRace(data.week_race || []);
+        setWeekRaceEnd(data.week_race_end || '');
 
         // Fetch live ranking
         const liveRes = await fetch('/api/leaderboard/live');
@@ -308,6 +332,107 @@ export default function LeaderboardPage() {
 
             {/* Hymne du Champion */}
             <DrereWeekSong drereName={dreresWeek[0]?.member_name.split(' ')[0] || ''} />
+          </div>
+        </section>
+      )}
+
+      {/* Week Race - Course vers le titre */}
+      {weekRace.length > 0 && (
+        <section className="max-w-4xl mx-auto px-4 pb-6">
+          <div className="relative overflow-hidden rounded-3xl border border-[#f97316]/50 bg-gradient-to-br from-[#f97316]/10 via-[#0a0a0f] to-[#0a0a0f] p-5">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-[#f97316]/10 rounded-full blur-3xl" />
+
+            {/* Header */}
+            <div className="relative flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <span className="text-2xl">🏃</span>
+                </div>
+                <div>
+                  <h3 className="text-white font-bold">Course vers le titre</h3>
+                  <p className="text-gray-500 text-xs">
+                    Points cette semaine • Reset lundi 8h
+                  </p>
+                </div>
+              </div>
+              {weekRace[0] && (
+                <div className="flex items-center gap-2 bg-[#f97316]/20 px-3 py-1.5 rounded-full">
+                  <span className="text-sm">🔥</span>
+                  <span className="text-[#f97316] text-sm font-bold">{weekRace[0].member_name.split(' ')[0]}</span>
+                  <span className="text-white text-sm font-bold">
+                    {weekRace[0].week_points} pts
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Countdown to Monday */}
+            {weekRaceEnd && (() => {
+              const endDate = new Date(weekRaceEnd);
+              const now = new Date();
+              const diffMs = endDate.getTime() - now.getTime();
+              const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+              const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+
+              return diffMs > 0 ? (
+                <div className="relative mb-3 text-center">
+                  <span className="text-gray-500 text-xs">
+                    ⏱️ {diffDays > 0 ? `${diffDays}j ` : ''}{diffHours}h avant le verdict
+                  </span>
+                </div>
+              ) : null;
+            })()}
+
+            {/* Ranking List */}
+            <div className="relative grid gap-1.5 max-h-[250px] overflow-y-auto">
+              {weekRace.map((entry, index) => {
+                const isLeader = index === 0;
+                const isCurrentUser = entry.user_id === currentUserId;
+                const pointsBehind = isLeader ? 0 : weekRace[0].week_points - entry.week_points;
+
+                return (
+                  <div
+                    key={entry.user_id}
+                    className={`flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl transition-all ${
+                      isLeader ? 'bg-[#f97316]/20 border border-[#f97316]/30' :
+                      isCurrentUser ? 'bg-white/5' : ''
+                    }`}
+                  >
+                    <span className={`w-5 sm:w-6 text-center font-bold text-sm ${
+                      isLeader ? 'text-[#f97316]' : 'text-gray-500'
+                    }`}>
+                      {entry.rank}
+                    </span>
+                    <div className="relative w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden ring-2 ring-white/10 flex-shrink-0">
+                      <Image
+                        src={`/members/${entry.member_slug}.png`}
+                        alt={entry.member_name}
+                        fill
+                        className="object-cover object-top"
+                      />
+                    </div>
+                    <span className={`flex-1 text-xs sm:text-sm font-medium truncate ${
+                      isLeader ? 'text-white' : 'text-gray-400'
+                    }`}>
+                      {entry.member_name.split(' ')[0]}
+                    </span>
+                    {!isLeader && pointsBehind > 0 && (
+                      <span className="text-gray-500 text-xs">
+                        -{pointsBehind}
+                      </span>
+                    )}
+                    <div className="text-right flex-shrink-0 min-w-[50px]">
+                      <span className={`font-bold text-sm ${
+                        isLeader ? 'text-[#f97316]' : 'text-white'
+                      }`}>
+                        {entry.week_points}
+                      </span>
+                      <span className="text-gray-500 text-xs ml-1">pts</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </section>
       )}
@@ -677,6 +802,86 @@ export default function LeaderboardPage() {
           </section>
         );
       })()}
+
+      {/* Drère of the Week Leaderboard */}
+      {drereWeekLeaderboard.length > 0 && (
+        <section className="max-w-4xl mx-auto px-4 pb-6">
+          <div className="relative overflow-hidden rounded-3xl border border-[#FFD700]/50 bg-gradient-to-br from-[#FFD700]/10 via-[#0a0a0f] to-[#0a0a0f] p-5">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-[#FFD700]/10 rounded-full blur-3xl" />
+
+            {/* Header */}
+            <div className="relative flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <span className="text-2xl">🏆</span>
+                </div>
+                <div>
+                  <h3 className="text-white font-bold">Hall of Fame - Drère of the Week</h3>
+                  <p className="text-gray-500 text-xs">
+                    Victoires hebdomadaires
+                  </p>
+                </div>
+              </div>
+              {drereWeekLeaderboard[0] && (
+                <div className="flex items-center gap-2 bg-[#FFD700]/20 px-3 py-1.5 rounded-full">
+                  <span className="text-sm">👑</span>
+                  <span className="text-[#FFD700] text-sm font-bold">{drereWeekLeaderboard[0].member_name.split(' ')[0]}</span>
+                  <span className="text-white text-sm font-bold">
+                    {drereWeekLeaderboard[0].drere_week_count}x
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Ranking List */}
+            <div className="relative grid gap-1.5 max-h-[300px] overflow-y-auto">
+              {drereWeekLeaderboard.map((entry, index) => {
+                const isLeader = index === 0;
+                const isCurrentUser = entry.user_id === currentUserId;
+
+                return (
+                  <div
+                    key={entry.user_id}
+                    className={`flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl transition-all ${
+                      isLeader ? 'bg-[#FFD700]/20 border border-[#FFD700]/30' :
+                      isCurrentUser ? 'bg-white/5' : ''
+                    }`}
+                  >
+                    <span className={`w-5 sm:w-6 text-center font-bold text-sm ${
+                      isLeader ? 'text-[#FFD700]' : 'text-gray-500'
+                    }`}>
+                      {entry.rank}
+                    </span>
+                    <div className="relative w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden ring-2 ring-white/10 flex-shrink-0">
+                      <Image
+                        src={`/members/${entry.member_slug}.png`}
+                        alt={entry.member_name}
+                        fill
+                        className="object-cover object-top"
+                      />
+                    </div>
+                    <span className={`flex-1 text-xs sm:text-sm font-medium truncate ${
+                      isLeader ? 'text-white' : 'text-gray-400'
+                    }`}>
+                      {entry.member_name.split(' ')[0]}
+                    </span>
+                    <div className="text-center flex-shrink-0 min-w-[50px]">
+                      <span className="text-[#FFD700] text-sm font-bold">{entry.drere_week_count}</span>
+                      <span className="text-gray-500 text-xs ml-1">🏆</span>
+                    </div>
+                    <div className="text-right flex-shrink-0 min-w-[70px]">
+                      <span className="text-[#22c55e] font-bold text-sm">
+                        {entry.total_points_earned}
+                      </span>
+                      <span className="text-gray-500 text-xs ml-1">pts</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Evolution Chart */}
       <section className="max-w-4xl mx-auto px-4 pb-6">
