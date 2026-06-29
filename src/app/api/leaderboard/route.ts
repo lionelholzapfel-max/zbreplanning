@@ -433,42 +433,56 @@ export async function GET() {
     }
 
     // Calculate daily streak record
-    // A streak is consecutive days where the same user won
+    // A streak is consecutive days where the same user won (handles ties - multiple winners same day)
     let dailyStreakRecord: StreakRecord | null = null;
     if (allDailyDrere && allDailyDrere.length > 0) {
-      let bestStreak = { userId: '', streak: 0, startDate: '', endDate: '' };
-      let currentStreak = { userId: '', streak: 0, startDate: '', endDate: '' };
-      let lastDate: Date | null = null;
-
+      // Group awards by user - get all dates each user won
+      const userDates: Record<string, string[]> = {};
       for (const award of allDailyDrere) {
-        const awardDate = new Date(award.award_date);
-
-        // Check if this continues a streak (same user, consecutive day)
-        if (lastDate && currentStreak.userId === award.user_id) {
-          const daysDiff = Math.round((awardDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-          if (daysDiff === 1) {
-            // Consecutive day, extend streak
-            currentStreak.streak++;
-            currentStreak.endDate = award.award_date;
-          } else {
-            // Gap in days, start new streak
-            if (currentStreak.streak > bestStreak.streak) {
-              bestStreak = { ...currentStreak };
-            }
-            currentStreak = { userId: award.user_id, streak: 1, startDate: award.award_date, endDate: award.award_date };
-          }
-        } else {
-          // Different user or first entry
-          if (currentStreak.streak > bestStreak.streak) {
-            bestStreak = { ...currentStreak };
-          }
-          currentStreak = { userId: award.user_id, streak: 1, startDate: award.award_date, endDate: award.award_date };
+        if (!userDates[award.user_id]) {
+          userDates[award.user_id] = [];
         }
-        lastDate = awardDate;
+        // Avoid duplicates (shouldn't happen but just in case)
+        if (!userDates[award.user_id].includes(award.award_date)) {
+          userDates[award.user_id].push(award.award_date);
+        }
       }
-      // Check final streak
-      if (currentStreak.streak > bestStreak.streak) {
-        bestStreak = { ...currentStreak };
+
+      // For each user, calculate their best streak
+      let bestStreak = { userId: '', streak: 0, startDate: '', endDate: '' };
+
+      for (const [userId, dates] of Object.entries(userDates)) {
+        // Sort dates chronologically
+        const sortedDates = dates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+        let currentStreak = 1;
+        let currentStart = sortedDates[0];
+        let currentEnd = sortedDates[0];
+
+        for (let i = 1; i < sortedDates.length; i++) {
+          const prevDate = new Date(sortedDates[i - 1]);
+          const currDate = new Date(sortedDates[i]);
+          const daysDiff = Math.round((currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+
+          if (daysDiff === 1) {
+            // Consecutive day
+            currentStreak++;
+            currentEnd = sortedDates[i];
+          } else {
+            // Gap - check if this was the best streak for this user
+            if (currentStreak > bestStreak.streak) {
+              bestStreak = { userId, streak: currentStreak, startDate: currentStart, endDate: currentEnd };
+            }
+            // Reset
+            currentStreak = 1;
+            currentStart = sortedDates[i];
+            currentEnd = sortedDates[i];
+          }
+        }
+        // Check final streak for this user
+        if (currentStreak > bestStreak.streak) {
+          bestStreak = { userId, streak: currentStreak, startDate: currentStart, endDate: currentEnd };
+        }
       }
 
       if (bestStreak.streak > 1) {
@@ -486,42 +500,50 @@ export async function GET() {
       }
     }
 
-    // Calculate weekly streak record
+    // Calculate weekly streak record (same logic, but for weeks = 7 days apart)
     let weeklyStreakRecord: StreakRecord | null = null;
     if (allWeeklyDrere && allWeeklyDrere.length > 0) {
-      let bestStreak = { userId: '', streak: 0, startDate: '', endDate: '' };
-      let currentStreak = { userId: '', streak: 0, startDate: '', endDate: '' };
-      let lastDate: Date | null = null;
-
+      // Group awards by user
+      const userDates: Record<string, string[]> = {};
       for (const award of allWeeklyDrere) {
-        const awardDate = new Date(award.award_date);
-
-        // Check if this continues a streak (same user, consecutive week = 7 days apart)
-        if (lastDate && currentStreak.userId === award.user_id) {
-          const daysDiff = Math.round((awardDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-          if (daysDiff === 7) {
-            // Consecutive week, extend streak
-            currentStreak.streak++;
-            currentStreak.endDate = award.award_date;
-          } else {
-            // Gap in weeks, start new streak
-            if (currentStreak.streak > bestStreak.streak) {
-              bestStreak = { ...currentStreak };
-            }
-            currentStreak = { userId: award.user_id, streak: 1, startDate: award.award_date, endDate: award.award_date };
-          }
-        } else {
-          // Different user or first entry
-          if (currentStreak.streak > bestStreak.streak) {
-            bestStreak = { ...currentStreak };
-          }
-          currentStreak = { userId: award.user_id, streak: 1, startDate: award.award_date, endDate: award.award_date };
+        if (!userDates[award.user_id]) {
+          userDates[award.user_id] = [];
         }
-        lastDate = awardDate;
+        if (!userDates[award.user_id].includes(award.award_date)) {
+          userDates[award.user_id].push(award.award_date);
+        }
       }
-      // Check final streak
-      if (currentStreak.streak > bestStreak.streak) {
-        bestStreak = { ...currentStreak };
+
+      let bestStreak = { userId: '', streak: 0, startDate: '', endDate: '' };
+
+      for (const [userId, dates] of Object.entries(userDates)) {
+        const sortedDates = dates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+        let currentStreak = 1;
+        let currentStart = sortedDates[0];
+        let currentEnd = sortedDates[0];
+
+        for (let i = 1; i < sortedDates.length; i++) {
+          const prevDate = new Date(sortedDates[i - 1]);
+          const currDate = new Date(sortedDates[i]);
+          const daysDiff = Math.round((currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+
+          if (daysDiff === 7) {
+            // Consecutive week
+            currentStreak++;
+            currentEnd = sortedDates[i];
+          } else {
+            if (currentStreak > bestStreak.streak) {
+              bestStreak = { userId, streak: currentStreak, startDate: currentStart, endDate: currentEnd };
+            }
+            currentStreak = 1;
+            currentStart = sortedDates[i];
+            currentEnd = sortedDates[i];
+          }
+        }
+        if (currentStreak > bestStreak.streak) {
+          bestStreak = { userId, streak: currentStreak, startDate: currentStart, endDate: currentEnd };
+        }
       }
 
       if (bestStreak.streak > 1) {
