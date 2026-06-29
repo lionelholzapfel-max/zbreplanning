@@ -149,13 +149,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Erreur création' }, { status: 500 });
     }
 
-    // Trigger DiffRhythm AI generation (async - will be updated when complete)
-    // Pass the music style based on the "gros coup" country
+    // Trigger Suno AI generation (async - will be updated when complete)
+    // Fire and forget - don't await, let it run in background
+    generateSongWithSuno(
+      songRecord.id,
+      lyrics,
+      stats.drereName,
+      stats.musicStyle
+    ).catch(err => console.error('Suno generation error:', err));
 
     return NextResponse.json({
-      message: 'Song generation started',
+      message: 'Song generation started with Suno AI',
       song: songRecord,
       lyrics,
+      musicStyle: stats.musicStyle,
     });
   } catch (error) {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
@@ -595,7 +602,11 @@ function generateChampionStatsLyrics(stats: WeekStats): string {
   return lines.join('\n');
 }
 
-async function generateSongWithDiffRhythm(songId: number, lyrics: string, drereName: string, musicStyle: string) {
+/**
+ * Generate song using Suno AI via sunoapi.org
+ * Suno produces high-quality music with vocals
+ */
+async function generateSongWithSuno(songId: string, lyrics: string, drereName: string, musicStyle: string) {
   const supabase = getSupabaseAdmin();
 
   try {
@@ -605,106 +616,100 @@ async function generateSongWithDiffRhythm(songId: number, lyrics: string, drereN
       .update({ status: 'generating', updated_at: new Date().toISOString() })
       .eq('id', songId);
 
-    // Use Goapi.ai DiffRhythm API (faster & cheaper than Suno)
-    const apiKey = process.env.GOAPI_KEY;
+    const apiKey = process.env.SUNO_API_KEY;
 
     if (!apiKey) {
       await supabase
         .from('drere_week_songs')
         .update({
           status: 'completed',
-          error_message: 'Audio generation not configured - lyrics only',
+          error_message: 'SUNO_API_KEY not configured - lyrics only',
           updated_at: new Date().toISOString()
         })
         .eq('id', songId);
       return;
     }
 
-    // Step 1: Create the song generation task
-    // DiffRhythm API via GoAPI - POST https://api.goapi.ai/api/v1/task
-    const generateResponse = await fetch('https://api.goapi.ai/api/v1/task', {
+    // Step 1: Create the song generation task via Suno API
+    // Using custom mode with our lyrics
+    const generateResponse = await fetch('https://api.sunoapi.org/api/v1/generate', {
       method: 'POST',
       headers: {
-        'x-api-key': apiKey,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'Qubico/diffrhythm',
-        task_type: 'txt2audio-base',
-        input: {
-          lyrics: lyrics,
-          // Dynamic music style based on the "gros coup" country
-          style_prompt: musicStyle,
-        },
-        config: {},
+        customMode: true,           // Use custom lyrics
+        instrumental: false,        // We want vocals
+        prompt: lyrics,             // Our generated lyrics
+        style: musicStyle,          // Dynamic style based on country
+        title: `${drereName} - Drère of the Week`,
+        model: 'V5_5',              // Latest Suno model
+        vocalGender: 'male',        // Male rapper voice
       }),
     });
 
     if (!generateResponse.ok) {
       const errorText = await generateResponse.text();
-      throw new Error(`DiffRhythm error: ${generateResponse.status} - ${errorText}`);
+      throw new Error(`Suno API error: ${generateResponse.status} - ${errorText}`);
     }
 
     const generateResult = await generateResponse.json();
-    const taskId = generateResult.data?.task_id || generateResult.task_id;
+    const taskId = generateResult.data?.taskId || generateResult.taskId;
 
     if (!taskId) {
-      // Maybe it returned the audio directly?
-      const directUrl = generateResult.data?.audio_url || generateResult.audio_url;
-      if (directUrl) {
-        await supabase
-          .from('drere_week_songs')
-          .update({
-            status: 'completed',
-            audio_url: directUrl,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', songId);
-        return;
-      }
-      throw new Error('No task_id or audio_url returned');
+      throw new Error('No taskId returned from Suno API');
     }
 
-
-    // Step 2: Poll for completion (max 2 minutes)
+    // Step 2: Poll for completion (max 5 minutes - Suno takes longer)
     let audioUrl: string | null = null;
-    const maxAttempts = 24; // 24 * 5s = 2 minutes
+    let imageUrl: string | null = null;
+    const maxAttempts = 60; // 60 * 5s = 5 minutes
 
     for (let i = 0; i < maxAttempts; i++) {
       await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
 
-      const statusResponse = await fetch(`https://api.goapi.ai/api/v1/task/${taskId}`, {
-        headers: {
-          'x-api-key': apiKey,
-        },
-      });
+      const statusResponse = await fetch(
+        `https://api.sunoapi.org/api/v1/generate/record-info?taskId=${taskId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+          },
+        }
+      );
 
       if (!statusResponse.ok) continue;
 
       const statusResult = await statusResponse.json();
       const status = statusResult.data?.status;
 
-
-      if (status === 'completed') {
-        // Output contains the audio URL
-        audioUrl = statusResult.data?.output?.audio_url || statusResult.data?.output?.url;
+      if (status === 'SUCCESS' || status === 'FIRST_SUCCESS') {
+        // Get audio data from sunoData array
+        const sunoData = statusResult.data?.sunoData;
+        if (sunoData && sunoData.length > 0) {
+          // Take the first (or best) generated clip
+          const clip = sunoData[0];
+          audioUrl = clip.audioUrl || clip.audio_url;
+          imageUrl = clip.imageUrl || clip.image_url;
+        }
         break;
-      } else if (status === 'failed') {
-        throw new Error('Song generation failed: ' + (statusResult.data?.error?.message || 'Unknown error'));
+      } else if (status === 'CREATE_TASK_FAILED' || status === 'GENERATE_AUDIO_FAILED' || status === 'CALLBACK_EXCEPTION') {
+        throw new Error(`Suno generation failed: ${status}`);
       }
-      // Otherwise continue polling
+      // PENDING, TEXT_SUCCESS - continue polling
     }
 
     if (!audioUrl) {
-      throw new Error('Timeout waiting for song generation');
+      throw new Error('Timeout waiting for Suno song generation');
     }
 
-    // Update with the audio URL
+    // Update with the audio URL and cover image
     await supabase
       .from('drere_week_songs')
       .update({
         status: 'completed',
         audio_url: audioUrl,
+        cover_image_url: imageUrl,
         updated_at: new Date().toISOString()
       })
       .eq('id', songId);
@@ -720,4 +725,3 @@ async function generateSongWithDiffRhythm(songId: number, lyrics: string, drereN
       .eq('id', songId);
   }
 }
-// Trigger redeploy 1782159272

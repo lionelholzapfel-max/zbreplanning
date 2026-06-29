@@ -3,14 +3,17 @@ import { getSupabaseAdmin } from '@/lib/auth/session';
 
 // Verify cron secret for security
 function verifyCronSecret(request: NextRequest): boolean {
+  // Check Vercel cron header FIRST (automatic cron calls)
+  // Vercel sets this header for scheduled cron jobs
+  const vercelCron = request.headers.get('x-vercel-cron');
+  if (vercelCron) return true;
+
+  // Check Authorization header (manual calls) - requires CRON_SECRET
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) return false;
 
   const authHeader = request.headers.get('authorization');
   if (authHeader === `Bearer ${cronSecret}`) return true;
-
-  const vercelCron = request.headers.get('x-vercel-cron');
-  if (vercelCron) return true;
 
   return false;
 }

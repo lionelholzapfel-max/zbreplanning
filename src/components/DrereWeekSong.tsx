@@ -13,6 +13,7 @@ interface SongData {
   user_id: string;
   lyrics: string;
   audio_url: string | null;
+  cover_image_url: string | null;
   status: 'pending' | 'generating' | 'completed' | 'failed';
   member_name: string;
   member_slug: string;
@@ -126,25 +127,53 @@ export function DrereWeekSong({ weekStartDate, drereName }: DrereWeekSongProps) 
   // Song is ready!
   return (
     <div className="mt-4 p-4 bg-gradient-to-r from-purple-900/40 to-pink-900/40 rounded-xl border border-purple-500/40">
-      {/* Header with play button */}
+      {/* Header with cover art and play button */}
       <div className="flex items-center gap-3">
-        <button
-          onClick={togglePlay}
-          disabled={!song.audio_url}
-          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-            isPlaying
-              ? 'bg-red-500 hover:bg-red-600 animate-pulse'
-              : song.audio_url
-              ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
-              : 'bg-gray-600 cursor-not-allowed'
-          }`}
-        >
-          {isPlaying ? (
-            <span className="text-white text-lg">⏹</span>
+        {/* Album cover or play button */}
+        <div className="relative">
+          {song.cover_image_url ? (
+            <div className="relative w-14 h-14">
+              <img
+                src={song.cover_image_url}
+                alt="Album cover"
+                className={`w-14 h-14 rounded-lg object-cover shadow-lg ${isPlaying ? 'ring-2 ring-purple-500 ring-offset-2 ring-offset-gray-900' : ''}`}
+              />
+              <button
+                onClick={togglePlay}
+                disabled={!song.audio_url}
+                className={`absolute inset-0 flex items-center justify-center rounded-lg transition-all ${
+                  isPlaying
+                    ? 'bg-black/50'
+                    : 'bg-black/30 hover:bg-black/50'
+                }`}
+              >
+                {isPlaying ? (
+                  <span className="text-white text-xl">⏹</span>
+                ) : (
+                  <span className="text-white text-xl">▶</span>
+                )}
+              </button>
+            </div>
           ) : (
-            <span className="text-white text-lg">▶</span>
+            <button
+              onClick={togglePlay}
+              disabled={!song.audio_url}
+              className={`w-14 h-14 rounded-lg flex items-center justify-center transition-all ${
+                isPlaying
+                  ? 'bg-red-500 hover:bg-red-600 animate-pulse'
+                  : song.audio_url
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
+                  : 'bg-gray-600 cursor-not-allowed'
+              }`}
+            >
+              {isPlaying ? (
+                <span className="text-white text-xl">⏹</span>
+              ) : (
+                <span className="text-white text-xl">▶</span>
+              )}
+            </button>
           )}
-        </button>
+        </div>
         <div className="flex-1">
           <p className="text-sm text-white font-bold flex items-center gap-2">
             🎵 Hymne du Drère of the Week

@@ -50,17 +50,17 @@ async function findKnockoutMatchId(
 
 // Verify cron secret for security (supports both header and Vercel cron)
 function verifyCronSecret(request: NextRequest): boolean {
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) return false;
-
-  // Check Authorization header (manual calls)
-  const authHeader = request.headers.get('authorization');
-  if (authHeader === `Bearer ${cronSecret}`) return true;
-
-  // Check Vercel cron header (automatic cron calls)
+  // Check Vercel cron header FIRST (automatic cron calls)
   // Vercel sets this header for cron jobs
   const vercelCron = request.headers.get('x-vercel-cron');
   if (vercelCron) return true;
+
+  // Check Authorization header (manual calls) - requires CRON_SECRET
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) return false;
+
+  const authHeader = request.headers.get('authorization');
+  if (authHeader === `Bearer ${cronSecret}`) return true;
 
   return false;
 }
