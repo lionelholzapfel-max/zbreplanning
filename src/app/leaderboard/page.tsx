@@ -48,6 +48,14 @@ interface WeekRaceEntry {
   week_points: number;
 }
 
+interface RecordEntry {
+  user_id: string;
+  member_name: string;
+  member_slug: string;
+  points: number;
+  date: string;
+}
+
 interface LeaderboardStats {
   most_optimistic: { user_id: string; member_name: string; avg_goals: number } | null;
   top_visionary: { user_id: string; member_name: string; count: number } | null;
@@ -87,6 +95,8 @@ export default function LeaderboardPage() {
   const [drereWeekLeaderboard, setDrereWeekLeaderboard] = useState<DrereWeekLeaderboardEntry[]>([]);
   const [weekRace, setWeekRace] = useState<WeekRaceEntry[]>([]);
   const [weekRaceEnd, setWeekRaceEnd] = useState<string>('');
+  const [dailyRecord, setDailyRecord] = useState<RecordEntry | null>(null);
+  const [weeklyRecord, setWeeklyRecord] = useState<RecordEntry | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
@@ -114,6 +124,8 @@ export default function LeaderboardPage() {
         setDrereWeekLeaderboard(data.drere_week_leaderboard || []);
         setWeekRace(data.week_race || []);
         setWeekRaceEnd(data.week_race_end || '');
+        setDailyRecord(data.daily_record || null);
+        setWeeklyRecord(data.weekly_record || null);
 
         // Fetch live ranking
         const liveRes = await fetch('/api/leaderboard/live');
@@ -892,6 +904,82 @@ export default function LeaderboardPage() {
       <section className="max-w-4xl mx-auto px-4 pb-6">
         <WallOfShame />
       </section>
+
+      {/* Records */}
+      {(dailyRecord || weeklyRecord) && (
+        <section className="max-w-4xl mx-auto px-4 pb-6">
+          <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
+            <span>🏅</span>
+            Records
+          </h2>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* Daily Record */}
+            {dailyRecord && (
+              <div className="relative overflow-hidden bg-gradient-to-br from-[#fbbf24]/20 to-[#0a0a0f] rounded-2xl border border-[#fbbf24]/30 p-5">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#fbbf24]/10 rounded-full blur-2xl" />
+                <div className="relative flex items-center gap-4">
+                  <div className="relative w-14 h-14 rounded-full overflow-hidden ring-4 ring-[#fbbf24] flex-shrink-0">
+                    <Image
+                      src={`/members/${dailyRecord.member_slug}.png`}
+                      alt={dailyRecord.member_name}
+                      fill
+                      className="object-cover object-top"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[#fbbf24] text-xs font-bold uppercase tracking-wide">
+                      Record Drère du Jour
+                    </p>
+                    <p className="text-white font-bold text-lg">
+                      {dailyRecord.member_name.split(' ')[0]}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#fbbf24] font-black text-2xl">{dailyRecord.points}</span>
+                      <span className="text-gray-400 text-sm">pts</span>
+                      <span className="text-gray-500 text-xs ml-2">
+                        ({new Date(dailyRecord.date).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })})
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Weekly Record */}
+            {weeklyRecord && (
+              <div className="relative overflow-hidden bg-gradient-to-br from-[#FFD700]/20 to-[#0a0a0f] rounded-2xl border border-[#FFD700]/30 p-5">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#FFD700]/10 rounded-full blur-2xl" />
+                <div className="relative flex items-center gap-4">
+                  <div className="relative w-14 h-14 rounded-full overflow-hidden ring-4 ring-[#FFD700] flex-shrink-0">
+                    <Image
+                      src={`/members/${weeklyRecord.member_slug}.png`}
+                      alt={weeklyRecord.member_name}
+                      fill
+                      className="object-cover object-top"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[#FFD700] text-xs font-bold uppercase tracking-wide">
+                      Record Drère of the Week
+                    </p>
+                    <p className="text-white font-bold text-lg">
+                      {weeklyRecord.member_name.split(' ')[0]}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#FFD700] font-black text-2xl">{weeklyRecord.points}</span>
+                      <span className="text-gray-400 text-sm">pts</span>
+                      <span className="text-gray-500 text-xs ml-2">
+                        (sem. du {new Date(weeklyRecord.date).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })})
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Fun Stats */}
       {stats && (

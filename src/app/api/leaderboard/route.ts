@@ -46,6 +46,14 @@ export interface LeaderboardStats {
   top_follower: { user_id: string; member_name: string; count: number } | null;
 }
 
+export interface RecordEntry {
+  user_id: string;
+  member_name: string;
+  member_slug: string;
+  points: number;
+  date: string;
+}
+
 /**
  * Get the boundaries of the CURRENT week (ongoing)
  * Week starts Monday at 6am UTC and runs until next Monday 6am
@@ -144,6 +152,21 @@ export async function GET() {
       .from('daily_awards')
       .select('user_id, points_earned')
       .eq('award_type', 'drere_week');
+
+    // Get records - highest points ever for daily and weekly drère
+    const { data: dailyRecordData } = await supabase
+      .from('daily_awards')
+      .select('user_id, points_earned, award_date')
+      .eq('award_type', 'drere')
+      .order('points_earned', { ascending: false })
+      .limit(1);
+
+    const { data: weeklyRecordData } = await supabase
+      .from('daily_awards')
+      .select('user_id, points_earned, award_date')
+      .eq('award_type', 'drere_week')
+      .order('points_earned', { ascending: false })
+      .limit(1);
 
     // Get Drère for display (previous competition day) with points earned
     const { data: todayDrere } = await supabase
@@ -355,6 +378,37 @@ export async function GET() {
       entry.rank = index + 1;
     });
 
+    // Build records
+    let dailyRecord: RecordEntry | null = null;
+    if (dailyRecordData && dailyRecordData.length > 0) {
+      const record = dailyRecordData[0];
+      const member = MEMBERS.find(m => m.id === record.user_id);
+      if (member) {
+        dailyRecord = {
+          user_id: record.user_id,
+          member_name: member.name,
+          member_slug: member.slug,
+          points: record.points_earned,
+          date: record.award_date,
+        };
+      }
+    }
+
+    let weeklyRecord: RecordEntry | null = null;
+    if (weeklyRecordData && weeklyRecordData.length > 0) {
+      const record = weeklyRecordData[0];
+      const member = MEMBERS.find(m => m.id === record.user_id);
+      if (member) {
+        weeklyRecord = {
+          user_id: record.user_id,
+          member_name: member.name,
+          member_slug: member.slug,
+          points: record.points_earned,
+          date: record.award_date,
+        };
+      }
+    }
+
     return NextResponse.json({
       leaderboard: entries,
       stats,
@@ -369,6 +423,8 @@ export async function GET() {
       week_race: weekRace,
       week_race_start: weekStart.toISOString(),
       week_race_end: weekEnd.toISOString(),
+      daily_record: dailyRecord,
+      weekly_record: weeklyRecord,
     });
   } catch (error) {
     return NextResponse.json(
