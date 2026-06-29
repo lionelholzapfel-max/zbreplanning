@@ -56,13 +56,17 @@ interface RecordEntry {
   date: string;
 }
 
-interface StreakRecord {
+interface StreakRecordHolder {
   user_id: string;
   member_name: string;
   member_slug: string;
-  streak: number;
   start_date: string;
   end_date: string;
+}
+
+interface StreakRecordWithHolders {
+  streak: number;
+  holders: StreakRecordHolder[];
 }
 
 interface LeaderboardStats {
@@ -106,8 +110,8 @@ export default function LeaderboardPage() {
   const [weekRaceEnd, setWeekRaceEnd] = useState<string>('');
   const [dailyRecord, setDailyRecord] = useState<RecordEntry | null>(null);
   const [weeklyRecord, setWeeklyRecord] = useState<RecordEntry | null>(null);
-  const [dailyStreakRecord, setDailyStreakRecord] = useState<StreakRecord | null>(null);
-  const [weeklyStreakRecord, setWeeklyStreakRecord] = useState<StreakRecord | null>(null);
+  const [dailyStreakRecord, setDailyStreakRecord] = useState<StreakRecordWithHolders | null>(null);
+  const [weeklyStreakRecord, setWeeklyStreakRecord] = useState<StreakRecordWithHolders | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
@@ -992,64 +996,94 @@ export default function LeaderboardPage() {
             )}
 
             {/* Daily Streak Record */}
-            {dailyStreakRecord && (
+            {dailyStreakRecord && dailyStreakRecord.holders.length > 0 && (
               <div className="relative overflow-hidden bg-gradient-to-br from-[#f97316]/20 to-[#0a0a0f] rounded-2xl border border-[#f97316]/30 p-5">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-[#f97316]/10 rounded-full blur-2xl" />
-                <div className="relative flex items-center gap-4">
-                  <div className="relative w-14 h-14 rounded-full overflow-hidden ring-4 ring-[#f97316] flex-shrink-0">
-                    <Image
-                      src={`/members/${dailyStreakRecord.member_slug}.png`}
-                      alt={dailyStreakRecord.member_name}
-                      fill
-                      className="object-cover object-top"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-[#f97316] text-xs font-bold uppercase tracking-wide">
-                      Série Drère du Jour
-                    </p>
-                    <p className="text-white font-bold text-lg">
-                      {dailyStreakRecord.member_name.split(' ')[0]}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[#f97316] font-black text-2xl">{dailyStreakRecord.streak}</span>
-                      <span className="text-gray-400 text-sm">jours d&apos;affilée</span>
+                <div className="relative">
+                  <div className="flex items-center gap-3 mb-3">
+                    {/* Stacked avatars for ties */}
+                    <div className="flex -space-x-3">
+                      {dailyStreakRecord.holders.map((holder, idx) => (
+                        <div
+                          key={holder.user_id}
+                          className="relative w-12 h-12 rounded-full overflow-hidden ring-4 ring-[#f97316] bg-[#0a0a0f]"
+                          style={{ zIndex: dailyStreakRecord.holders.length - idx }}
+                        >
+                          <Image
+                            src={`/members/${holder.member_slug}.png`}
+                            alt={holder.member_name}
+                            fill
+                            className="object-cover object-top"
+                          />
+                        </div>
+                      ))}
                     </div>
-                    <p className="text-gray-500 text-xs mt-1">
-                      {new Date(dailyStreakRecord.start_date).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })} → {new Date(dailyStreakRecord.end_date).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })}
-                    </p>
+                    <div className="flex-1">
+                      <p className="text-[#f97316] text-xs font-bold uppercase tracking-wide">
+                        Série Drère du Jour
+                      </p>
+                      <p className="text-white font-bold text-lg">
+                        {dailyStreakRecord.holders.map(h => h.member_name.split(' ')[0]).join(' & ')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[#f97316] font-black text-2xl">{dailyStreakRecord.streak}</span>
+                    <span className="text-gray-400 text-sm">jours d&apos;affilée</span>
+                  </div>
+                  <div className="space-y-1">
+                    {dailyStreakRecord.holders.map(holder => (
+                      <p key={holder.user_id} className="text-gray-500 text-xs">
+                        {holder.member_name.split(' ')[0]}: {new Date(holder.start_date).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })} → {new Date(holder.end_date).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })}
+                      </p>
+                    ))}
                   </div>
                 </div>
               </div>
             )}
 
             {/* Weekly Streak Record */}
-            {weeklyStreakRecord && (
+            {weeklyStreakRecord && weeklyStreakRecord.holders.length > 0 && (
               <div className="relative overflow-hidden bg-gradient-to-br from-[#a855f7]/20 to-[#0a0a0f] rounded-2xl border border-[#a855f7]/30 p-5">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-[#a855f7]/10 rounded-full blur-2xl" />
-                <div className="relative flex items-center gap-4">
-                  <div className="relative w-14 h-14 rounded-full overflow-hidden ring-4 ring-[#a855f7] flex-shrink-0">
-                    <Image
-                      src={`/members/${weeklyStreakRecord.member_slug}.png`}
-                      alt={weeklyStreakRecord.member_name}
-                      fill
-                      className="object-cover object-top"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-[#a855f7] text-xs font-bold uppercase tracking-wide">
-                      Série Drère of the Week
-                    </p>
-                    <p className="text-white font-bold text-lg">
-                      {weeklyStreakRecord.member_name.split(' ')[0]}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[#a855f7] font-black text-2xl">{weeklyStreakRecord.streak}</span>
-                      <span className="text-gray-400 text-sm">semaines d&apos;affilée</span>
+                <div className="relative">
+                  <div className="flex items-center gap-3 mb-3">
+                    {/* Stacked avatars for ties */}
+                    <div className="flex -space-x-3">
+                      {weeklyStreakRecord.holders.map((holder, idx) => (
+                        <div
+                          key={holder.user_id}
+                          className="relative w-12 h-12 rounded-full overflow-hidden ring-4 ring-[#a855f7] bg-[#0a0a0f]"
+                          style={{ zIndex: weeklyStreakRecord.holders.length - idx }}
+                        >
+                          <Image
+                            src={`/members/${holder.member_slug}.png`}
+                            alt={holder.member_name}
+                            fill
+                            className="object-cover object-top"
+                          />
+                        </div>
+                      ))}
                     </div>
-                    <p className="text-gray-500 text-xs mt-1">
-                      sem. {new Date(weeklyStreakRecord.start_date).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })} → {new Date(weeklyStreakRecord.end_date).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })}
-                    </p>
+                    <div className="flex-1">
+                      <p className="text-[#a855f7] text-xs font-bold uppercase tracking-wide">
+                        Série Drère of the Week
+                      </p>
+                      <p className="text-white font-bold text-lg">
+                        {weeklyStreakRecord.holders.map(h => h.member_name.split(' ')[0]).join(' & ')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[#a855f7] font-black text-2xl">{weeklyStreakRecord.streak}</span>
+                    <span className="text-gray-400 text-sm">semaines d&apos;affilée</span>
+                  </div>
+                  <div className="space-y-1">
+                    {weeklyStreakRecord.holders.map(holder => (
+                      <p key={holder.user_id} className="text-gray-500 text-xs">
+                        {holder.member_name.split(' ')[0]}: sem. {new Date(holder.start_date).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })} → {new Date(holder.end_date).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })}
+                      </p>
+                    ))}
                   </div>
                 </div>
               </div>

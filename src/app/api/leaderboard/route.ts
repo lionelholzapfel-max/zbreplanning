@@ -63,6 +63,19 @@ export interface StreakRecord {
   end_date: string;
 }
 
+export interface StreakRecordHolder {
+  user_id: string;
+  member_name: string;
+  member_slug: string;
+  start_date: string;
+  end_date: string;
+}
+
+export interface StreakRecordWithHolders {
+  streak: number;
+  holders: StreakRecordHolder[];
+}
+
 /**
  * Get the boundaries of the CURRENT week (ongoing)
  * Week starts Monday at 6am UTC and runs until next Monday 6am
@@ -434,7 +447,7 @@ export async function GET() {
 
     // Calculate daily streak record
     // A streak is consecutive days where the same user won (handles ties - multiple winners same day)
-    let dailyStreakRecord: StreakRecord | null = null;
+    let dailyStreakRecord: StreakRecordWithHolders | null = null;
     if (allDailyDrere && allDailyDrere.length > 0) {
       // Group awards by user - get all dates each user won
       const userDates: Record<string, string[]> = {};
@@ -448,8 +461,8 @@ export async function GET() {
         }
       }
 
-      // For each user, calculate their best streak
-      let bestStreak = { userId: '', streak: 0, startDate: '', endDate: '' };
+      // For each user, calculate their best streak and collect all streaks
+      const allBestStreaks: Array<{ userId: string; streak: number; startDate: string; endDate: string }> = [];
 
       for (const [userId, dates] of Object.entries(userDates)) {
         // Sort dates chronologically
@@ -458,6 +471,7 @@ export async function GET() {
         let currentStreak = 1;
         let currentStart = sortedDates[0];
         let currentEnd = sortedDates[0];
+        let userBestStreak = { streak: 1, startDate: sortedDates[0], endDate: sortedDates[0] };
 
         for (let i = 1; i < sortedDates.length; i++) {
           const prevDate = new Date(sortedDates[i - 1]);
@@ -470,8 +484,8 @@ export async function GET() {
             currentEnd = sortedDates[i];
           } else {
             // Gap - check if this was the best streak for this user
-            if (currentStreak > bestStreak.streak) {
-              bestStreak = { userId, streak: currentStreak, startDate: currentStart, endDate: currentEnd };
+            if (currentStreak > userBestStreak.streak) {
+              userBestStreak = { streak: currentStreak, startDate: currentStart, endDate: currentEnd };
             }
             // Reset
             currentStreak = 1;
@@ -480,28 +494,42 @@ export async function GET() {
           }
         }
         // Check final streak for this user
-        if (currentStreak > bestStreak.streak) {
-          bestStreak = { userId, streak: currentStreak, startDate: currentStart, endDate: currentEnd };
+        if (currentStreak > userBestStreak.streak) {
+          userBestStreak = { streak: currentStreak, startDate: currentStart, endDate: currentEnd };
+        }
+
+        if (userBestStreak.streak > 1) {
+          allBestStreaks.push({ userId, ...userBestStreak });
         }
       }
 
-      if (bestStreak.streak > 1) {
-        const member = MEMBERS.find(m => m.id === bestStreak.userId);
-        if (member) {
-          dailyStreakRecord = {
-            user_id: bestStreak.userId,
-            member_name: member.name,
-            member_slug: member.slug,
-            streak: bestStreak.streak,
-            start_date: bestStreak.startDate,
-            end_date: bestStreak.endDate,
-          };
-        }
+      // Find the maximum streak
+      const maxStreak = Math.max(0, ...allBestStreaks.map(s => s.streak));
+
+      if (maxStreak > 1) {
+        // Get all users with this max streak
+        const holders: StreakRecordHolder[] = allBestStreaks
+          .filter(s => s.streak === maxStreak)
+          .map(s => {
+            const member = MEMBERS.find(m => m.id === s.userId);
+            return {
+              user_id: s.userId,
+              member_name: member?.name || 'Unknown',
+              member_slug: member?.slug || '',
+              start_date: s.startDate,
+              end_date: s.endDate,
+            };
+          });
+
+        dailyStreakRecord = {
+          streak: maxStreak,
+          holders,
+        };
       }
     }
 
     // Calculate weekly streak record (same logic, but for weeks = 7 days apart)
-    let weeklyStreakRecord: StreakRecord | null = null;
+    let weeklyStreakRecord: StreakRecordWithHolders | null = null;
     if (allWeeklyDrere && allWeeklyDrere.length > 0) {
       // Group awards by user
       const userDates: Record<string, string[]> = {};
@@ -514,7 +542,7 @@ export async function GET() {
         }
       }
 
-      let bestStreak = { userId: '', streak: 0, startDate: '', endDate: '' };
+      const allBestStreaks: Array<{ userId: string; streak: number; startDate: string; endDate: string }> = [];
 
       for (const [userId, dates] of Object.entries(userDates)) {
         const sortedDates = dates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
@@ -522,6 +550,7 @@ export async function GET() {
         let currentStreak = 1;
         let currentStart = sortedDates[0];
         let currentEnd = sortedDates[0];
+        let userBestStreak = { streak: 1, startDate: sortedDates[0], endDate: sortedDates[0] };
 
         for (let i = 1; i < sortedDates.length; i++) {
           const prevDate = new Date(sortedDates[i - 1]);
@@ -533,31 +562,43 @@ export async function GET() {
             currentStreak++;
             currentEnd = sortedDates[i];
           } else {
-            if (currentStreak > bestStreak.streak) {
-              bestStreak = { userId, streak: currentStreak, startDate: currentStart, endDate: currentEnd };
+            if (currentStreak > userBestStreak.streak) {
+              userBestStreak = { streak: currentStreak, startDate: currentStart, endDate: currentEnd };
             }
             currentStreak = 1;
             currentStart = sortedDates[i];
             currentEnd = sortedDates[i];
           }
         }
-        if (currentStreak > bestStreak.streak) {
-          bestStreak = { userId, streak: currentStreak, startDate: currentStart, endDate: currentEnd };
+        if (currentStreak > userBestStreak.streak) {
+          userBestStreak = { streak: currentStreak, startDate: currentStart, endDate: currentEnd };
+        }
+
+        if (userBestStreak.streak > 1) {
+          allBestStreaks.push({ userId, ...userBestStreak });
         }
       }
 
-      if (bestStreak.streak > 1) {
-        const member = MEMBERS.find(m => m.id === bestStreak.userId);
-        if (member) {
-          weeklyStreakRecord = {
-            user_id: bestStreak.userId,
-            member_name: member.name,
-            member_slug: member.slug,
-            streak: bestStreak.streak,
-            start_date: bestStreak.startDate,
-            end_date: bestStreak.endDate,
-          };
-        }
+      const maxStreak = Math.max(0, ...allBestStreaks.map(s => s.streak));
+
+      if (maxStreak > 1) {
+        const holders: StreakRecordHolder[] = allBestStreaks
+          .filter(s => s.streak === maxStreak)
+          .map(s => {
+            const member = MEMBERS.find(m => m.id === s.userId);
+            return {
+              user_id: s.userId,
+              member_name: member?.name || 'Unknown',
+              member_slug: member?.slug || '',
+              start_date: s.startDate,
+              end_date: s.endDate,
+            };
+          });
+
+        weeklyStreakRecord = {
+          streak: maxStreak,
+          holders,
+        };
       }
     }
 
