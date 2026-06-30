@@ -296,6 +296,9 @@ export interface MatchScore {
  * - Knockout: Score at end of play (90 min or 120 min if extra time)
  *   - Draw is possible if match goes to penalties (e.g., 1-1 after extra time)
  *   - Qualifier bonus (+1) is separate from score prediction
+ *
+ * IMPORTANT: Some APIs put penalty score in fullTime for shootouts.
+ * We need to use extraTime score when penalties occurred.
  */
 export function getFinalScore(apiMatch: ApiMatch): MatchScore | null {
   if (apiMatch.status !== 'FINISHED') return null;
@@ -307,10 +310,37 @@ export function getFinalScore(apiMatch: ApiMatch): MatchScore | null {
   const hadExtraTime = duration === 'EXTRA_TIME' || duration === 'PENALTY_SHOOTOUT';
   const hadPenalties = duration === 'PENALTY_SHOOTOUT';
 
-  // Use fullTime score (includes extra time goals, NOT penalty shootout)
-  // This is what users predict: the score at end of play
-  const home = ft.home;
-  const away = ft.away;
+  let home: number;
+  let away: number;
+
+  // For penalty shootouts, the API sometimes puts penalty score in fullTime
+  // We need to use extraTime score instead (the actual match score after 120 min)
+  if (hadPenalties && apiMatch.score.extraTime) {
+    const et = apiMatch.score.extraTime;
+    if (et.home !== null && et.away !== null) {
+      // Use extra time score (this is the real match score, should be a draw)
+      home = et.home;
+      away = et.away;
+    } else {
+      // Fallback to fullTime if extraTime is not available
+      home = ft.home;
+      away = ft.away;
+    }
+  } else if (hadExtraTime && apiMatch.score.extraTime) {
+    // Extra time without penalties - use extraTime score
+    const et = apiMatch.score.extraTime;
+    if (et.home !== null && et.away !== null) {
+      home = et.home;
+      away = et.away;
+    } else {
+      home = ft.home;
+      away = ft.away;
+    }
+  } else {
+    // Regular time or no extra time data - use fullTime
+    home = ft.home;
+    away = ft.away;
+  }
 
   // Determine qualifier for knockout matches
   let qualifier: 'home' | 'away' | undefined;
