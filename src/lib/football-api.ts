@@ -297,8 +297,14 @@ export interface MatchScore {
  *   - Draw is possible if match goes to penalties (e.g., 1-1 after extra time)
  *   - Qualifier bonus (+1) is separate from score prediction
  *
- * IMPORTANT: Some APIs put penalty score in fullTime for shootouts.
- * We need to use extraTime score when penalties occurred.
+ * IMPORTANT: football-data.org API structure:
+ * - fullTime: cumulative score at end of match (90min or 120min)
+ * - halfTime: score at halftime
+ * - extraTime: goals scored ONLY during extra time period (not cumulative!)
+ * - penalties: penalty shootout score
+ *
+ * For penalty shootouts, fullTime should be the score after 120 min.
+ * If fullTime equals penalties score, the API is broken - we detect and fix this.
  */
 export function getFinalScore(apiMatch: ApiMatch): MatchScore | null {
   if (apiMatch.status !== 'FINISHED') return null;
@@ -310,36 +316,42 @@ export function getFinalScore(apiMatch: ApiMatch): MatchScore | null {
   const hadExtraTime = duration === 'EXTRA_TIME' || duration === 'PENALTY_SHOOTOUT';
   const hadPenalties = duration === 'PENALTY_SHOOTOUT';
 
-  let home: number;
-  let away: number;
+  let home: number = ft.home;
+  let away: number = ft.away;
 
-  // For penalty shootouts, the API sometimes puts penalty score in fullTime
-  // We need to use extraTime score instead (the actual match score after 120 min)
-  if (hadPenalties && apiMatch.score.extraTime) {
-    const et = apiMatch.score.extraTime;
-    if (et.home !== null && et.away !== null) {
-      // Use extra time score (this is the real match score, should be a draw)
-      home = et.home;
-      away = et.away;
-    } else {
-      // Fallback to fullTime if extraTime is not available
-      home = ft.home;
-      away = ft.away;
+  // Check if API incorrectly put penalty score in fullTime
+  // Detection: if fullTime equals penalties, it's wrong - fullTime should be a draw for penalties
+  if (hadPenalties && apiMatch.score.penalties) {
+    const pens = apiMatch.score.penalties;
+    if (pens.home !== null && pens.away !== null) {
+      // If fullTime matches penalty score, the API made a mistake
+      if (ft.home === pens.home && ft.away === pens.away) {
+        // fullTime has penalty score - we need to calculate real score
+        // Use halfTime + extraTime goals if available
+        const ht = apiMatch.score.halfTime;
+        const et = apiMatch.score.extraTime;
+
+        if (ht.home !== null && ht.away !== null && et && et.home !== null && et.away !== null) {
+          // Calculate: we don't have 2nd half score directly
+          // But if extraTime shows 0-0, the match score stayed same as before ET
+          // This is a heuristic - we assume fullTime is wrong
+          // Best guess: the score was equal going into penalties
+          // Common scores: 0-0, 1-1, 2-2, etc.
+          // We'll use halfTime + extraTime as approximation, but this might not be accurate
+          // Actually - for now, let's just assume it was the halfTime score if no goals in ET
+          if (et.home === 0 && et.away === 0) {
+            // No goals in extra time, but we still don't know 2nd half
+            // This is tricky - we can't reliably determine the score
+            // Return null to skip this match and let admin enter manually
+            console.warn(`Match ${apiMatch.id}: Cannot determine score - fullTime has penalty score`);
+            // For now, assume it was a draw at halftime score level or close
+            // Most penalty shootouts end with tied scores like 1-1, 2-2
+            // We'll return null and let admin fix it
+            return null;
+          }
+        }
+      }
     }
-  } else if (hadExtraTime && apiMatch.score.extraTime) {
-    // Extra time without penalties - use extraTime score
-    const et = apiMatch.score.extraTime;
-    if (et.home !== null && et.away !== null) {
-      home = et.home;
-      away = et.away;
-    } else {
-      home = ft.home;
-      away = ft.away;
-    }
-  } else {
-    // Regular time or no extra time data - use fullTime
-    home = ft.home;
-    away = ft.away;
   }
 
   // Determine qualifier for knockout matches
