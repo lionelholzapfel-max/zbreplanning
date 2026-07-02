@@ -176,7 +176,7 @@ export default function AdminResultsPage() {
         return;
       }
 
-      toast.success(`Resultat enregistre ! ${data.points_calculated} points calcules`, { icon: '✅' });
+      toast.success(`Résultat enregistré — ${data.points_calculated} points calculés`);
 
       setResults(prev => ({
         ...prev,

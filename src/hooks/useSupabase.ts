@@ -513,7 +513,7 @@ export function useSupabase() {
       return { success: false, error: error.message };
     }
 
-    toast.success('Lieu proposé !', { icon: '📍' });
+    toast.success('Lieu proposé');
 
     // Notify others
     await notifyAllUsers(
@@ -549,7 +549,7 @@ export function useSupabase() {
     }
 
     if (!hasVoted) {
-      toast.success('Vote enregistré !', { icon: '👍' });
+      toast.success('Vote enregistré');
       await notifyAllUsers(
         'location_vote',
         'Nouveau vote !',
@@ -628,7 +628,7 @@ export function useSupabase() {
       return { success: false, error: error.message, id: null };
     }
 
-    toast.success('Activité créée !', { icon: '🎉' });
+    toast.success('Activité créée');
 
     // Notify all other users
     await notifyAllUsers(
@@ -995,7 +995,7 @@ export function useSupabase() {
       }
     }
 
-    toast.success('Pronostic enregistré !', { icon: '🎯' });
+    toast.success('Pronostic enregistré');
     return { success: true };
   }, [supabase, currentUser, ensureUserInDb]);
 

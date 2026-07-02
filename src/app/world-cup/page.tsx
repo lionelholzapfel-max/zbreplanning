@@ -497,7 +497,7 @@ export default function WorldCupPage() {
         return false;
       }
 
-      toast.success('Pronostic enregistré !', { icon: '🎯' });
+      toast.success('Pronostic enregistré');
 
       // Update local state
       setScorePredictions(prev => ({
@@ -551,7 +551,7 @@ export default function WorldCupPage() {
         setFavorites(prev => wasFavorite ? [...prev, teamCode] : prev.filter(t => t !== teamCode));
         toast.error('Erreur lors de la mise à jour');
       } else {
-        toast.success(wasFavorite ? 'Équipe retirée' : 'Équipe ajoutée aux favoris', { icon: '⭐' });
+        toast.success(wasFavorite ? 'Équipe retirée' : 'Équipe ajoutée aux favoris');
       }
     } catch {
       // Revert on error

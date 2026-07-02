@@ -231,9 +231,6 @@ export default function HomePage() {
             <h1 className="text-[40px] sm:text-5xl font-semibold tracking-[-0.02em] text-[var(--text-primary)] leading-[1.05]">
               La Zbre Team
             </h1>
-            <p className="mt-3 text-base text-[var(--text-secondary)] max-w-xl">
-              Toujours ensemble, toujours prêts pour l&apos;aventure.
-            </p>
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <Link
@@ -327,7 +324,10 @@ export default function HomePage() {
             <div className="flex items-center gap-3">
               <h2 className="text-[20px] font-semibold tracking-[-0.01em] text-[var(--text-primary)]">Prochains matchs</h2>
               {toPredictCount > 0 && (
-                <Badge variant="accent">{toPredictCount} à pronostiquer</Badge>
+                <span className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[11px] uppercase tracking-[0.04em] bg-[var(--surface-raised)] border border-[var(--hairline)]">
+                  <span className="stat text-[var(--accent)]">{toPredictCount}</span>
+                  <span className="text-[var(--text-tertiary)]">à pronostiquer</span>
+                </span>
               )}
             </div>
             <Link href="/world-cup" className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
@@ -342,8 +342,8 @@ export default function HomePage() {
               return (
                 <Link key={`next-${match.id}`} href="/world-cup" className="block">
                   <ListRow interactive>
-                    <div className="flex flex-col w-16 shrink-0">
-                      <span className="text-xs text-[var(--text-tertiary)]">{match.dateDisplay}</span>
+                    <div className="flex flex-col w-16 shrink-0 pr-3">
+                      <span className="text-xs text-[var(--text-tertiary)] tabular-nums">{match.dateDisplay}</span>
                       <span className="stat text-sm text-[var(--text-secondary)]">{match.time}</span>
                     </div>
                     <div className="flex-1 min-w-0 text-[var(--text-primary)] font-medium truncate">
@@ -385,11 +385,12 @@ export default function HomePage() {
                       <p className="mt-1 text-[15px] font-medium text-[var(--text-primary)] truncate">
                         {team1} <span className="text-[var(--text-tertiary)]">—</span> {team2}
                       </p>
-                      <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                        {matchData.dateDisplay} · {um.yesCount}/{MEMBERS.length} viennent
-                      </p>
-                      <div className="mt-2 h-0.5 bg-[var(--hairline)] rounded-full overflow-hidden">
-                        <div className="h-full bg-[var(--accent)]" style={{ width: `${pct}%` }} />
+                      <p className="text-xs text-[var(--text-secondary)] mt-0.5">{matchData.dateDisplay}</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="w-40 h-0.5 bg-[var(--hairline)] rounded-full overflow-hidden">
+                          <div className="h-full bg-[var(--accent)]" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="text-xs text-[var(--text-tertiary)]">{um.totalResponses}/{MEMBERS.length} ont répondu</span>
                       </div>
                     </div>
                     <Badge variant={um.status === 'yes' ? 'accent' : 'neutral'}>
@@ -424,8 +425,11 @@ export default function HomePage() {
                           <span>{format(new Date(activity.date), 'EEE d MMM', { locale: fr })}</span>
                         )}
                       </p>
-                      <div className="mt-2 h-0.5 bg-[var(--hairline)] rounded-full overflow-hidden">
-                        <div className="h-full bg-[var(--accent)]" style={{ width: `${pct}%` }} />
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="w-40 h-0.5 bg-[var(--hairline)] rounded-full overflow-hidden">
+                          <div className="h-full bg-[var(--accent)]" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="text-xs text-[var(--text-tertiary)]">{activity.totalResponses}/{MEMBERS.length} ont répondu</span>
                       </div>
                     </div>
                     <Badge variant={activity.myStatus === 'yes' ? 'accent' : 'neutral'}>{statusLabel}</Badge>
@@ -442,9 +446,11 @@ export default function HomePage() {
         <div className="grid md:grid-cols-2 gap-3">
           <Link href="/world-cup" className="block group">
             <Card className="p-6 h-full transition-colors duration-150 ease-out hover:bg-[var(--surface-raised)]">
-              <Trophy className="w-5 h-5 text-[var(--text-secondary)]" strokeWidth={1.75} />
-              <h2 className="mt-4 text-base font-semibold text-[var(--text-primary)]">Coupe du Monde 2026</h2>
-              <p className="mt-1 text-sm text-[var(--text-secondary)]">
+              <div className="flex items-center gap-2.5">
+                <Trophy className="w-[18px] h-[18px] text-[var(--text-secondary)]" strokeWidth={1.75} />
+                <h2 className="text-base font-semibold text-[var(--text-primary)]">Coupe du Monde 2026</h2>
+              </div>
+              <p className="mt-1.5 text-sm text-[var(--text-secondary)]">
                 USA · Mexique · Canada — 104 matchs. Pronostique et regarde-les avec la team.
               </p>
               <span className="mt-4 inline-flex items-center gap-1 text-sm text-[var(--accent)]">
@@ -455,10 +461,12 @@ export default function HomePage() {
 
           <Link href="/activities" className="block group">
             <Card className="p-6 h-full transition-colors duration-150 ease-out hover:bg-[var(--surface-raised)]">
-              <CalendarRange className="w-5 h-5 text-[var(--text-secondary)]" strokeWidth={1.75} />
-              <h2 className="mt-4 text-base font-semibold text-[var(--text-primary)]">Activités</h2>
-              <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                Soirées, restos, sorties. Crée une activité et vois qui est chaud.
+              <div className="flex items-center gap-2.5">
+                <CalendarRange className="w-[18px] h-[18px] text-[var(--text-secondary)]" strokeWidth={1.75} />
+                <h2 className="text-base font-semibold text-[var(--text-primary)]">Activités</h2>
+              </div>
+              <p className="mt-1.5 text-sm text-[var(--text-secondary)]">
+                Propose une soirée, un resto, une sortie.
               </p>
               <span className="mt-4 inline-flex items-center gap-1 text-sm text-[var(--accent)]">
                 Voir les activités <ArrowRight className="w-4 h-4" strokeWidth={1.75} />
@@ -490,25 +498,28 @@ export default function HomePage() {
 
       {/* Personal stats */}
       <section className="max-w-5xl mx-auto px-4 pt-12">
-        <Card className="p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <Avatar slug={currentUser.member_slug} name={currentUser.member_name} size={44} />
-            <div>
-              <h3 className="text-base font-semibold text-[var(--text-primary)]">
-                Salut {currentUser.member_name.split(' ')[0]}
-              </h3>
-              <p className="text-sm text-[var(--text-secondary)]">Ton activité récente</p>
+        <Card className="p-5">
+          <div className="flex items-center justify-between gap-6 flex-wrap">
+            <div className="flex items-center gap-3">
+              <Avatar slug={currentUser.member_slug} name={currentUser.member_name} size={40} />
+              <div>
+                <p className="text-base font-semibold text-[var(--text-primary)]">{currentUser.member_name.split(' ')[0]}</p>
+                <p className="text-[13px] text-[var(--text-secondary)]">Ton activité récente</p>
+              </div>
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-lg border border-[var(--hairline)] bg-[var(--bg)] p-4">
-              <p className="eyebrow">Matchs confirmés</p>
-              <p className="stat text-2xl text-[var(--text-primary)] mt-2">{stats.matchesJoined}</p>
-            </div>
-            <div className="rounded-lg border border-[var(--hairline)] bg-[var(--bg)] p-4">
-              <p className="eyebrow">Activités créées</p>
-              <p className="stat text-2xl text-[var(--text-primary)] mt-2">{stats.activitiesCreated}</p>
+            <div className="flex items-center gap-8">
+              <div>
+                <p className="stat text-xl text-[var(--text-primary)]">{myPredictions.size}</p>
+                <p className="eyebrow mt-1">Pronos</p>
+              </div>
+              <div>
+                <p className="stat text-xl text-[var(--text-primary)]">{stats.matchesJoined}</p>
+                <p className="eyebrow mt-1">Matchs</p>
+              </div>
+              <div>
+                <p className="stat text-xl text-[var(--text-primary)]">{stats.activitiesCreated}</p>
+                <p className="eyebrow mt-1">Activités</p>
+              </div>
             </div>
           </div>
         </Card>

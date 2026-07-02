@@ -380,7 +380,7 @@ export default function PredictionsPage() {
         return;
       }
 
-      toast.success('Pronostic enregistré !', { icon: '🎯' });
+      toast.success('Pronostic enregistré');
       setMyPredictions(prev => ({ ...prev, [type]: value }));
       setEditingType(null);
       setSearchValue('');

@@ -178,7 +178,7 @@ export default function GamesPage() {
         setNewGameName('');
         setShowCreateGame(false);
         loadData();
-        toast.success('Jeu créé ! 🎮');
+        toast.success('Jeu créé');
       } else {
         toast.error('Erreur lors de la création du jeu');
       }
@@ -215,7 +215,7 @@ export default function GamesPage() {
         });
         setShowCreateSession(false);
         loadData();
-        toast.success('Partie enregistrée ! ⭐');
+        toast.success('Partie enregistrée');
       } else {
         toast.error("Erreur lors de l'enregistrement de la partie");
       }
