@@ -8,7 +8,6 @@ import {
   countExactScores,
   calculateBasePoints,
   hasVisionaryBonus,
-  hasOutsiderBonus,
   calculatePoints,
   calculateMatchPoints,
   Prediction,
@@ -201,64 +200,13 @@ describe('hasVisionaryBonus', () => {
   });
 });
 
-describe('hasOutsiderBonus', () => {
-  // Belgique (rank 3) vs Afrique du Sud (rank 51)
-  const homeTeam = 'Belgique';
-  const awayTeam = 'Afrique du Sud';
-
-  it('returns true when predicting outsider win and outsider wins', () => {
-    const prediction: Prediction = { user_id: '1', home_score: 0, away_score: 1 };
-    const result: MatchResult = { home_score: 1, away_score: 2 };
-    // Afrique du Sud (outsider) wins
-    expect(hasOutsiderBonus(prediction, result, homeTeam, awayTeam)).toBe(true);
-  });
-
-  it('returns false when predicting favorite win', () => {
-    const prediction: Prediction = { user_id: '1', home_score: 2, away_score: 0 };
-    const result: MatchResult = { home_score: 3, away_score: 0 };
-    // Belgique (favorite) wins - no outsider bonus
-    expect(hasOutsiderBonus(prediction, result, homeTeam, awayTeam)).toBe(false);
-  });
-
-  it('returns false when predicting draw', () => {
-    const prediction: Prediction = { user_id: '1', home_score: 1, away_score: 1 };
-    const result: MatchResult = { home_score: 0, away_score: 1 };
-    // Predicted draw, outsider won - no bonus
-    expect(hasOutsiderBonus(prediction, result, homeTeam, awayTeam)).toBe(false);
-  });
-
-  it('returns false when outcome is draw', () => {
-    const prediction: Prediction = { user_id: '1', home_score: 0, away_score: 1 };
-    const result: MatchResult = { home_score: 1, away_score: 1 };
-    // Actual result is draw
-    expect(hasOutsiderBonus(prediction, result, homeTeam, awayTeam)).toBe(false);
-  });
-
-  it('returns false when wrong outcome', () => {
-    const prediction: Prediction = { user_id: '1', home_score: 0, away_score: 1 };
-    const result: MatchResult = { home_score: 2, away_score: 0 };
-    // Predicted away win, actual home win
-    expect(hasOutsiderBonus(prediction, result, homeTeam, awayTeam)).toBe(false);
-  });
-
-  it('works with reversed team order (outsider at home)', () => {
-    const homeOutsider = 'Afrique du Sud';
-    const awayFavorite = 'Belgique';
-
-    const prediction: Prediction = { user_id: '1', home_score: 2, away_score: 1 };
-    const result: MatchResult = { home_score: 1, away_score: 0 };
-    // Home team (outsider) wins
-    expect(hasOutsiderBonus(prediction, result, homeOutsider, awayFavorite)).toBe(true);
-  });
-});
-
 describe('calculatePoints (full breakdown)', () => {
-  it('calculates maximum points (3 base + 1 visionary + 1 outsider = 5)', () => {
-    const homeTeam = 'Afrique du Sud'; // outsider
-    const awayTeam = 'Belgique'; // favorite
+  it('calculates maximum points (3 base + 1 visionary = 4)', () => {
+    const homeTeam = 'Afrique du Sud';
+    const awayTeam = 'Belgique';
 
     const predictions: Prediction[] = [
-      { user_id: '1', home_score: 1, away_score: 0 }, // exact + visionary + outsider
+      { user_id: '1', home_score: 1, away_score: 0 }, // exact + visionary (solo)
       { user_id: '2', home_score: 2, away_score: 0 },
       { user_id: '3', home_score: 0, away_score: 1 },
     ];
@@ -268,11 +216,9 @@ describe('calculatePoints (full breakdown)', () => {
 
     expect(points.base).toBe(3);
     expect(points.visionary).toBe(1);
-    expect(points.outsider).toBe(1);
-    expect(points.total).toBe(5);
+    expect(points.total).toBe(4);
     expect(points.detail).toContain('Score exact');
     expect(points.detail).toContain('Visionnaire');
-    expect(points.detail).toContain('Outsider');
   });
 
   it('calculates shared exact score (no visionary)', () => {
@@ -291,7 +237,6 @@ describe('calculatePoints (full breakdown)', () => {
 
     expect(points.base).toBe(3);
     expect(points.visionary).toBe(0); // Not alone
-    expect(points.outsider).toBe(0); // France (home, favorite) wins - no outsider bonus
     expect(points.total).toBe(3);
   });
 
@@ -308,7 +253,6 @@ describe('calculatePoints (full breakdown)', () => {
 
     expect(points.base).toBe(0);
     expect(points.visionary).toBe(0);
-    expect(points.outsider).toBe(0);
     expect(points.total).toBe(0);
     expect(points.detail).toContain('Mauvais résultat');
   });

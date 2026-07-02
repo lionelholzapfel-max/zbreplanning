@@ -12,6 +12,7 @@ const navItems = [
   { href: '/leaderboard', label: 'Classement', icon: '🏆', mobileLabel: 'Classement' },
   { href: '/predictions', label: 'Pronostics', icon: '🎰', mobileLabel: 'Pronos' },
   { href: '/activities', label: 'Activités', icon: '📅', mobileLabel: 'Activités' },
+  { href: '/games', label: 'Zbrétoile', icon: '⭐', mobileLabel: 'Zbrétoile' },
 ];
 
 export default function Navbar() {

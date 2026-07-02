@@ -2,11 +2,12 @@
  * Scoring Engine for ZbrePlanning
  * Pure functions for calculating prediction points
  *
- * SCORING RULES:
- * - Group stage: score prediction (0-3 pts) + visionary (+1 if solo exact)
- * - Knockout: same + qualifier bonus (+1 if correct team advances)
- *   - Score prediction is for 90 minutes (draw is possible)
- *   - Qualifier is decided by extra time or penalties
+ * SCORING RULES (identical for group stage and knockout):
+ * - Base: 0-3 pts (wrong outcome=0, right outcome=1, +goal difference=2, exact=3)
+ * - Visionary: +1 pt if you are the ONLY one with the exact score
+ * - Knockout predictions are for the FINAL score, extra time included
+ *   (a match level after 90 min but decided in extra time counts as the
+ *   extra-time result). Penalty shootouts do not change the recorded score.
  */
 
 import { isKnockoutPhase } from './constants';

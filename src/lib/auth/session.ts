@@ -10,9 +10,13 @@ export interface SessionUser {
   is_admin: boolean;
 }
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'dev-secret-change-in-prod'
-);
+// Fail-closed: never fall back to a hardcoded secret. If JWT_SECRET is missing
+// in an environment, we'd rather crash loudly than silently sign forgeable tokens.
+const jwtSecretValue = process.env.JWT_SECRET;
+if (!jwtSecretValue) {
+  throw new Error('JWT_SECRET environment variable is required (no insecure fallback)');
+}
+const JWT_SECRET = new TextEncoder().encode(jwtSecretValue);
 
 const COOKIE_NAME = 'zbre_session';
 const COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds

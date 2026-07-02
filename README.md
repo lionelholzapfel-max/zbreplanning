@@ -21,13 +21,11 @@ Plateforme pour la Zbre Team (14 amis) pour regarder la Coupe du Monde 2026 ense
 | Bonne différence de buts | 2 pts |
 | Score exact | 3 pts |
 | Bonus Visionnaire | +1 pt si tu es le seul à avoir trouvé le résultat exact |
-| Bonus Outsider | +1 pt si tu as prédit une victoire de l'équipe cotée >2.5 |
 
 ### Badges Quotidiens
 
-- **Visionnaire** : Plus de scores exacts du jour
-- **Régularité** : Plus haut score cumulé
-- **Outsider** : Plus gros upset du jour
+- **Drère du jour** : Plus de points sur la session
+- **Type mzi** : Le moins de points sur la session
 
 ## Déploiement
 

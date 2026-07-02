@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:test": "env $(grep -v '^#' .env.test | grep -v '^$' | xargs) next dev --port 3003",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

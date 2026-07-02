@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { getSupabaseClient, createSessionToken, setSessionCookie } from '@/lib/auth/session';
+import { getSupabaseAdmin, createSessionToken, setSessionCookie } from '@/lib/auth/session';
 import { MEMBERS } from '@/data/members';
 import { checkRateLimit, resetRateLimit } from '@/lib/rate-limit';
 
@@ -49,7 +49,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = getSupabaseClient();
+    // Service role: writing pin_hash / is_admin must never be possible via the anon key.
+    const supabase = getSupabaseAdmin();
 
     // Check if user already has a PIN
     const { data: existingUser, error: selectError } = await supabase

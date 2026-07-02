@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { getSupabaseClient, createSessionToken, setSessionCookie } from '@/lib/auth/session';
+import { getSupabaseAdmin, createSessionToken, setSessionCookie } from '@/lib/auth/session';
 import { MEMBERS } from '@/data/members';
 import { checkRateLimit, resetRateLimit } from '@/lib/rate-limit';
 
@@ -49,7 +49,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = getSupabaseClient();
+    // Service role: pin_hash is never exposed to the anon key (see RLS migration).
+    const supabase = getSupabaseAdmin();
 
     // Get user from database
     const { data: user, error: selectError } = await supabase

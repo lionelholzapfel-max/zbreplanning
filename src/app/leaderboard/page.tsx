@@ -19,7 +19,6 @@ interface LeaderboardEntry {
   global_points: number;
   exact_scores: number;
   visionary_count: number;
-  outsider_count: number;
   matches_predicted: number;
   global_correct: number;
   crown_count: number;
@@ -69,6 +68,29 @@ interface StreakRecordWithHolders {
   holders: StreakRecordHolder[];
 }
 
+interface CountRecordHolder {
+  user_id: string;
+  member_name: string;
+  member_slug: string;
+}
+
+interface CountRecordWithHolders {
+  count: number;
+  holders: CountRecordHolder[];
+}
+
+interface AverageRecordHolder {
+  user_id: string;
+  member_name: string;
+  member_slug: string;
+  matches_predicted: number;
+}
+
+interface AverageRecordWithHolders {
+  average: number;
+  holders: AverageRecordHolder[];
+}
+
 interface LeaderboardStats {
   most_optimistic: { user_id: string; member_name: string; avg_goals: number } | null;
   top_visionary: { user_id: string; member_name: string; count: number } | null;
@@ -112,6 +134,13 @@ export default function LeaderboardPage() {
   const [weeklyRecord, setWeeklyRecord] = useState<RecordEntry | null>(null);
   const [dailyStreakRecord, setDailyStreakRecord] = useState<StreakRecordWithHolders | null>(null);
   const [weeklyStreakRecord, setWeeklyStreakRecord] = useState<StreakRecordWithHolders | null>(null);
+  const [mostDrereRecord, setMostDrereRecord] = useState<CountRecordWithHolders | null>(null);
+  const [mostMziRecord, setMostMziRecord] = useState<CountRecordWithHolders | null>(null);
+  const [mostExactScoresRecord, setMostExactScoresRecord] = useState<CountRecordWithHolders | null>(null);
+  const [mostVisionaryRecord, setMostVisionaryRecord] = useState<CountRecordWithHolders | null>(null);
+  const [bestAverageRecord, setBestAverageRecord] = useState<AverageRecordWithHolders | null>(null);
+  const [mziStreakRecord, setMziStreakRecord] = useState<StreakRecordWithHolders | null>(null);
+  const [longestWithoutMziRecord, setLongestWithoutMziRecord] = useState<StreakRecordWithHolders | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
@@ -143,6 +172,13 @@ export default function LeaderboardPage() {
         setWeeklyRecord(data.weekly_record || null);
         setDailyStreakRecord(data.daily_streak_record || null);
         setWeeklyStreakRecord(data.weekly_streak_record || null);
+        setMostDrereRecord(data.most_drere_record || null);
+        setMostMziRecord(data.most_mzi_record || null);
+        setMostExactScoresRecord(data.most_exact_scores_record || null);
+        setMostVisionaryRecord(data.most_visionary_record || null);
+        setBestAverageRecord(data.best_average_record || null);
+        setMziStreakRecord(data.mzi_streak_record || null);
+        setLongestWithoutMziRecord(data.longest_without_mzi_record || null);
 
         // Fetch live ranking
         const liveRes = await fetch('/api/leaderboard/live');
@@ -361,107 +397,6 @@ export default function LeaderboardPage() {
 
             {/* Hymne du Champion */}
             <DrereWeekSong drereName={dreresWeek[0]?.member_name.split(' ')[0] || ''} />
-          </div>
-        </section>
-      )}
-
-      {/* Week Race - Course vers le titre */}
-      {weekRace.length > 0 && (
-        <section className="max-w-4xl mx-auto px-4 pb-6">
-          <div className="relative overflow-hidden rounded-3xl border border-[#f97316]/50 bg-gradient-to-br from-[#f97316]/10 via-[#0a0a0f] to-[#0a0a0f] p-5">
-            <div className="absolute top-0 right-0 w-48 h-48 bg-[#f97316]/10 rounded-full blur-3xl" />
-
-            {/* Header */}
-            <div className="relative flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <span className="text-2xl">🏃</span>
-                </div>
-                <div>
-                  <h3 className="text-white font-bold">Course vers le titre</h3>
-                  <p className="text-gray-500 text-xs">
-                    Points cette semaine • Reset lundi 8h
-                  </p>
-                </div>
-              </div>
-              {weekRace[0] && (
-                <div className="flex items-center gap-2 bg-[#f97316]/20 px-3 py-1.5 rounded-full">
-                  <span className="text-sm">🔥</span>
-                  <span className="text-[#f97316] text-sm font-bold">{weekRace[0].member_name.split(' ')[0]}</span>
-                  <span className="text-white text-sm font-bold">
-                    {weekRace[0].week_points} pts
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Countdown to Monday */}
-            {weekRaceEnd && (() => {
-              const endDate = new Date(weekRaceEnd);
-              const now = new Date();
-              const diffMs = endDate.getTime() - now.getTime();
-              const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-              const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-
-              return diffMs > 0 ? (
-                <div className="relative mb-3 text-center">
-                  <span className="text-gray-500 text-xs">
-                    ⏱️ {diffDays > 0 ? `${diffDays}j ` : ''}{diffHours}h avant le verdict
-                  </span>
-                </div>
-              ) : null;
-            })()}
-
-            {/* Ranking List */}
-            <div className="relative grid gap-1.5 max-h-[250px] overflow-y-auto">
-              {weekRace.map((entry, index) => {
-                const isLeader = index === 0;
-                const isCurrentUser = entry.user_id === currentUserId;
-                const pointsBehind = isLeader ? 0 : weekRace[0].week_points - entry.week_points;
-
-                return (
-                  <div
-                    key={entry.user_id}
-                    className={`flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl transition-all ${
-                      isLeader ? 'bg-[#f97316]/20 border border-[#f97316]/30' :
-                      isCurrentUser ? 'bg-white/5' : ''
-                    }`}
-                  >
-                    <span className={`w-5 sm:w-6 text-center font-bold text-sm ${
-                      isLeader ? 'text-[#f97316]' : 'text-gray-500'
-                    }`}>
-                      {entry.rank}
-                    </span>
-                    <div className="relative w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden ring-2 ring-white/10 flex-shrink-0">
-                      <Image
-                        src={`/members/${entry.member_slug}.png`}
-                        alt={entry.member_name}
-                        fill
-                        className="object-cover object-top"
-                      />
-                    </div>
-                    <span className={`flex-1 text-xs sm:text-sm font-medium truncate ${
-                      isLeader ? 'text-white' : 'text-gray-400'
-                    }`}>
-                      {entry.member_name.split(' ')[0]}
-                    </span>
-                    {!isLeader && pointsBehind > 0 && (
-                      <span className="text-gray-500 text-xs">
-                        -{pointsBehind}
-                      </span>
-                    )}
-                    <div className="text-right flex-shrink-0 min-w-[50px]">
-                      <span className={`font-bold text-sm ${
-                        isLeader ? 'text-[#f97316]' : 'text-white'
-                      }`}>
-                        {entry.week_points}
-                      </span>
-                      <span className="text-gray-500 text-xs ml-1">pts</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
           </div>
         </section>
       )}
@@ -728,6 +663,107 @@ export default function LeaderboardPage() {
         </section>
       )}
 
+      {/* Points du Drère of the Week */}
+      {weekRace.length > 0 && (
+        <section className="max-w-4xl mx-auto px-4 pb-6">
+          <div className="relative overflow-hidden rounded-3xl border border-[#f97316]/50 bg-gradient-to-br from-[#f97316]/10 via-[#0a0a0f] to-[#0a0a0f] p-5">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-[#f97316]/10 rounded-full blur-3xl" />
+
+            {/* Header */}
+            <div className="relative flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <span className="text-2xl">🏆</span>
+                </div>
+                <div>
+                  <h3 className="text-white font-bold">Points du Drère of the Week</h3>
+                  <p className="text-gray-500 text-xs">
+                    Points cette semaine • Reset lundi 8h
+                  </p>
+                </div>
+              </div>
+              {weekRace[0] && (
+                <div className="flex items-center gap-2 bg-[#f97316]/20 px-3 py-1.5 rounded-full">
+                  <span className="text-sm">🔥</span>
+                  <span className="text-[#f97316] text-sm font-bold">{weekRace[0].member_name.split(' ')[0]}</span>
+                  <span className="text-white text-sm font-bold">
+                    {weekRace[0].week_points} pts
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Countdown to Monday */}
+            {weekRaceEnd && (() => {
+              const endDate = new Date(weekRaceEnd);
+              const now = new Date();
+              const diffMs = endDate.getTime() - now.getTime();
+              const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+              const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+
+              return diffMs > 0 ? (
+                <div className="relative mb-3 text-center">
+                  <span className="text-gray-500 text-xs">
+                    ⏱️ {diffDays > 0 ? `${diffDays}j ` : ''}{diffHours}h avant le verdict
+                  </span>
+                </div>
+              ) : null;
+            })()}
+
+            {/* Ranking List */}
+            <div className="relative grid gap-1.5 max-h-[250px] overflow-y-auto">
+              {weekRace.map((entry, index) => {
+                const isLeader = index === 0;
+                const isCurrentUser = entry.user_id === currentUserId;
+                const pointsBehind = isLeader ? 0 : weekRace[0].week_points - entry.week_points;
+
+                return (
+                  <div
+                    key={entry.user_id}
+                    className={`flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl transition-all ${
+                      isLeader ? 'bg-[#f97316]/20 border border-[#f97316]/30' :
+                      isCurrentUser ? 'bg-white/5' : ''
+                    }`}
+                  >
+                    <span className={`w-5 sm:w-6 text-center font-bold text-sm ${
+                      isLeader ? 'text-[#f97316]' : 'text-gray-500'
+                    }`}>
+                      {entry.rank}
+                    </span>
+                    <div className="relative w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden ring-2 ring-white/10 flex-shrink-0">
+                      <Image
+                        src={`/members/${entry.member_slug}.png`}
+                        alt={entry.member_name}
+                        fill
+                        className="object-cover object-top"
+                      />
+                    </div>
+                    <span className={`flex-1 text-xs sm:text-sm font-medium truncate ${
+                      isLeader ? 'text-white' : 'text-gray-400'
+                    }`}>
+                      {entry.member_name.split(' ')[0]}
+                    </span>
+                    {!isLeader && pointsBehind > 0 && (
+                      <span className="text-gray-500 text-xs">
+                        -{pointsBehind}
+                      </span>
+                    )}
+                    <div className="text-right flex-shrink-0 min-w-[50px]">
+                      <span className={`font-bold text-sm ${
+                        isLeader ? 'text-[#f97316]' : 'text-white'
+                      }`}>
+                        {entry.week_points}
+                      </span>
+                      <span className="text-gray-500 text-xs ml-1">pts</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* K/D Ratio Leaderboard - Call of Duty style */}
       {(() => {
         // Calculate K/D ratios and sort
@@ -923,7 +959,7 @@ export default function LeaderboardPage() {
       </section>
 
       {/* Records */}
-      {(dailyRecord || weeklyRecord || dailyStreakRecord || weeklyStreakRecord) && (
+      {(dailyRecord || weeklyRecord || dailyStreakRecord || weeklyStreakRecord || mostDrereRecord || mostMziRecord || mostExactScoresRecord || mostVisionaryRecord || bestAverageRecord || mziStreakRecord || longestWithoutMziRecord) && (
         <section className="max-w-4xl mx-auto px-4 pb-6">
           <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
             <span>🏅</span>
@@ -1082,6 +1118,283 @@ export default function LeaderboardPage() {
                     {weeklyStreakRecord.holders.map(holder => (
                       <p key={holder.user_id} className="text-gray-500 text-xs">
                         {holder.member_name.split(' ')[0]}: sem. {new Date(holder.start_date).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })} → {new Date(holder.end_date).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Most Drère du Jour */}
+            {mostDrereRecord && mostDrereRecord.holders.length > 0 && (
+              <div className="relative overflow-hidden bg-gradient-to-br from-[#fbbf24]/20 to-[#0a0a0f] rounded-2xl border border-[#fbbf24]/30 p-5">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#fbbf24]/10 rounded-full blur-2xl" />
+                <div className="relative flex items-center gap-4">
+                  <div className="flex -space-x-3">
+                    {mostDrereRecord.holders.map((holder, idx) => (
+                      <div
+                        key={holder.user_id}
+                        className="relative w-12 h-12 rounded-full overflow-hidden ring-4 ring-[#fbbf24] bg-[#0a0a0f]"
+                        style={{ zIndex: mostDrereRecord.holders.length - idx }}
+                      >
+                        <Image
+                          src={`/members/${holder.member_slug}.png`}
+                          alt={holder.member_name}
+                          fill
+                          className="object-cover object-top"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[#fbbf24] text-xs font-bold uppercase tracking-wide">
+                      Plus de Drère du Jour
+                    </p>
+                    <p className="text-white font-bold text-lg">
+                      {mostDrereRecord.holders.map(h => h.member_name.split(' ')[0]).join(' & ')}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#fbbf24] font-black text-2xl">{mostDrereRecord.count}</span>
+                      <span className="text-gray-400 text-sm">👑</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Most Type MZI du Jour */}
+            {mostMziRecord && mostMziRecord.holders.length > 0 && (
+              <div className="relative overflow-hidden bg-gradient-to-br from-[#ef4444]/20 to-[#0a0a0f] rounded-2xl border border-[#ef4444]/30 p-5">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#ef4444]/10 rounded-full blur-2xl" />
+                <div className="relative flex items-center gap-4">
+                  <div className="flex -space-x-3">
+                    {mostMziRecord.holders.map((holder, idx) => (
+                      <div
+                        key={holder.user_id}
+                        className="relative w-12 h-12 rounded-full overflow-hidden ring-4 ring-[#ef4444] bg-[#0a0a0f] grayscale"
+                        style={{ zIndex: mostMziRecord.holders.length - idx }}
+                      >
+                        <Image
+                          src={`/members/${holder.member_slug}.png`}
+                          alt={holder.member_name}
+                          fill
+                          className="object-cover object-top"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[#ef4444] text-xs font-bold uppercase tracking-wide">
+                      Plus de Type MZI du Jour
+                    </p>
+                    <p className="text-white font-bold text-lg">
+                      {mostMziRecord.holders.map(h => h.member_name.split(' ')[0]).join(' & ')}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#ef4444] font-black text-2xl">{mostMziRecord.count}</span>
+                      <span className="text-gray-400 text-sm">💀</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Most Exact Scores */}
+            {mostExactScoresRecord && mostExactScoresRecord.holders.length > 0 && (
+              <div className="relative overflow-hidden bg-gradient-to-br from-[#22c55e]/20 to-[#0a0a0f] rounded-2xl border border-[#22c55e]/30 p-5">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#22c55e]/10 rounded-full blur-2xl" />
+                <div className="relative flex items-center gap-4">
+                  <div className="flex -space-x-3">
+                    {mostExactScoresRecord.holders.map((holder, idx) => (
+                      <div
+                        key={holder.user_id}
+                        className="relative w-12 h-12 rounded-full overflow-hidden ring-4 ring-[#22c55e] bg-[#0a0a0f]"
+                        style={{ zIndex: mostExactScoresRecord.holders.length - idx }}
+                      >
+                        <Image
+                          src={`/members/${holder.member_slug}.png`}
+                          alt={holder.member_name}
+                          fill
+                          className="object-cover object-top"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[#22c55e] text-xs font-bold uppercase tracking-wide">
+                      Plus de Scores Exacts
+                    </p>
+                    <p className="text-white font-bold text-lg">
+                      {mostExactScoresRecord.holders.map(h => h.member_name.split(' ')[0]).join(' & ')}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#22c55e] font-black text-2xl">{mostExactScoresRecord.count}</span>
+                      <span className="text-gray-400 text-sm">🎯</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Most Visionary Bonuses */}
+            {mostVisionaryRecord && mostVisionaryRecord.holders.length > 0 && (
+              <div className="relative overflow-hidden bg-gradient-to-br from-[#8b5cf6]/20 to-[#0a0a0f] rounded-2xl border border-[#8b5cf6]/30 p-5">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#8b5cf6]/10 rounded-full blur-2xl" />
+                <div className="relative flex items-center gap-4">
+                  <div className="flex -space-x-3">
+                    {mostVisionaryRecord.holders.map((holder, idx) => (
+                      <div
+                        key={holder.user_id}
+                        className="relative w-12 h-12 rounded-full overflow-hidden ring-4 ring-[#8b5cf6] bg-[#0a0a0f]"
+                        style={{ zIndex: mostVisionaryRecord.holders.length - idx }}
+                      >
+                        <Image
+                          src={`/members/${holder.member_slug}.png`}
+                          alt={holder.member_name}
+                          fill
+                          className="object-cover object-top"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[#8b5cf6] text-xs font-bold uppercase tracking-wide">
+                      Plus de Bonus Visionnaire
+                    </p>
+                    <p className="text-white font-bold text-lg">
+                      {mostVisionaryRecord.holders.map(h => h.member_name.split(' ')[0]).join(' & ')}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#8b5cf6] font-black text-2xl">{mostVisionaryRecord.count}</span>
+                      <span className="text-gray-400 text-sm">🔮</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Best Average Points */}
+            {bestAverageRecord && bestAverageRecord.holders.length > 0 && (
+              <div className="relative overflow-hidden bg-gradient-to-br from-[#06b6d4]/20 to-[#0a0a0f] rounded-2xl border border-[#06b6d4]/30 p-5">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#06b6d4]/10 rounded-full blur-2xl" />
+                <div className="relative flex items-center gap-4">
+                  <div className="flex -space-x-3">
+                    {bestAverageRecord.holders.map((holder, idx) => (
+                      <div
+                        key={holder.user_id}
+                        className="relative w-12 h-12 rounded-full overflow-hidden ring-4 ring-[#06b6d4] bg-[#0a0a0f]"
+                        style={{ zIndex: bestAverageRecord.holders.length - idx }}
+                      >
+                        <Image
+                          src={`/members/${holder.member_slug}.png`}
+                          alt={holder.member_name}
+                          fill
+                          className="object-cover object-top"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[#06b6d4] text-xs font-bold uppercase tracking-wide">
+                      Meilleure Moyenne
+                    </p>
+                    <p className="text-white font-bold text-lg">
+                      {bestAverageRecord.holders.map(h => h.member_name.split(' ')[0]).join(' & ')}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#06b6d4] font-black text-2xl">{bestAverageRecord.average}</span>
+                      <span className="text-gray-400 text-sm">pts/match</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Longest Without MZI */}
+            {longestWithoutMziRecord && longestWithoutMziRecord.holders.length > 0 && (
+              <div className="relative overflow-hidden bg-gradient-to-br from-[#10b981]/20 to-[#0a0a0f] rounded-2xl border border-[#10b981]/30 p-5">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#10b981]/10 rounded-full blur-2xl" />
+                <div className="relative">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="flex -space-x-3">
+                      {longestWithoutMziRecord.holders.map((holder, idx) => (
+                        <div
+                          key={holder.user_id}
+                          className="relative w-12 h-12 rounded-full overflow-hidden ring-4 ring-[#10b981] bg-[#0a0a0f]"
+                          style={{ zIndex: longestWithoutMziRecord.holders.length - idx }}
+                        >
+                          <Image
+                            src={`/members/${holder.member_slug}.png`}
+                            alt={holder.member_name}
+                            fill
+                            className="object-cover object-top"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[#10b981] text-xs font-bold uppercase tracking-wide">
+                        Plus Long sans MZI
+                      </p>
+                      <p className="text-white font-bold text-lg">
+                        {longestWithoutMziRecord.holders.map(h => h.member_name.split(' ')[0]).join(' & ')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[#10b981] font-black text-2xl">{longestWithoutMziRecord.streak}</span>
+                    <span className="text-gray-400 text-sm">jours sans 💀</span>
+                  </div>
+                  <div className="space-y-1">
+                    {longestWithoutMziRecord.holders.map(holder => (
+                      <p key={holder.user_id} className="text-gray-500 text-xs">
+                        {holder.member_name.split(' ')[0]}: {new Date(holder.start_date).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })} → {new Date(holder.end_date).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* MZI Streak (Shame Record) */}
+            {mziStreakRecord && mziStreakRecord.holders.length > 0 && (
+              <div className="relative overflow-hidden bg-gradient-to-br from-[#dc2626]/20 to-[#0a0a0f] rounded-2xl border border-[#dc2626]/30 p-5">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#dc2626]/10 rounded-full blur-2xl" />
+                <div className="relative">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="flex -space-x-3">
+                      {mziStreakRecord.holders.map((holder, idx) => (
+                        <div
+                          key={holder.user_id}
+                          className="relative w-12 h-12 rounded-full overflow-hidden ring-4 ring-[#dc2626] bg-[#0a0a0f] grayscale"
+                          style={{ zIndex: mziStreakRecord.holders.length - idx }}
+                        >
+                          <Image
+                            src={`/members/${holder.member_slug}.png`}
+                            alt={holder.member_name}
+                            fill
+                            className="object-cover object-top"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[#dc2626] text-xs font-bold uppercase tracking-wide">
+                        Série MZI (La Honte)
+                      </p>
+                      <p className="text-white font-bold text-lg">
+                        {mziStreakRecord.holders.map(h => h.member_name.split(' ')[0]).join(' & ')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[#dc2626] font-black text-2xl">{mziStreakRecord.streak}</span>
+                    <span className="text-gray-400 text-sm">💀 d&apos;affilée</span>
+                  </div>
+                  <div className="space-y-1">
+                    {mziStreakRecord.holders.map(holder => (
+                      <p key={holder.user_id} className="text-gray-500 text-xs">
+                        {holder.member_name.split(' ')[0]}: {new Date(holder.start_date).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })} → {new Date(holder.end_date).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })}
                       </p>
                     ))}
                   </div>

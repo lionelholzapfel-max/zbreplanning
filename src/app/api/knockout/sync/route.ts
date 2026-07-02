@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser, getSupabaseAdmin } from '@/lib/auth/session';
 import { fetchWorldCupMatches, apiTeamNameToOurs, ApiMatch } from '@/lib/football-api';
 import matches from '@/data/matches.json';
@@ -40,7 +40,7 @@ const STAGE_TO_PHASE: Record<string, string> = {
   'ROUND_OF_16': 'HUITIÈMES DE FINALE',
   'QUARTER_FINALS': 'QUARTS DE FINALE',
   'SEMI_FINALS': 'DEMI-FINALES',
-  'THIRD_PLACE': 'MATCH POUR LA 3E PLACE',
+  'THIRD_PLACE': 'MATCH POUR LA 3e PLACE',
   'FINAL': 'FINALE',
 };
 
@@ -96,8 +96,24 @@ function findBestMatch(
   return bestMatch;
 }
 
-// GET /api/knockout/sync - Fetch knockout teams from football-data.org API
-export async function GET() {
+// Verify cron secret (Vercel cron header or Bearer CRON_SECRET)
+function verifyCronSecret(request: NextRequest): boolean {
+  if (request.headers.get('x-vercel-cron')) return true;
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) return false;
+  return request.headers.get('authorization') === `Bearer ${cronSecret}`;
+}
+
+// GET /api/knockout/sync - Vercel cron (x-vercel-cron) or Bearer CRON_SECRET only.
+export async function GET(request: NextRequest) {
+  if (!verifyCronSecret(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  return runKnockoutSync();
+}
+
+// Fetch knockout teams from football-data.org API and upsert team overrides.
+async function runKnockoutSync() {
   const response: SyncResponse = {
     success: false,
     apiConnected: false,
@@ -217,13 +233,12 @@ export async function GET() {
   }
 }
 
-// POST /api/knockout/sync - Same as GET but requires admin auth
+// POST /api/knockout/sync - Same sync but gated behind admin auth (manual trigger).
 export async function POST() {
   const user = await getSessionUser();
   if (!user?.is_admin) {
     return NextResponse.json({ error: 'Admin required' }, { status: 403 });
   }
 
-  // Reuse GET logic
-  return GET();
+  return runKnockoutSync();
 }

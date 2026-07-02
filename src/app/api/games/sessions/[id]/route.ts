@@ -18,15 +18,50 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
   const supabase = getSupabaseAdmin();
 
-  // Verify session exists
+  // Verify session exists and load current winner + participants
   const { data: existingSession, error: fetchError } = await supabase
     .from('game_sessions')
-    .select('id')
+    .select('id, winner_id, participants:game_participants(user_id)')
     .eq('id', id)
     .single();
 
   if (fetchError || !existingSession) {
     return NextResponse.json({ error: 'Session non trouvée' }, { status: 404 });
+  }
+
+  // Validate session_type up front
+  if (session_type !== undefined && !['individual', 'team'].includes(session_type)) {
+    return NextResponse.json(
+      { error: 'session_type invalide (individual ou team)' },
+      { status: 400 }
+    );
+  }
+
+  // Resolve the FINAL participant set and winner, then validate BEFORE writing
+  // anything — otherwise a bad body could leave a partial update, and a winner
+  // outside the participants would poison the ELO replay (NaN across the board).
+  let newParticipantIds: string[] | null = null;
+  if (participant_ids !== undefined) {
+    if (!Array.isArray(participant_ids) || participant_ids.length < 2) {
+      return NextResponse.json(
+        { error: 'Au moins 2 participants requis' },
+        { status: 400 }
+      );
+    }
+    newParticipantIds = participant_ids;
+  }
+
+  const finalParticipantIds =
+    newParticipantIds ??
+    (existingSession.participants as { user_id: string }[]).map((p) => p.user_id);
+  const finalWinnerId =
+    winner_id !== undefined ? (winner_id || null) : existingSession.winner_id;
+
+  if (finalWinnerId && !finalParticipantIds.includes(finalWinnerId)) {
+    return NextResponse.json(
+      { error: 'Le gagnant doit être un participant' },
+      { status: 400 }
+    );
   }
 
   // Build update object
@@ -47,12 +82,6 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   }
 
   if (session_type !== undefined) {
-    if (!['individual', 'team'].includes(session_type)) {
-      return NextResponse.json(
-        { error: 'session_type invalide (individual ou team)' },
-        { status: 400 }
-      );
-    }
     updateData.session_type = session_type;
   }
 
@@ -60,7 +89,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     updateData.winner_id = winner_id || null;
   }
 
-  // Update session
+  // Update session (validation already passed above)
   const { error: updateError } = await supabase
     .from('game_sessions')
     .update(updateData)
@@ -70,28 +99,11 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     throw new Error(`Erreur Supabase: ${updateError.message}`);
   }
 
-  // Update participants if provided
-  if (participant_ids && Array.isArray(participant_ids)) {
-    if (participant_ids.length < 2) {
-      return NextResponse.json(
-        { error: 'Au moins 2 participants requis' },
-        { status: 400 }
-      );
-    }
-
-    // Winner must be a participant
-    if (winner_id && !participant_ids.includes(winner_id)) {
-      return NextResponse.json(
-        { error: 'Le gagnant doit être un participant' },
-        { status: 400 }
-      );
-    }
-
-    // Delete existing participants
+  // Replace participants if a new set was provided (already validated)
+  if (newParticipantIds) {
     await supabase.from('game_participants').delete().eq('session_id', id);
 
-    // Add new participants
-    const participantInserts = participant_ids.map((pid: string) => ({
+    const participantInserts = newParticipantIds.map((pid: string) => ({
       session_id: id,
       user_id: pid,
     }));

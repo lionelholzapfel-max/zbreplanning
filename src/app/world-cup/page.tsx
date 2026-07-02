@@ -44,7 +44,7 @@ interface ScorePrediction {
   home_score: number;
   away_score: number;
   user?: { member_name: string; member_slug: string };
-  points?: { total: number; base: number; visionary: number; outsider: number; detail: string } | null;
+  points?: { total: number; base: number; visionary: number; detail: string } | null;
 }
 
 interface MatchPredictionState {

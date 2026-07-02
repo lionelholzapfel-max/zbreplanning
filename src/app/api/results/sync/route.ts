@@ -13,6 +13,7 @@ import {
   MatchScore,
 } from '@/lib/football-api';
 import matches from '@/data/matches.json';
+import { getCompetitionDay, updateDailyAwards } from '@/lib/awards';
 
 // For knockout matches, find by team overrides since our match names are placeholders
 async function findKnockoutMatchId(
@@ -85,9 +86,16 @@ interface SyncResponse {
   errors: string[];
 }
 
-// GET /api/results/sync - Vercel cron calls this with GET
-// Always run the sync (idempotent - safe to call multiple times)
-export async function GET() {
+// GET /api/results/sync - Vercel cron calls this with GET (x-vercel-cron header).
+// Idempotent, but still gated behind the cron secret so it can't be spammed publicly
+// (would burn the football-data.org quota and hammer the DB).
+export async function GET(request: NextRequest) {
+  if (!verifyCronSecret(request)) {
+    return NextResponse.json(
+      { error: 'Unauthorized - invalid CRON_SECRET' },
+      { status: 401 }
+    );
+  }
   return runSync();
 }
 
@@ -341,7 +349,7 @@ async function recordMatchResult(
       title: `${teams.home} ${homeScore}-${awayScore} ${teams.away}`,
       message: `Résultat ${source === 'auto' ? '(auto)' : ''} — ${pointsText}`,
       link: '/leaderboard',
-      created_by: 'system',
+      created_by: null, // auto-sync has no human author (FK would reject 'system')
       related_id: matchId.toString(),
     };
   });
@@ -353,127 +361,4 @@ async function recordMatchResult(
   await updateDailyAwards(supabase, competitionDay);
 }
 
-/**
- * Get the "competition day" (session) for a match
- * Session = soirée foot belge: 18h00 jour N → 08h59 jour N+1
- * Nouvelle session à 09h00
- *
- * Exemple session "15 juin":
- * - 15 juin 18h ✓
- * - 15 juin 21h ✓
- * - 16 juin 00h ✓
- * - 16 juin 03h ✓
- * - 16 juin 06h ✓
- * - 16 juin 08h ✓
- * - 16 juin 09h → nouvelle session "16 juin"
- *
- * Drère calculé à 09h01 chaque jour
- */
-function getCompetitionDay(date: string, time: string): string {
-  const hour = parseInt(time.split(':')[0], 10);
-
-  // If match is before 09:00 Belgian time, it belongs to the previous day's session
-  // (late night matches are part of the previous evening's session)
-  if (hour < 9) {
-    const d = new Date(date + 'T00:00:00');
-    d.setDate(d.getDate() - 1);
-    return d.toISOString().split('T')[0];
-  }
-
-  return date;
-}
-
-/**
- * Update daily Drère award
- * Awards the user(s) with most points for matches on a given competition day
- * Competition day: 06:00 to 05:59 next day (groups evening + late night matches)
- */
-async function updateDailyAwards(
-  supabase: ReturnType<typeof getSupabaseAdmin>,
-  dateStr: string
-) {
-  // Get all matches that belong to this competition day
-  const matchesOnCompetitionDay = (matches as any[]).filter(m =>
-    getCompetitionDay(m.date, m.time) === dateStr
-  );
-  if (matchesOnCompetitionDay.length === 0) return;
-
-  const matchIds = matchesOnCompetitionDay.map(m => m.id);
-
-  // Check which of these matches have results
-  const { data: resultsData } = await supabase
-    .from('match_results')
-    .select('match_id')
-    .in('match_id', matchIds);
-
-  if (!resultsData || resultsData.length === 0) return;
-
-  const completedMatchIds = resultsData.map(r => r.match_id);
-
-  // Get points for completed matches on this date
-  const { data: pointsData } = await supabase
-    .from('points_log')
-    .select('user_id, total_points')
-    .in('match_id', completedMatchIds);
-
-  if (!pointsData || pointsData.length === 0) return;
-
-  // Sum points per user
-  const userPoints: Record<string, number> = {};
-  for (const p of pointsData) {
-    userPoints[p.user_id] = (userPoints[p.user_id] || 0) + p.total_points;
-  }
-
-  // Find max points
-  const maxPoints = Math.max(...Object.values(userPoints));
-  if (maxPoints === 0) return;
-
-  // Find users with max points (Drère)
-  const drereUsers = Object.entries(userPoints)
-    .filter(([, points]) => points === maxPoints)
-    .map(([userId]) => userId);
-
-  // Find min points (Type mzi = celui qui a le moins de points)
-  const minPoints = Math.min(...Object.values(userPoints));
-
-  // Find users with min points (Type mzi) - exclude if same as max (everyone tied)
-  const mziUsers = minPoints < maxPoints
-    ? Object.entries(userPoints)
-        .filter(([, points]) => points === minPoints)
-        .map(([userId]) => userId)
-    : [];
-
-  // Create Drère daily awards
-  await supabase
-    .from('daily_awards')
-    .delete()
-    .eq('award_date', dateStr)
-    .eq('award_type', 'drere');
-
-  const drereAwards = drereUsers.map(userId => ({
-    user_id: userId,
-    award_date: dateStr,
-    award_type: 'drere' as const,
-    points_earned: maxPoints,
-  }));
-
-  await supabase.from('daily_awards').insert(drereAwards);
-
-  // Create Type mzi daily awards
-  await supabase
-    .from('daily_awards')
-    .delete()
-    .eq('award_date', dateStr)
-    .eq('award_type', 'mzi');
-
-  if (mziUsers.length > 0) {
-    const mziAwards = mziUsers.map(userId => ({
-      user_id: userId,
-      award_date: dateStr,
-      award_type: 'mzi' as const,
-      points_earned: minPoints,
-    }));
-
-    await supabase.from('daily_awards').insert(mziAwards);
-  }
-}
+// getCompetitionDay + updateDailyAwards live in '@/lib/awards' (shared with the admin route).

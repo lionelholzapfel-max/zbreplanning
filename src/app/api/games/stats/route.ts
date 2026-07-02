@@ -133,8 +133,8 @@ export async function GET(request: NextRequest) {
 
   // Filter participants by period (Supabase returns relations as arrays)
   const filteredParticipants = (allParticipants || []).filter((p) => {
-    const sessionArr = p.session as unknown as { played_at: string }[] | null;
-    const session = sessionArr?.[0];
+    // supabase-js returns to-one embeds as an object (not an array)
+    const session = p.session as unknown as { played_at: string } | null;
     if (!session) return false;
     if (!periodStartDate) return true;
     return new Date(session.played_at) >= periodStartDate;
@@ -169,9 +169,8 @@ export async function GET(request: NextRequest) {
   for (const session of sessions || []) {
     const winnerId = session.winner_id;
     const gameId = session.game_id;
-    // Supabase returns relations as arrays
-    const winnerArr = session.winner as unknown as { id: string; member_name: string }[] | null;
-    const winner = winnerArr?.[0];
+    // supabase-js returns to-one embeds as an object (not an array)
+    const winner = session.winner as unknown as { id: string; member_name: string } | null;
 
     if (!winnerId || !winner) continue;
 
@@ -227,11 +226,9 @@ export async function GET(request: NextRequest) {
   const ratioData: { [userId: string]: { gamesPlayed: number; wins: number; userName: string; memberSlug: string } } = {};
 
   for (const participant of filteredParticipants) {
-    // Supabase returns relations as arrays
-    const sessionArr = participant.session as unknown as { id: string; session_type: string; winner_id: string | null }[] | null;
-    const session = sessionArr?.[0];
-    const userInfoArr = participant.user as unknown as { id: string; member_name: string; member_slug: string }[] | null;
-    const userInfo = userInfoArr?.[0];
+    // supabase-js returns to-one embeds as objects (not arrays)
+    const session = participant.session as unknown as { id: string; session_type: string; winner_id: string | null } | null;
+    const userInfo = participant.user as unknown as { id: string; member_name: string; member_slug: string } | null;
 
     if (!session || session.session_type !== 'individual' || !userInfo) continue;
 

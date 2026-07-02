@@ -76,6 +76,29 @@ export interface StreakRecordWithHolders {
   holders: StreakRecordHolder[];
 }
 
+export interface CountRecordHolder {
+  user_id: string;
+  member_name: string;
+  member_slug: string;
+}
+
+export interface CountRecordWithHolders {
+  count: number;
+  holders: CountRecordHolder[];
+}
+
+export interface AverageRecordHolder {
+  user_id: string;
+  member_name: string;
+  member_slug: string;
+  matches_predicted: number;
+}
+
+export interface AverageRecordWithHolders {
+  average: number;
+  holders: AverageRecordHolder[];
+}
+
 /**
  * Get the boundaries of the CURRENT week (ongoing)
  * Week starts Monday at 6am UTC and runs until next Monday 6am
@@ -142,7 +165,7 @@ export async function GET() {
     // Get all match points
     const { data: pointsData } = await supabase
       .from('points_log')
-      .select('user_id, total_points, base_points, visionary_bonus, outsider_bonus');
+      .select('user_id, total_points, base_points, visionary_bonus');
 
     // Get global prediction points (+20 per correct)
     let globalPointsData: Array<{ user_id: string; points_awarded: number }> = [];
@@ -202,6 +225,13 @@ export async function GET() {
       .from('daily_awards')
       .select('user_id, award_date')
       .eq('award_type', 'drere_week')
+      .order('award_date', { ascending: true });
+
+    // Get all MZI awards for streak calculation (sorted by date)
+    const { data: allMziAwards } = await supabase
+      .from('daily_awards')
+      .select('user_id, award_date')
+      .eq('award_type', 'mzi')
       .order('award_date', { ascending: true });
 
     // Get Drère for display (previous competition day) with points earned
@@ -381,19 +411,28 @@ export async function GET() {
     // Calculate current week race (points accumulated this week so far)
     const { weekStart, weekEnd } = getCurrentWeekBoundaries(now);
 
-    const { data: weekPointsData } = await supabase
-      .from('points_log')
-      .select(`
-        user_id,
-        total_points,
-        match_results!inner(entered_at)
-      `)
-      .gte('match_results.entered_at', weekStart.toISOString())
-      .lt('match_results.entered_at', weekEnd.toISOString());
+    // First get match_ids that fall within this week
+    const { data: weekMatchResults } = await supabase
+      .from('match_results')
+      .select('match_id')
+      .gte('entered_at', weekStart.toISOString())
+      .lt('entered_at', weekEnd.toISOString());
+
+    const weekMatchIds = (weekMatchResults || []).map(r => r.match_id);
+
+    // Then get points for those matches
+    let weekPointsData: Array<{ user_id: string; total_points: number }> = [];
+    if (weekMatchIds.length > 0) {
+      const { data } = await supabase
+        .from('points_log')
+        .select('user_id, total_points')
+        .in('match_id', weekMatchIds);
+      weekPointsData = data || [];
+    }
 
     // Sum points per user for the current week
     const weekPointsByUser: Record<string, number> = {};
-    for (const p of weekPointsData || []) {
+    for (const p of weekPointsData) {
       weekPointsByUser[p.user_id] = (weekPointsByUser[p.user_id] || 0) + p.total_points;
     }
 
@@ -602,6 +641,284 @@ export async function GET() {
       }
     }
 
+    // Build count records (most drère du jour, most mzi du jour, most exact scores)
+    // All records support ties (multiple holders)
+    let mostDrereRecord: CountRecordWithHolders | null = null;
+    let mostMziRecord: CountRecordWithHolders | null = null;
+    let mostExactScoresRecord: CountRecordWithHolders | null = null;
+
+    // Find all users with most drère du jour
+    const maxDrereCount = Math.max(0, ...Object.values(crownCounts));
+    if (maxDrereCount > 0) {
+      const holders: CountRecordHolder[] = Object.entries(crownCounts)
+        .filter(([, c]) => c === maxDrereCount)
+        .map(([userId]) => {
+          const member = MEMBERS.find(m => m.id === userId);
+          return {
+            user_id: userId,
+            member_name: member?.name || 'Unknown',
+            member_slug: member?.slug || '',
+          };
+        })
+        .filter(h => h.member_slug !== '');
+
+      if (holders.length > 0) {
+        mostDrereRecord = { count: maxDrereCount, holders };
+      }
+    }
+
+    // Find all users with most mzi du jour
+    const maxMziCount = Math.max(0, ...Object.values(mziCounts));
+    if (maxMziCount > 0) {
+      const holders: CountRecordHolder[] = Object.entries(mziCounts)
+        .filter(([, c]) => c === maxMziCount)
+        .map(([userId]) => {
+          const member = MEMBERS.find(m => m.id === userId);
+          return {
+            user_id: userId,
+            member_name: member?.name || 'Unknown',
+            member_slug: member?.slug || '',
+          };
+        })
+        .filter(h => h.member_slug !== '');
+
+      if (holders.length > 0) {
+        mostMziRecord = { count: maxMziCount, holders };
+      }
+    }
+
+    // Find all users with most exact scores
+    const exactScoreCounts: Record<string, number> = {};
+    for (const member of MEMBERS) {
+      exactScoreCounts[member.id] = userStats[member.id]?.exact_scores || 0;
+    }
+    const maxExactCount = Math.max(0, ...Object.values(exactScoreCounts));
+    if (maxExactCount > 0) {
+      const holders: CountRecordHolder[] = Object.entries(exactScoreCounts)
+        .filter(([, c]) => c === maxExactCount)
+        .map(([userId]) => {
+          const member = MEMBERS.find(m => m.id === userId);
+          return {
+            user_id: userId,
+            member_name: member?.name || 'Unknown',
+            member_slug: member?.slug || '',
+          };
+        })
+        .filter(h => h.member_slug !== '');
+
+      if (holders.length > 0) {
+        mostExactScoresRecord = { count: maxExactCount, holders };
+      }
+    }
+
+    // Find all users with most visionary bonuses
+    let mostVisionaryRecord: CountRecordWithHolders | null = null;
+    const visionaryCounts: Record<string, number> = {};
+    for (const member of MEMBERS) {
+      visionaryCounts[member.id] = userStats[member.id]?.visionary_count || 0;
+    }
+    const maxVisionaryCount = Math.max(0, ...Object.values(visionaryCounts));
+    if (maxVisionaryCount > 0) {
+      const holders: CountRecordHolder[] = Object.entries(visionaryCounts)
+        .filter(([, c]) => c === maxVisionaryCount)
+        .map(([userId]) => {
+          const member = MEMBERS.find(m => m.id === userId);
+          return {
+            user_id: userId,
+            member_name: member?.name || 'Unknown',
+            member_slug: member?.slug || '',
+          };
+        })
+        .filter(h => h.member_slug !== '');
+
+      if (holders.length > 0) {
+        mostVisionaryRecord = { count: maxVisionaryCount, holders };
+      }
+    }
+
+    // Find best average points per match (minimum 10 matches to qualify)
+    let bestAverageRecord: AverageRecordWithHolders | null = null;
+    const MIN_MATCHES_FOR_AVERAGE = 10;
+    const userAverages: Record<string, { average: number; matches: number }> = {};
+    for (const member of MEMBERS) {
+      const stats = userStats[member.id];
+      if (stats && stats.matches_predicted >= MIN_MATCHES_FOR_AVERAGE) {
+        const avg = Math.round((stats.match_points / stats.matches_predicted) * 100) / 100;
+        userAverages[member.id] = { average: avg, matches: stats.matches_predicted };
+      }
+    }
+    if (Object.keys(userAverages).length > 0) {
+      const maxAverage = Math.max(...Object.values(userAverages).map(u => u.average));
+      const holders: AverageRecordHolder[] = Object.entries(userAverages)
+        .filter(([, u]) => u.average === maxAverage)
+        .map(([userId, u]) => {
+          const member = MEMBERS.find(m => m.id === userId);
+          return {
+            user_id: userId,
+            member_name: member?.name || 'Unknown',
+            member_slug: member?.slug || '',
+            matches_predicted: u.matches,
+          };
+        })
+        .filter(h => h.member_slug !== '');
+
+      if (holders.length > 0) {
+        bestAverageRecord = { average: maxAverage, holders };
+      }
+    }
+
+    // Calculate MZI streak record (consecutive days being MZI - the shame record)
+    let mziStreakRecord: StreakRecordWithHolders | null = null;
+    if (allMziAwards && allMziAwards.length > 0) {
+      const userMziDates: Record<string, string[]> = {};
+      for (const award of allMziAwards) {
+        if (!userMziDates[award.user_id]) {
+          userMziDates[award.user_id] = [];
+        }
+        if (!userMziDates[award.user_id].includes(award.award_date)) {
+          userMziDates[award.user_id].push(award.award_date);
+        }
+      }
+
+      const allMziStreaks: Array<{ userId: string; streak: number; startDate: string; endDate: string }> = [];
+
+      for (const [userId, dates] of Object.entries(userMziDates)) {
+        const sortedDates = dates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+        let currentStreak = 1;
+        let currentStart = sortedDates[0];
+        let currentEnd = sortedDates[0];
+        let userBestStreak = { streak: 1, startDate: sortedDates[0], endDate: sortedDates[0] };
+
+        for (let i = 1; i < sortedDates.length; i++) {
+          const prevDate = new Date(sortedDates[i - 1]);
+          const currDate = new Date(sortedDates[i]);
+          const daysDiff = Math.round((currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+
+          if (daysDiff === 1) {
+            currentStreak++;
+            currentEnd = sortedDates[i];
+          } else {
+            if (currentStreak > userBestStreak.streak) {
+              userBestStreak = { streak: currentStreak, startDate: currentStart, endDate: currentEnd };
+            }
+            currentStreak = 1;
+            currentStart = sortedDates[i];
+            currentEnd = sortedDates[i];
+          }
+        }
+        if (currentStreak > userBestStreak.streak) {
+          userBestStreak = { streak: currentStreak, startDate: currentStart, endDate: currentEnd };
+        }
+
+        if (userBestStreak.streak >= 1) {
+          allMziStreaks.push({ userId, ...userBestStreak });
+        }
+      }
+
+      const maxMziStreak = Math.max(0, ...allMziStreaks.map(s => s.streak));
+
+      if (maxMziStreak >= 2) {
+        const holders: StreakRecordHolder[] = allMziStreaks
+          .filter(s => s.streak === maxMziStreak)
+          .map(s => {
+            const member = MEMBERS.find(m => m.id === s.userId);
+            return {
+              user_id: s.userId,
+              member_name: member?.name || 'Unknown',
+              member_slug: member?.slug || '',
+              start_date: s.startDate,
+              end_date: s.endDate,
+            };
+          });
+
+        mziStreakRecord = {
+          streak: maxMziStreak,
+          holders,
+        };
+      }
+    }
+
+    // Calculate longest streak without MZI (for users who have participated)
+    // This requires knowing all competition days and finding gaps in MZI awards
+    let longestWithoutMziRecord: StreakRecordWithHolders | null = null;
+
+    // Get all unique competition days from daily_awards
+    const { data: allCompetitionDays } = await supabase
+      .from('daily_awards')
+      .select('award_date')
+      .order('award_date', { ascending: true });
+
+    if (allCompetitionDays && allCompetitionDays.length > 0) {
+      const uniqueDays = [...new Set(allCompetitionDays.map(d => d.award_date))].sort();
+
+      // For each user who has participated, calculate their longest streak without MZI
+      const allWithoutMziStreaks: Array<{ userId: string; streak: number; startDate: string; endDate: string }> = [];
+
+      for (const member of MEMBERS) {
+        // Skip users who haven't played
+        if (!userStats[member.id] || userStats[member.id].matches_predicted === 0) continue;
+
+        const userMziDays = new Set(
+          (allMziAwards || [])
+            .filter(a => a.user_id === member.id)
+            .map(a => a.award_date)
+        );
+
+        let currentStreak = 0;
+        let currentStart = '';
+        let currentEnd = '';
+        let userBestStreak = { streak: 0, startDate: '', endDate: '' };
+
+        for (const day of uniqueDays) {
+          if (!userMziDays.has(day)) {
+            // Not MZI on this day
+            if (currentStreak === 0) {
+              currentStart = day;
+            }
+            currentStreak++;
+            currentEnd = day;
+          } else {
+            // Was MZI - streak ends
+            if (currentStreak > userBestStreak.streak) {
+              userBestStreak = { streak: currentStreak, startDate: currentStart, endDate: currentEnd };
+            }
+            currentStreak = 0;
+          }
+        }
+        // Check final streak
+        if (currentStreak > userBestStreak.streak) {
+          userBestStreak = { streak: currentStreak, startDate: currentStart, endDate: currentEnd };
+        }
+
+        if (userBestStreak.streak >= 2) {
+          allWithoutMziStreaks.push({ userId: member.id, ...userBestStreak });
+        }
+      }
+
+      const maxWithoutMziStreak = Math.max(0, ...allWithoutMziStreaks.map(s => s.streak));
+
+      if (maxWithoutMziStreak >= 2) {
+        const holders: StreakRecordHolder[] = allWithoutMziStreaks
+          .filter(s => s.streak === maxWithoutMziStreak)
+          .map(s => {
+            const member = MEMBERS.find(m => m.id === s.userId);
+            return {
+              user_id: s.userId,
+              member_name: member?.name || 'Unknown',
+              member_slug: member?.slug || '',
+              start_date: s.startDate,
+              end_date: s.endDate,
+            };
+          });
+
+        longestWithoutMziRecord = {
+          streak: maxWithoutMziStreak,
+          holders,
+        };
+      }
+    }
+
     return NextResponse.json({
       leaderboard: entries,
       stats,
@@ -620,6 +937,13 @@ export async function GET() {
       weekly_record: weeklyRecord,
       daily_streak_record: dailyStreakRecord,
       weekly_streak_record: weeklyStreakRecord,
+      most_drere_record: mostDrereRecord,
+      most_mzi_record: mostMziRecord,
+      most_exact_scores_record: mostExactScoresRecord,
+      most_visionary_record: mostVisionaryRecord,
+      best_average_record: bestAverageRecord,
+      mzi_streak_record: mziStreakRecord,
+      longest_without_mzi_record: longestWithoutMziRecord,
     });
   } catch (error) {
     return NextResponse.json(

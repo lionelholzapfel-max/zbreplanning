@@ -159,6 +159,10 @@ export interface ApiMatch {
       home: number | null;
       away: number | null;
     };
+    regularTime?: {
+      home: number | null;
+      away: number | null;
+    };
     extraTime?: {
       home: number | null;
       away: number | null;
@@ -281,8 +285,8 @@ export function findOurMatchId(
  * Score result for a match
  */
 export interface MatchScore {
-  home: number;          // Score for predictions (fullTime = includes extra time)
-  away: number;          // Score for predictions (fullTime = includes extra time)
+  home: number;          // Recorded score = end of play (extra time incl., shootout excluded)
+  away: number;          // Recorded score = end of play (extra time incl., shootout excluded)
   qualifier?: 'home' | 'away';  // Who qualified (knockout only, for +1 bonus)
   hadExtraTime: boolean;
   hadPenalties: boolean;
@@ -297,14 +301,15 @@ export interface MatchScore {
  *   - Draw is possible if match goes to penalties (e.g., 1-1 after extra time)
  *   - Qualifier bonus (+1) is separate from score prediction
  *
- * IMPORTANT: football-data.org API structure:
- * - fullTime: cumulative score at end of match (90min or 120min)
- * - halfTime: score at halftime
- * - extraTime: goals scored ONLY during extra time period (not cumulative!)
- * - penalties: penalty shootout score
+ * football-data.org v4 score fields (docs.football-data.org/general/v4/overtime):
+ * - fullTime:    FINAL score, penalty shootout goals INCLUDED (e.g. 7-6 = 1-1 + 6-5 pens)
+ * - regularTime: score after 90 min
+ * - extraTime:   goals scored ONLY during the extra-time period (not cumulative)
+ * - penalties:   penalty shootout goals only
  *
- * For penalty shootouts, fullTime should be the score after 120 min.
- * If fullTime equals penalties score, the API is broken - we detect and fix this.
+ * We record the score at the END OF PLAY (before the shootout):
+ *   REGULAR / EXTRA_TIME → fullTime (no shootout to strip)
+ *   PENALTY_SHOOTOUT     → regularTime + extraTime  (== fullTime - penalties, always a draw)
  */
 export function getFinalScore(apiMatch: ApiMatch): MatchScore | null {
   if (apiMatch.status !== 'FINISHED') return null;
@@ -316,41 +321,28 @@ export function getFinalScore(apiMatch: ApiMatch): MatchScore | null {
   const hadExtraTime = duration === 'EXTRA_TIME' || duration === 'PENALTY_SHOOTOUT';
   const hadPenalties = duration === 'PENALTY_SHOOTOUT';
 
+  // fullTime is correct for REGULAR and EXTRA_TIME. For a PENALTY_SHOOTOUT it also
+  // includes the shootout goals, so strip them: end-of-play = regularTime + extraTime
+  // (equivalently fullTime - penalties), which is always a draw.
   let home: number = ft.home;
   let away: number = ft.away;
 
-  // Check if API incorrectly put penalty score in fullTime
-  // Detection: if fullTime equals penalties, it's wrong - fullTime should be a draw for penalties
-  if (hadPenalties && apiMatch.score.penalties) {
+  if (hadPenalties) {
+    const reg = apiMatch.score.regularTime;
+    const et = apiMatch.score.extraTime;
     const pens = apiMatch.score.penalties;
-    if (pens.home !== null && pens.away !== null) {
-      // If fullTime matches penalty score, the API made a mistake
-      if (ft.home === pens.home && ft.away === pens.away) {
-        // fullTime has penalty score - we need to calculate real score
-        // Use halfTime + extraTime goals if available
-        const ht = apiMatch.score.halfTime;
-        const et = apiMatch.score.extraTime;
 
-        if (ht.home !== null && ht.away !== null && et && et.home !== null && et.away !== null) {
-          // Calculate: we don't have 2nd half score directly
-          // But if extraTime shows 0-0, the match score stayed same as before ET
-          // This is a heuristic - we assume fullTime is wrong
-          // Best guess: the score was equal going into penalties
-          // Common scores: 0-0, 1-1, 2-2, etc.
-          // We'll use halfTime + extraTime as approximation, but this might not be accurate
-          // Actually - for now, let's just assume it was the halfTime score if no goals in ET
-          if (et.home === 0 && et.away === 0) {
-            // No goals in extra time, but we still don't know 2nd half
-            // This is tricky - we can't reliably determine the score
-            // Return null to skip this match and let admin enter manually
-            console.warn(`Match ${apiMatch.id}: Cannot determine score - fullTime has penalty score`);
-            // For now, assume it was a draw at halftime score level or close
-            // Most penalty shootouts end with tied scores like 1-1, 2-2
-            // We'll return null and let admin fix it
-            return null;
-          }
-        }
-      }
+    if (reg && reg.home !== null && reg.away !== null) {
+      home = reg.home + (et?.home ?? 0);
+      away = reg.away + (et?.away ?? 0);
+    } else if (pens && pens.home !== null && pens.away !== null) {
+      // Fallback when regularTime is absent: remove the shootout from fullTime.
+      home = ft.home - pens.home;
+      away = ft.away - pens.away;
+    } else {
+      // Not enough data to know the real end-of-play score — skip rather than
+      // record the shootout-inflated fullTime. Admin can enter it manually.
+      return null;
     }
   }
 
