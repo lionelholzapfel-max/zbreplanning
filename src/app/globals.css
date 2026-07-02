@@ -130,6 +130,14 @@ body {
 }
 .animate-live { animation: live-pulse 1.6s ease-in-out infinite; }
 
+/* Short shake for invalid input (e.g. wrong PIN) */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+.animate-shake { animation: shake 0.2s ease-in-out; }
+
 /* Glass — legacy surface, kept for not-yet-refactored chrome (repointed to new tokens) */
 .glass {
   background: rgba(19, 19, 22, 0.72);
