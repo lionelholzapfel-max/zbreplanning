@@ -811,13 +811,20 @@ export function useSupabase() {
 
     if (error || !activities) return [];
 
-    const results = await Promise.all(activities.map(async (activity) => {
-      const { data: participations } = await supabase
-        .from('activity_participations')
-        .select('*, users(member_name, member_slug)')
-        .eq('activity_id', activity.id);
+    // Batch: one query for the participations of all these activities (was N+1)
+    const activityIds = activities.map(a => a.id);
+    const { data: allParts } = await supabase
+      .from('activity_participations')
+      .select('*, users(member_name, member_slug)')
+      .in('activity_id', activityIds);
 
-      const parts = participations || [];
+    const partsByActivity: Record<string, ActivityParticipation[]> = {};
+    for (const p of (allParts || []) as ActivityParticipation[]) {
+      (partsByActivity[p.activity_id] ||= []).push(p);
+    }
+
+    return activities.map((activity) => {
+      const parts = partsByActivity[activity.id] || [];
       const yesCount = parts.filter(p => p.status === 'yes').length;
       const myStatus = currentUser
         ? (parts.find(p => p.user_id === currentUser.id)?.status as 'yes' | 'no' | 'maybe' | null) || null
@@ -831,9 +838,7 @@ export function useSupabase() {
         isConfirmed: yesCount >= 5,
         myStatus,
       };
-    }));
-
-    return results;
+    });
   }, [supabase, currentUser]);
 
   // Get upcoming matches user is attending

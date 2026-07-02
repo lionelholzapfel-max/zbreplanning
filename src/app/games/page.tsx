@@ -3,9 +3,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
+import Image from 'next/image';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useSupabase } from '@/hooks/useSupabase';
+import { toast } from 'sonner';
 import { Star, Trophy, Users, Plus, ChevronRight, Pencil, Trash2, TrendingUp, Activity, Calendar } from 'lucide-react';
 
 type PeriodFilter = '7d' | 'month' | 'all';
@@ -176,7 +178,12 @@ export default function GamesPage() {
         setNewGameName('');
         setShowCreateGame(false);
         loadData();
+        toast.success('Jeu créé ! 🎮');
+      } else {
+        toast.error('Erreur lors de la création du jeu');
       }
+    } catch {
+      toast.error('Erreur réseau, réessaie');
     } finally {
       setLoading(false);
     }
@@ -208,7 +215,12 @@ export default function GamesPage() {
         });
         setShowCreateSession(false);
         loadData();
+        toast.success('Partie enregistrée ! ⭐');
+      } else {
+        toast.error("Erreur lors de l'enregistrement de la partie");
       }
+    } catch {
+      toast.error('Erreur réseau, réessaie');
     } finally {
       setLoading(false);
     }
@@ -262,7 +274,13 @@ export default function GamesPage() {
       if (res.ok) {
         setEditingSession(null);
         loadData();
+        toast.success('Partie modifiée');
+      } else {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error || 'Erreur lors de la modification');
       }
+    } catch {
+      toast.error('Erreur réseau, réessaie');
     } finally {
       setLoading(false);
     }
@@ -280,7 +298,12 @@ export default function GamesPage() {
       if (res.ok) {
         setDeleteSession(null);
         loadData();
+        toast.success('Partie supprimée');
+      } else {
+        toast.error('Erreur lors de la suppression');
       }
+    } catch {
+      toast.error('Erreur réseau, réessaie');
     } finally {
       setLoading(false);
     }
@@ -297,7 +320,7 @@ export default function GamesPage() {
   if (!mounted || userLoading) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#6366f1]" />
+        <div className="animate-spin w-8 h-8 border-4 border-[#6366f1] border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -412,7 +435,20 @@ export default function GamesPage() {
                           {entry.rank}
                         </span>
                       </td>
-                      <td className="px-4 py-3 font-medium text-white">{entry.userName}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="relative w-8 h-8 rounded-full overflow-hidden ring-1 ring-white/10 shrink-0">
+                            <Image
+                              src={`/members/${entry.memberSlug}.png`}
+                              alt={entry.userName}
+                              fill
+                              sizes="32px"
+                              className="object-cover object-top"
+                            />
+                          </div>
+                          <span className="font-medium text-white">{entry.userName}</span>
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-right">
                         <span className="font-mono font-bold text-[#a855f7]">{entry.elo}</span>
                       </td>
