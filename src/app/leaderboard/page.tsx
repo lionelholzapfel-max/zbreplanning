@@ -407,16 +407,47 @@ export default function LeaderboardPage() {
         </section>
       )}
 
+      {/* Podium top 3 */}
+      {activePlayers.length >= 3 && (
+        <section className="max-w-4xl mx-auto px-4 pt-4 pb-2">
+          <div className="flex items-end justify-center gap-2 sm:gap-6">
+            {[
+              { entry: activePlayers[1], place: 2, ring: 'ring-gray-300', step: 'h-16 sm:h-20', bg: 'from-gray-400/30 to-gray-500/5', medal: '🥈' },
+              { entry: activePlayers[0], place: 1, ring: 'ring-[#fbbf24]', step: 'h-24 sm:h-28', bg: 'from-[#fbbf24]/40 to-[#fbbf24]/5', medal: '🥇' },
+              { entry: activePlayers[2], place: 3, ring: 'ring-[#cd7f32]', step: 'h-12 sm:h-16', bg: 'from-[#cd7f32]/30 to-[#cd7f32]/5', medal: '🥉' },
+            ].map(({ entry, place, ring, step, bg, medal }) => (
+              <div key={entry.user_id} className="flex flex-col items-center flex-1 max-w-[120px]">
+                <div className="text-2xl mb-1">{medal}</div>
+                <div className={`relative rounded-full overflow-hidden ring-4 ${ring} ${place === 1 ? 'w-20 h-20 sm:w-24 sm:h-24' : 'w-14 h-14 sm:w-16 sm:h-16'}`}>
+                  <Image
+                    src={`/members/${entry.member_slug}.png`}
+                    alt={entry.member_name}
+                    fill
+                    sizes="96px"
+                    className="object-cover object-top"
+                  />
+                </div>
+                <p className="mt-2 font-bold text-white text-sm truncate max-w-full">{entry.member_name.split(' ')[0]}</p>
+                <p className={`font-black ${place === 1 ? 'text-[#fbbf24] text-lg' : 'text-gray-300'}`}>{entry.total_points}</p>
+                <div className={`mt-1 w-full rounded-t-xl bg-gradient-to-b ${bg} border-t border-white/10 ${step} flex items-start justify-center pt-1`}>
+                  <span className="text-lg font-black text-white/40">{place}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Main Leaderboard */}
       <section className="max-w-4xl mx-auto px-4 pb-8">
         <div className="bg-[#12121a] rounded-3xl border border-white/10 overflow-hidden">
           <div className="grid grid-cols-12 gap-2 px-6 py-4 bg-[#1e1e2e] text-sm text-gray-400 font-medium">
             <div className="col-span-1">#</div>
-            <div className="col-span-4">Membre</div>
-            <div className="col-span-2 text-center">Points</div>
+            <div className="col-span-6 sm:col-span-4">Membre</div>
+            <div className="col-span-3 sm:col-span-2 text-center">Points</div>
             <div className="col-span-2 text-center hidden sm:block">Pronos</div>
             <div className="col-span-2 text-center hidden sm:block">Exacts</div>
-            <div className="col-span-1 text-center">👑</div>
+            <div className="col-span-2 sm:col-span-1 text-center">👑</div>
           </div>
 
           {activePlayers.map((entry, index) => {
@@ -444,7 +475,7 @@ export default function LeaderboardPage() {
                 </div>
 
                 {/* Member */}
-                <div className="col-span-4 flex items-center gap-3">
+                <div className="col-span-6 sm:col-span-4 flex items-center gap-3">
                   <div className="relative">
                     <div className={`w-10 h-10 rounded-full overflow-hidden relative ${
                       entry.is_drere_today ? 'ring-2 ring-[#fbbf24]' : ''
@@ -479,7 +510,7 @@ export default function LeaderboardPage() {
                 </div>
 
                 {/* Points */}
-                <div className="col-span-2 text-center">
+                <div className="col-span-3 sm:col-span-2 text-center">
                   <span className={`text-xl font-bold ${
                     entry.rank === 1 ? 'text-[#fbbf24]' :
                     entry.rank === 2 ? 'text-gray-300' :
@@ -501,7 +532,7 @@ export default function LeaderboardPage() {
                       {isFainéant && <span className="ml-1">😴</span>}
                     </span>
                   ) : (
-                    <span className="text-gray-600">-</span>
+                    <span className="text-gray-500">-</span>
                   )}
                 </div>
 
@@ -512,16 +543,16 @@ export default function LeaderboardPage() {
                       🎯 {entry.exact_scores}
                     </span>
                   ) : (
-                    <span className="text-gray-600">-</span>
+                    <span className="text-gray-500">-</span>
                   )}
                 </div>
 
                 {/* Crowns */}
-                <div className="col-span-1 text-center">
+                <div className="col-span-2 sm:col-span-1 text-center">
                   {entry.crown_count > 0 ? (
                     <span className="text-[#fbbf24] font-bold">{entry.crown_count}</span>
                   ) : (
-                    <span className="text-gray-600">-</span>
+                    <span className="text-gray-500">-</span>
                   )}
                 </div>
               </div>

@@ -53,6 +53,7 @@ export default function Navbar() {
   if (loading || !currentUser) return null;
 
   return (
+    <>
     <nav className="sticky top-0 z-50 bg-[#0a0a0f] border-b border-white/10">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
@@ -135,24 +136,28 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Mobile Nav — flex-1 + min-w-0 so 6 items always fit without horizontal scroll */}
-        <div className="md:hidden flex items-stretch py-2 border-t border-white/5">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex-1 min-w-0 flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-lg transition-all ${
-                pathname === item.href
-                  ? 'text-[#6366f1]'
-                  : 'text-gray-400'
-              }`}
-            >
-              <span className="text-lg leading-none">{item.icon}</span>
-              <span className="text-[10px] font-medium leading-none truncate max-w-full">{item.mobileLabel}</span>
-            </Link>
-          ))}
-        </div>
       </div>
     </nav>
+
+    {/* Mobile bottom tab bar — native-app feel, thumb-friendly during matches */}
+    <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 glass border-t border-white/10 pb-[env(safe-area-inset-bottom)]">
+      <div className="flex items-stretch">
+        {navItems.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`flex-1 min-w-0 flex flex-col items-center gap-0.5 px-1 py-2 transition-all ${
+              pathname === item.href
+                ? 'text-[#6366f1]'
+                : 'text-gray-400'
+            }`}
+          >
+            <span className="text-xl leading-none">{item.icon}</span>
+            <span className="text-[10px] font-medium leading-none truncate max-w-full">{item.mobileLabel}</span>
+          </Link>
+        ))}
+      </div>
+    </nav>
+    </>
   );
 }

@@ -39,6 +39,13 @@ body {
   min-height: 100vh;
 }
 
+/* Clear the fixed mobile bottom tab bar so content isn't hidden behind it */
+@media (max-width: 767px) {
+  body {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+  }
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
