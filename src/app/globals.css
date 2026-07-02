@@ -1,42 +1,95 @@
 @import "tailwindcss";
 
+/* ============================================================================
+   ZbrePlanning — Dark Premium design system (Linear/Vercel-like)
+   ONE accent (green). Gold is RESERVED for Drère & 1st place only.
+   ============================================================================ */
+
 :root {
-  --background: #0a0a0f;
-  --foreground: #ffffff;
-  --primary: #6366f1;
-  --primary-hover: #818cf8;
-  --secondary: #1e1e2e;
-  --accent: #fbbf24;
-  --success: #22c55e;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --card: #12121a;
-  --card-hover: #1a1a25;
-  --border: #2a2a3a;
-  --muted: #6b7280;
+  /* Surfaces */
+  --bg: #0A0A0B;
+  --surface: #131316;
+  --surface-raised: #1A1A1E;
+
+  /* Hairlines */
+  --hairline: rgba(255, 255, 255, 0.08);
+  --hairline-strong: rgba(255, 255, 255, 0.14);
+
+  /* Text */
+  --text-primary: #FAFAFA;
+  --text-secondary: #A1A1AA;
+  --text-tertiary: #71717A;
+
+  /* Accent — green pitch. The ONLY accent color. */
+  --accent: #34D399;
+  --accent-muted: rgba(52, 211, 153, 0.12);
+
+  /* Gold — RESERVED for the Drère and 1st place. No other usage. */
+  --gold: #EAB308;
+
+  /* Feedback */
+  --danger: #F87171;
+  --live: #EF4444;
+
+  /* Radius */
+  --radius-card: 8px;
+  --radius-control: 6px;
+
+  /* Motion */
+  --transition: 150ms ease-out;
+
+  /* --- Backward-compat aliases so not-yet-refactored pages stay coherent --- */
+  --background: var(--bg);
+  --foreground: var(--text-primary);
+  --primary: var(--accent);
+  --primary-hover: var(--accent);
+  --secondary: var(--surface);
+  --card: var(--surface);
+  --card-hover: var(--surface-raised);
+  --border: var(--hairline-strong);
+  --muted: var(--text-tertiary);
+  --success: var(--accent);
+  --warning: var(--gold);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-primary: var(--primary);
-  --color-secondary: var(--secondary);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
   --color-accent: var(--accent);
-  --color-card: var(--card);
-  --color-border: var(--border);
-  --color-muted: var(--muted);
+  --color-accent-muted: var(--accent-muted);
+  --color-gold: var(--gold);
+  --color-danger: var(--danger);
+  --color-live: var(--live);
+
+  /* Legacy color tokens repointed onto the new palette */
+  --color-background: var(--bg);
+  --color-foreground: var(--text-primary);
+  --color-primary: var(--accent);
+  --color-secondary: var(--surface);
+  --color-card: var(--surface);
+  --color-border: var(--hairline-strong);
+  --color-muted: var(--text-tertiary);
+
   --font-sans: var(--font-inter);
-  /* Custom breakpoint used across the app via `xs:` utilities. It was never
-     defined, so every `xs:` class silently never matched (labels like
-     "Aujourd'hui" / "Créer une activité" stayed hidden at all sizes). */
   --breakpoint-xs: 30rem;
+
+  --radius-lg: 8px;
+  --radius-md: 6px;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg);
+  color: var(--text-primary);
   font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 /* Clear the fixed mobile bottom tab bar so content isn't hidden behind it */
@@ -46,238 +99,51 @@ body {
   }
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* Numbers — tabular + semibold. Use .stat on ALL figures (scores, points, ELO, ranks). */
+.stat {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }
 
-::-webkit-scrollbar-track {
-  background: var(--secondary);
+/* Meta / eyebrow labels: 12px uppercase, wide tracking, tertiary. */
+.eyebrow {
+  font-size: 12px;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
 }
 
-::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 4px;
-}
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--hairline-strong); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+.scrollbar-hide { scrollbar-width: none; -ms-overflow-style: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--muted);
+/* LIVE indicator dot pulse (subtle) */
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
 }
+.animate-live { animation: live-pulse 1.6s ease-in-out infinite; }
 
-/* Hide scrollbar (used on the horizontal filter bars) */
-.scrollbar-hide {
-  scrollbar-width: none;        /* Firefox */
-  -ms-overflow-style: none;     /* IE/Edge */
-}
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;                /* Chrome/Safari */
-}
-
-/* Glass effect */
+/* Glass — legacy surface, kept for not-yet-refactored chrome (repointed to new tokens) */
 .glass {
-  background: rgba(18, 18, 26, 0.8);
+  background: rgba(19, 19, 22, 0.72);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--hairline);
 }
 
-/* Gradient text */
-.gradient-text {
-  background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* World Cup theme */
-.world-cup-gradient {
-  background: linear-gradient(135deg, #1a472a 0%, #2d5a3d 50%, #1a472a 100%);
-}
-
-.world-cup-gold {
-  color: #fbbf24;
-}
-
-/* Animation */
-@keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
-  }
-  50% {
-    box-shadow: 0 0 40px rgba(99, 102, 241, 0.6);
-  }
-}
-
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
-}
-
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-.animate-float {
-  animation: float 3s ease-in-out infinite;
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
-.animate-shimmer {
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-  background-size: 200% 100%;
-  animation: shimmer 2s infinite;
-}
-
-/* Status badges */
-.status-yes {
-  background: rgba(34, 197, 94, 0.2);
-  color: #22c55e;
-  border: 1px solid rgba(34, 197, 94, 0.3);
-}
-
-.status-no {
-  background: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
-.status-maybe {
-  background: rgba(251, 191, 36, 0.2);
-  color: #fbbf24;
-  border: 1px solid rgba(251, 191, 36, 0.3);
-}
-
-/* Card styles */
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  transition: all 0.3s ease;
-}
-
-.card:hover {
-  background: var(--card-hover);
-  border-color: var(--primary);
-  transform: translateY(-2px);
-}
-
-/* Button styles */
-.btn-primary {
-  background: var(--primary);
-  color: white;
-  padding: 12px 24px;
-  border-radius: 12px;
-  font-weight: 600;
-  transition: all 0.2s ease;
-}
-
-.btn-primary:hover {
-  background: var(--primary-hover);
-  transform: scale(1.02);
-}
-
-.btn-secondary {
-  background: var(--secondary);
-  color: white;
-  padding: 12px 24px;
-  border-radius: 12px;
-  font-weight: 600;
-  border: 1px solid var(--border);
-  transition: all 0.2s ease;
-}
-
-.btn-secondary:hover {
-  border-color: var(--primary);
-}
-
-/* Match card */
-.match-card {
-  background: linear-gradient(135deg, #1a472a 0%, #0d2818 100%);
-  border: 1px solid rgba(251, 191, 36, 0.2);
-  border-radius: 16px;
-  overflow: hidden;
-}
-
-.match-card:hover {
-  border-color: rgba(251, 191, 36, 0.5);
-  box-shadow: 0 0 30px rgba(251, 191, 36, 0.1);
-}
-
-/* Team Facts Sheet animations */
-@keyframes slide-up {
-  from {
-    transform: translateY(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes pop-in {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-}
-
-.animate-slide-up {
-  animation: slide-up 0.3s ease-out forwards;
-}
-
-.animate-fade-in {
-  animation: fade-in 0.2s ease-out forwards;
-}
-
-.animate-pop-in {
-  animation: pop-in 0.2s ease-out forwards;
-}
-
-/* Drère celebration animation */
-@keyframes bounce-in {
-  0% {
-    opacity: 0;
-    transform: scale(0.3);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  70% {
-    transform: scale(0.9);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.animate-bounce-in {
-  animation: bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
-}
+/* ---- Preserved content animations (DrereCelebration + TeamFactsSheet folklore) ---- */
+@keyframes slide-up { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pop-in { from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes bounce-in { 0% { opacity: 0; transform: scale(0.3); } 50% { transform: scale(1.05); } 70% { transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
+.animate-slide-up { animation: slide-up 0.3s ease-out forwards; }
+.animate-fade-in { animation: fade-in 0.2s ease-out forwards; }
+.animate-pop-in { animation: pop-in 0.2s ease-out forwards; }
+.animate-bounce-in { animation: bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards; }

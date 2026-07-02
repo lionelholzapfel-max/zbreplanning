@@ -9,7 +9,6 @@ import { useSupabase, MatchParticipation, WatchLocation } from '@/hooks/useSupab
 import { useTeamOverrides } from '@/hooks/useTeamOverrides';
 import { MEMBERS } from '@/data/members';
 import { toast } from 'sonner';
-import confetti from 'canvas-confetti';
 import { TeamInfoButton } from '@/components/TeamFactsSheet';
 import { PHASES, PHASE_DISPLAY, PHASE_ORDER, GROUPS, isKnockoutPhase, getPhaseBadge, Phase } from '@/lib/constants';
 
@@ -184,16 +183,6 @@ export default function WorldCupPage() {
     const windowEnd = new Date(kickoff.getTime() + 150 * 60 * 1000); // 2h30 after
     return now >= windowStart && now <= windowEnd;
   }, [getMatchDateTime]);
-
-  // Fire confetti burst
-  const fireConfetti = useCallback(() => {
-    confetti({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 },
-      colors: ['#22c55e', '#fbbf24', '#6366f1', '#ec4899'],
-    });
-  }, []);
 
   // Get the first participant (by created_at) who said yes
   const getFirstYesParticipant = useCallback((matchId: number): string | null => {
@@ -750,9 +739,7 @@ export default function WorldCupPage() {
     // Check if we just hit 5 "yes" with this action
     const newYesCount = parts.filter(p => p.status === 'yes').length;
     if (status === 'yes' && prevYesCount < 5 && newYesCount >= 5) {
-      // Fire confetti for the person who triggered the 5th yes!
-      fireConfetti();
-      toast.success('Match confirmé ! 🎉', { icon: '🎊' });
+      toast.success('Match confirmé');
     }
 
     setLoadingMatch(null);
