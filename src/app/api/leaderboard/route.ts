@@ -162,118 +162,63 @@ export async function GET() {
       drereDisplayDate = yesterday.toISOString().split('T')[0];
     }
 
-    // Get all match points
-    const { data: pointsData } = await supabase
-      .from('points_log')
-      .select('user_id, total_points, base_points, visionary_bonus');
-
-    // Get global prediction points (+20 per correct)
-    let globalPointsData: Array<{ user_id: string; points_awarded: number }> = [];
-    try {
-      const { data, error } = await supabase
-        .from('global_prediction_points')
-        .select('user_id, points_awarded');
-      if (!error && data) {
-        globalPointsData = data;
-      }
-    } catch {
-      // Table might not exist yet - that's ok
-    }
-
-    // Get crown counts (Drère)
-    const { data: crownsData } = await supabase
-      .from('daily_awards')
-      .select('user_id')
-      .eq('award_type', 'drere');
-
-    // Get mzi counts (Type mzi)
-    const { data: mziData } = await supabase
-      .from('daily_awards')
-      .select('user_id')
-      .eq('award_type', 'mzi');
-
-    // Get Drère of the Week counts and total points
-    const { data: drereWeekData } = await supabase
-      .from('daily_awards')
-      .select('user_id, points_earned')
-      .eq('award_type', 'drere_week');
-
-    // Get records - highest points ever for daily and weekly drère
-    const { data: dailyRecordData } = await supabase
-      .from('daily_awards')
-      .select('user_id, points_earned, award_date')
-      .eq('award_type', 'drere')
-      .order('points_earned', { ascending: false })
-      .limit(1);
-
-    const { data: weeklyRecordData } = await supabase
-      .from('daily_awards')
-      .select('user_id, points_earned, award_date')
-      .eq('award_type', 'drere_week')
-      .order('points_earned', { ascending: false })
-      .limit(1);
-
-    // Get all daily drère awards for streak calculation (sorted by date)
-    const { data: allDailyDrere } = await supabase
-      .from('daily_awards')
-      .select('user_id, award_date')
-      .eq('award_type', 'drere')
-      .order('award_date', { ascending: true });
-
-    // Get all weekly drère awards for streak calculation (sorted by date)
-    const { data: allWeeklyDrere } = await supabase
-      .from('daily_awards')
-      .select('user_id, award_date')
-      .eq('award_type', 'drere_week')
-      .order('award_date', { ascending: true });
-
-    // Get all MZI awards for streak calculation (sorted by date)
-    const { data: allMziAwards } = await supabase
-      .from('daily_awards')
-      .select('user_id, award_date')
-      .eq('award_type', 'mzi')
-      .order('award_date', { ascending: true });
-
-    // Get Drère for display (previous competition day) with points earned
-    const { data: todayDrere } = await supabase
-      .from('daily_awards')
-      .select('user_id, points_earned')
-      .eq('award_date', drereDisplayDate)
-      .eq('award_type', 'drere');
-
-    // Get Mzi for display (previous competition day)
-    const { data: todayMzi } = await supabase
-      .from('daily_awards')
-      .select('user_id, points_earned')
-      .eq('award_date', drereDisplayDate)
-      .eq('award_type', 'mzi');
-
-    // Get Drère of the Week (calculated Monday at 6am UTC)
-    // We display the PREVIOUS COMPLETED week's drère
-    // The cron runs Monday 6am and stores the award with the PREVIOUS Monday's date
+    // Previous completed week's Monday (Drère of the Week is stored under that date;
+    // the cron runs Monday 6am UTC and writes the award with the PREVIOUS Monday's date).
     const getPreviousWeekStartDate = (date: Date): string => {
       const d = new Date(date);
       const day = d.getUTCDay(); // 0=Sunday, 1=Monday, etc.
-
-      // First, find the most recent Monday (or today if Monday)
-      let daysToMostRecentMonday: number;
-      if (day === 0) {
-        daysToMostRecentMonday = 6; // Sunday -> Monday was 6 days ago
-      } else {
-        daysToMostRecentMonday = day - 1; // Monday=0, Tuesday=1, etc.
-      }
-
-      // Then go back 7 more days to get the start of the completed week
+      const daysToMostRecentMonday = day === 0 ? 6 : day - 1;
       d.setUTCDate(d.getUTCDate() - daysToMostRecentMonday - 7);
       return d.toISOString().split('T')[0];
     };
-
     const weekStartDate = getPreviousWeekStartDate(now);
-    const { data: weeklyDrere } = await supabase
-      .from('daily_awards')
-      .select('user_id, points_earned')
-      .eq('award_date', weekStartDate)
-      .eq('award_type', 'drere_week');
+
+    // These reads are all independent → run them concurrently (was ~13 sequential
+    // round-trips ≈ ~1s of TTFB, now ~1 round-trip). 14 users, tiny payloads.
+    const [
+      pointsRes,
+      globalPointsRes,
+      crownsRes,
+      mziRes,
+      drereWeekRes,
+      dailyRecordRes,
+      weeklyRecordRes,
+      allDailyDrereRes,
+      allWeeklyDrereRes,
+      allMziAwardsRes,
+      todayDrereRes,
+      todayMziRes,
+      weeklyDrereRes,
+    ] = await Promise.all([
+      supabase.from('points_log').select('user_id, total_points, base_points, visionary_bonus'),
+      supabase.from('global_prediction_points').select('user_id, points_awarded'),
+      supabase.from('daily_awards').select('user_id').eq('award_type', 'drere'),
+      supabase.from('daily_awards').select('user_id').eq('award_type', 'mzi'),
+      supabase.from('daily_awards').select('user_id, points_earned').eq('award_type', 'drere_week'),
+      supabase.from('daily_awards').select('user_id, points_earned, award_date').eq('award_type', 'drere').order('points_earned', { ascending: false }).limit(1),
+      supabase.from('daily_awards').select('user_id, points_earned, award_date').eq('award_type', 'drere_week').order('points_earned', { ascending: false }).limit(1),
+      supabase.from('daily_awards').select('user_id, award_date').eq('award_type', 'drere').order('award_date', { ascending: true }),
+      supabase.from('daily_awards').select('user_id, award_date').eq('award_type', 'drere_week').order('award_date', { ascending: true }),
+      supabase.from('daily_awards').select('user_id, award_date').eq('award_type', 'mzi').order('award_date', { ascending: true }),
+      supabase.from('daily_awards').select('user_id, points_earned').eq('award_date', drereDisplayDate).eq('award_type', 'drere'),
+      supabase.from('daily_awards').select('user_id, points_earned').eq('award_date', drereDisplayDate).eq('award_type', 'mzi'),
+      supabase.from('daily_awards').select('user_id, points_earned').eq('award_date', weekStartDate).eq('award_type', 'drere_week'),
+    ]);
+
+    const pointsData = pointsRes.data;
+    // global_prediction_points might not exist yet on a fresh DB — tolerate that.
+    const globalPointsData = (!globalPointsRes.error && globalPointsRes.data) ? globalPointsRes.data : [];
+    const crownsData = crownsRes.data;
+    const mziData = mziRes.data;
+    const drereWeekData = drereWeekRes.data;
+    const dailyRecordData = dailyRecordRes.data;
+    const weeklyRecordData = weeklyRecordRes.data;
+    const allDailyDrere = allDailyDrereRes.data;
+    const allWeeklyDrere = allWeeklyDrereRes.data;
+    const allMziAwards = allMziAwardsRes.data;
+    const todayDrere = todayDrereRes.data;
+    const todayMzi = todayMziRes.data;
+    const weeklyDrere = weeklyDrereRes.data;
 
     const todayDrereIds = new Set((todayDrere || []).map(d => d.user_id));
     const todayMziIds = new Set((todayMzi || []).map(d => d.user_id));
@@ -379,13 +324,12 @@ export async function GET() {
       entry.rank = index + 1;
     });
 
-    // Calculate fun stats
-    const stats = await calculateFunStats(supabase);
-
-    // Get count of matches with results
-    const { count: totalMatchesWithResults } = await supabase
-      .from('match_results')
-      .select('*', { count: 'exact', head: true });
+    // Fun stats + match count are independent → run concurrently.
+    const [stats, matchesCountRes] = await Promise.all([
+      calculateFunStats(supabase),
+      supabase.from('match_results').select('*', { count: 'exact', head: true }),
+    ]);
+    const totalMatchesWithResults = matchesCountRes.count;
 
     // Build Drère of the Week leaderboard (sorted by count, then total points)
     const drereWeekLeaderboard: DrereWeekLeaderboardEntry[] = MEMBERS

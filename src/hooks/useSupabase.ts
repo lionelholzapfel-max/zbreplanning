@@ -353,6 +353,27 @@ export function useSupabase() {
     return data || [];
   }, [supabase]);
 
+  // Batch version: one query for many matches instead of one per match (avoids N+1)
+  const getMatchParticipationsBatch = useCallback(async (matchIds: number[]): Promise<Record<number, MatchParticipation[]>> => {
+    if (matchIds.length === 0) return {};
+
+    const { data, error } = await supabase
+      .from('match_participations')
+      .select('*, users(member_name, member_slug)')
+      .in('match_id', matchIds);
+
+    if (error) {
+      console.error('[Supabase] Error getting participations batch:', error);
+      return {};
+    }
+
+    const grouped: Record<number, MatchParticipation[]> = {};
+    for (const row of (data || []) as MatchParticipation[]) {
+      (grouped[row.match_id] ||= []).push(row);
+    }
+    return grouped;
+  }, [supabase]);
+
   const setMatchParticipation = useCallback(async (matchId: number, status: 'yes' | 'no' | 'maybe'): Promise<WriteResult> => {
     if (!currentUser) {
       toast.error('Tu dois être connecté');
@@ -444,6 +465,28 @@ export function useSupabase() {
     }
 
     return data || [];
+  }, [supabase]);
+
+  // Batch version: one query for many matches instead of one per match (avoids N+1)
+  const getWatchLocationsBatch = useCallback(async (matchIds: number[]): Promise<Record<number, WatchLocation[]>> => {
+    if (matchIds.length === 0) return {};
+
+    const { data, error } = await supabase
+      .from('watch_locations')
+      .select('*, proposer:users!proposed_by(member_name, member_slug)')
+      .in('match_id', matchIds)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[Supabase] Error getting watch locations batch:', error);
+      return {};
+    }
+
+    const grouped: Record<number, WatchLocation[]> = {};
+    for (const row of (data || []) as WatchLocation[]) {
+      (grouped[row.match_id] ||= []).push(row);
+    }
+    return grouped;
   }, [supabase]);
 
   const addWatchLocation = useCallback(async (matchId: number, location: string): Promise<WriteResult> => {
@@ -983,9 +1026,11 @@ export function useSupabase() {
     logout: handleLogout,
     // Match
     getMatchParticipations,
+    getMatchParticipationsBatch,
     setMatchParticipation,
     // Locations
     getWatchLocations,
+    getWatchLocationsBatch,
     addWatchLocation,
     toggleVoteLocation,
     deleteWatchLocation,

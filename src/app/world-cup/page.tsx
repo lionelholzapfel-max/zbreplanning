@@ -130,7 +130,7 @@ const getCurrentPhase = (): Phase => {
 
 export default function WorldCupPage() {
   const router = useRouter();
-  const { currentUser, loading: userLoading, getMatchParticipations, setMatchParticipation, getWatchLocations, addWatchLocation, toggleVoteLocation } = useSupabase();
+  const { currentUser, loading: userLoading, getMatchParticipations, getMatchParticipationsBatch, setMatchParticipation, getWatchLocations, getWatchLocationsBatch, addWatchLocation, toggleVoteLocation } = useSupabase();
   const { getTeamNames } = useTeamOverrides();
 
   const [selectedPhase, setSelectedPhase] = useState<Phase>(PHASES.ROUND_OF_32);
@@ -386,21 +386,22 @@ export default function WorldCupPage() {
 
   // Load data for visible matches
   const loadMatchData = useCallback(async (matchIds: number[]) => {
+    // Two batched queries for ALL matches instead of two per match (was 2×N requests).
+    const [partsMap, locsMap] = await Promise.all([
+      getMatchParticipationsBatch(matchIds),
+      getWatchLocationsBatch(matchIds),
+    ]);
+
     const newParticipations: Record<number, MatchParticipation[]> = {};
     const newLocations: Record<number, WatchLocation[]> = {};
-
-    await Promise.all(matchIds.map(async (id) => {
-      const [parts, locs] = await Promise.all([
-        getMatchParticipations(id),
-        getWatchLocations(id),
-      ]);
-      newParticipations[id] = parts;
-      newLocations[id] = locs;
-    }));
+    for (const id of matchIds) {
+      newParticipations[id] = partsMap[id] || [];
+      newLocations[id] = locsMap[id] || [];
+    }
 
     setParticipations(prev => ({ ...prev, ...newParticipations }));
     setLocations(prev => ({ ...prev, ...newLocations }));
-  }, [getMatchParticipations, getWatchLocations]);
+  }, [getMatchParticipationsBatch, getWatchLocationsBatch]);
 
   // Track which matches failed to load (for retry)
   const failedMatchIdsRef = useRef<Set<number>>(new Set());

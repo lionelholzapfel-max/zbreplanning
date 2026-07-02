@@ -1,10 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
-import { EvolutionChart } from '@/components/EvolutionChart';
+
+// recharts is heavy (~390 KB) and the chart sits below the fold → load it lazily.
+const EvolutionChart = dynamic(
+  () => import('@/components/EvolutionChart').then((m) => m.EvolutionChart),
+  { ssr: false }
+);
 import { WallOfShame } from '@/components/WallOfShame';
 import { DrereSpeech } from '@/components/DrereSpeech';
 import { DrereWeekSong } from '@/components/DrereWeekSong';
