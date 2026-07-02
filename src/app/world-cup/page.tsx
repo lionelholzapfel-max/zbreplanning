@@ -44,7 +44,7 @@ interface ScorePrediction {
   home_score: number;
   away_score: number;
   user?: { member_name: string; member_slug: string };
-  points?: { total: number; base: number; visionary: number; outsider: number; detail: string } | null;
+  points?: { total: number; base: number; visionary: number; detail: string } | null;
 }
 
 interface MatchPredictionState {
@@ -130,7 +130,7 @@ const getCurrentPhase = (): Phase => {
 
 export default function WorldCupPage() {
   const router = useRouter();
-  const { currentUser, loading: userLoading, getMatchParticipations, setMatchParticipation, getWatchLocations, addWatchLocation, toggleVoteLocation } = useSupabase();
+  const { currentUser, loading: userLoading, getMatchParticipations, getMatchParticipationsBatch, setMatchParticipation, getWatchLocations, getWatchLocationsBatch, addWatchLocation, toggleVoteLocation } = useSupabase();
   const { getTeamNames } = useTeamOverrides();
 
   const [selectedPhase, setSelectedPhase] = useState<Phase>(PHASES.ROUND_OF_32);
@@ -386,21 +386,22 @@ export default function WorldCupPage() {
 
   // Load data for visible matches
   const loadMatchData = useCallback(async (matchIds: number[]) => {
+    // Two batched queries for ALL matches instead of two per match (was 2×N requests).
+    const [partsMap, locsMap] = await Promise.all([
+      getMatchParticipationsBatch(matchIds),
+      getWatchLocationsBatch(matchIds),
+    ]);
+
     const newParticipations: Record<number, MatchParticipation[]> = {};
     const newLocations: Record<number, WatchLocation[]> = {};
-
-    await Promise.all(matchIds.map(async (id) => {
-      const [parts, locs] = await Promise.all([
-        getMatchParticipations(id),
-        getWatchLocations(id),
-      ]);
-      newParticipations[id] = parts;
-      newLocations[id] = locs;
-    }));
+    for (const id of matchIds) {
+      newParticipations[id] = partsMap[id] || [];
+      newLocations[id] = locsMap[id] || [];
+    }
 
     setParticipations(prev => ({ ...prev, ...newParticipations }));
     setLocations(prev => ({ ...prev, ...newLocations }));
-  }, [getMatchParticipations, getWatchLocations]);
+  }, [getMatchParticipationsBatch, getWatchLocationsBatch]);
 
   // Track which matches failed to load (for retry)
   const failedMatchIdsRef = useRef<Set<number>>(new Set());
@@ -910,7 +911,7 @@ export default function WorldCupPage() {
       </section>
 
       {/* Sticky Filter Bar - positioned below navbar */}
-      <section className="sticky top-[7.5rem] md:top-16 z-30 bg-[#0a0a0f] border-b border-white/10 py-2 sm:py-3 px-3 sm:px-4">
+      <section className="sticky top-16 z-30 bg-[#0a0a0f] border-b border-white/10 py-2 sm:py-3 px-3 sm:px-4">
         <div className="max-w-7xl mx-auto">
           <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-2 scrollbar-hide">
             {/* Time filters */}
@@ -1125,6 +1126,10 @@ export default function WorldCupPage() {
               ? predState.allPredictions.find(p => p.user_id === currentUser?.id)?.points
               : null;
 
+            // Live: between kickoff and +2h30, with no final result yet
+            const kickoffMs = getMatchDateTime(match).getTime();
+            const isLive = !hasResult && Date.now() >= kickoffMs && Date.now() < kickoffMs + 2.5 * 60 * 60 * 1000;
+
             return (
               <div key={match.id}>
                 {/* Day Separator */}
@@ -1146,7 +1151,7 @@ export default function WorldCupPage() {
                     yesCount > 0
                       ? 'border-[#22c55e]/30 bg-gradient-to-br from-[#1a472a]/80 to-[#0d2818]/80'
                       : 'border-[#fbbf24]/20 bg-gradient-to-br from-[#1a472a]/50 to-[#0d2818]/50'
-                  }`}
+                  } ${isLive ? 'ring-2 ring-[#ef4444]/60' : ''}`}
                   style={{ transitionDelay: `${index * 30}ms` }}
                 >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-[#fbbf24]/5 rounded-full blur-2xl" />
@@ -1155,6 +1160,12 @@ export default function WorldCupPage() {
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-3 flex-wrap">
+                        {isLive && (
+                          <span className="px-3 py-1 bg-[#ef4444]/20 text-[#ef4444] rounded-lg text-xs font-bold animate-pulse flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-[#ef4444] inline-block" />
+                            LIVE
+                          </span>
+                        )}
                         {match.group ? (
                           <span className="px-3 py-1 bg-[#fbbf24]/20 text-[#fbbf24] rounded-lg text-xs font-bold">{match.group}</span>
                         ) : (

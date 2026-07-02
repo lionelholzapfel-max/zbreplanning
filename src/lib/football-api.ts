@@ -159,6 +159,10 @@ export interface ApiMatch {
       home: number | null;
       away: number | null;
     };
+    regularTime?: {
+      home: number | null;
+      away: number | null;
+    };
     extraTime?: {
       home: number | null;
       away: number | null;
@@ -281,8 +285,8 @@ export function findOurMatchId(
  * Score result for a match
  */
 export interface MatchScore {
-  home: number;          // Score for predictions (fullTime = includes extra time)
-  away: number;          // Score for predictions (fullTime = includes extra time)
+  home: number;          // Recorded score = end of play (extra time incl., shootout excluded)
+  away: number;          // Recorded score = end of play (extra time incl., shootout excluded)
   qualifier?: 'home' | 'away';  // Who qualified (knockout only, for +1 bonus)
   hadExtraTime: boolean;
   hadPenalties: boolean;
@@ -296,6 +300,16 @@ export interface MatchScore {
  * - Knockout: Score at end of play (90 min or 120 min if extra time)
  *   - Draw is possible if match goes to penalties (e.g., 1-1 after extra time)
  *   - Qualifier bonus (+1) is separate from score prediction
+ *
+ * football-data.org v4 score fields (docs.football-data.org/general/v4/overtime):
+ * - fullTime:    FINAL score, penalty shootout goals INCLUDED (e.g. 7-6 = 1-1 + 6-5 pens)
+ * - regularTime: score after 90 min
+ * - extraTime:   goals scored ONLY during the extra-time period (not cumulative)
+ * - penalties:   penalty shootout goals only
+ *
+ * We record the score at the END OF PLAY (before the shootout):
+ *   REGULAR / EXTRA_TIME → fullTime (no shootout to strip)
+ *   PENALTY_SHOOTOUT     → regularTime + extraTime  (== fullTime - penalties, always a draw)
  */
 export function getFinalScore(apiMatch: ApiMatch): MatchScore | null {
   if (apiMatch.status !== 'FINISHED') return null;
@@ -307,10 +321,30 @@ export function getFinalScore(apiMatch: ApiMatch): MatchScore | null {
   const hadExtraTime = duration === 'EXTRA_TIME' || duration === 'PENALTY_SHOOTOUT';
   const hadPenalties = duration === 'PENALTY_SHOOTOUT';
 
-  // Use fullTime score (includes extra time goals, NOT penalty shootout)
-  // This is what users predict: the score at end of play
-  const home = ft.home;
-  const away = ft.away;
+  // fullTime is correct for REGULAR and EXTRA_TIME. For a PENALTY_SHOOTOUT it also
+  // includes the shootout goals, so strip them: end-of-play = regularTime + extraTime
+  // (equivalently fullTime - penalties), which is always a draw.
+  let home: number = ft.home;
+  let away: number = ft.away;
+
+  if (hadPenalties) {
+    const reg = apiMatch.score.regularTime;
+    const et = apiMatch.score.extraTime;
+    const pens = apiMatch.score.penalties;
+
+    if (reg && reg.home !== null && reg.away !== null) {
+      home = reg.home + (et?.home ?? 0);
+      away = reg.away + (et?.away ?? 0);
+    } else if (pens && pens.home !== null && pens.away !== null) {
+      // Fallback when regularTime is absent: remove the shootout from fullTime.
+      home = ft.home - pens.home;
+      away = ft.away - pens.away;
+    } else {
+      // Not enough data to know the real end-of-play score — skip rather than
+      // record the shootout-inflated fullTime. Admin can enter it manually.
+      return null;
+    }
+  }
 
   // Determine qualifier for knockout matches
   let qualifier: 'home' | 'away' | undefined;

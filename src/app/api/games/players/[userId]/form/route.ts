@@ -65,22 +65,21 @@ export async function GET(
   const gameResults: { [gameId: string]: { gameName: string; results: { playedAt: string; createdAt: string; won: boolean }[] } } = {};
 
   for (const participation of participations || []) {
-    // Supabase returns relations as arrays
-    const sessionArr = participation.session as unknown as {
+    // supabase-js returns to-one embeds as objects (not arrays)
+    const session = participation.session as unknown as {
       id: string;
       game_id: string;
       played_at: string;
       created_at: string;
       session_type: string;
       winner_id: string | null;
-      game: { id: string; name: string }[];
-    }[] | null;
-    const session = sessionArr?.[0] ?? null;
+      game: { id: string; name: string } | null;
+    } | null;
 
     if (!session || session.session_type !== 'individual') continue;
 
     const gameId = session.game_id;
-    const gameName = session.game?.[0]?.name || 'Unknown';
+    const gameName = session.game?.name || 'Unknown';
     const won = session.winner_id === userId;
 
     if (!gameResults[gameId]) {

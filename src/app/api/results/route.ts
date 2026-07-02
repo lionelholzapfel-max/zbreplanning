@@ -3,7 +3,7 @@ import { getSessionUser, getSupabaseAdmin, requireAdmin } from '@/lib/auth/sessi
 import { getMatchById, parseMatchTeams } from '@/lib/matches';
 import { calculateMatchPoints, Prediction, MatchResult, PointsBreakdown } from '@/lib/scoring';
 import { MEMBERS } from '@/data/members';
-import matches from '@/data/matches.json';
+import { getCompetitionDay, updateDailyAwards } from '@/lib/awards';
 
 // GET /api/results?match_id=X
 // Get result for a specific match (public)
@@ -145,46 +145,27 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseAdmin();
     const teams = parseMatchTeams(match.match);
 
-    // Upsert result
-    const { data: existing } = await supabase
+    // Upsert result atomically (avoids the select-then-insert race on double submit)
+    const { error: upsertError } = await supabase
       .from('match_results')
-      .select('id')
-      .eq('match_id', matchId)
-      .single();
-
-    if (existing) {
-      const { error: updateError } = await supabase
-        .from('match_results')
-        .update({
-          home_score: homeScore,
-          away_score: awayScore,
-          entered_by: admin.id,
-          entered_at: new Date().toISOString(),
-        })
-        .eq('id', existing.id);
-
-      if (updateError) {
-        return NextResponse.json(
-          { error: 'Erreur lors de la mise à jour' },
-          { status: 500 }
-        );
-      }
-    } else {
-      const { error: insertError } = await supabase
-        .from('match_results')
-        .insert({
+      .upsert(
+        {
           match_id: matchId,
           home_score: homeScore,
           away_score: awayScore,
           entered_by: admin.id,
-        });
+          entered_at: new Date().toISOString(),
+          source: 'admin',
+        },
+        { onConflict: 'match_id' }
+      );
 
-      if (insertError) {
-        return NextResponse.json(
-          { error: 'Erreur lors de la création' },
-          { status: 500 }
-        );
-      }
+    if (upsertError) {
+      console.error(`[results] Upsert failed for match ${matchId}:`, upsertError.message);
+      return NextResponse.json(
+        { error: 'Erreur lors de l\'enregistrement du résultat' },
+        { status: 500 }
+      );
     }
 
     // Get all predictions for this match
@@ -194,6 +175,11 @@ export async function POST(request: NextRequest) {
       .eq('match_id', matchId);
 
     if (predError) {
+      console.error(`[results] Failed to read predictions for match ${matchId}:`, predError.message);
+      return NextResponse.json(
+        { error: 'Erreur lors du calcul des points' },
+        { status: 500 }
+      );
     }
 
     const predictions: Prediction[] = predictionsData || [];
@@ -238,6 +224,11 @@ export async function POST(request: NextRequest) {
         .insert(pointsLogEntries);
 
       if (pointsError) {
+        console.error(`[results] Failed to insert points_log for match ${matchId}:`, pointsError.message);
+        return NextResponse.json(
+          { error: 'Erreur lors de l\'enregistrement des points' },
+          { status: 500 }
+        );
       }
     }
 
@@ -284,104 +275,5 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/**
- * Get the "competition day" (session) for a match
- * Session = soirée foot belge: 18h00 jour N → 08h59 jour N+1
- * Nouvelle session à 09h00
- *
- * Exemple session "15 juin":
- * - 15 juin 18h ✓
- * - 15 juin 21h ✓
- * - 16 juin 00h ✓
- * - 16 juin 03h ✓
- * - 16 juin 06h ✓
- * - 16 juin 08h ✓
- * - 16 juin 09h → nouvelle session "16 juin"
- *
- * Drère calculé à 09h01 chaque jour
- */
-function getCompetitionDay(date: string, time: string): string {
-  const hour = parseInt(time.split(':')[0], 10);
-
-  // If match is before 09:00 Belgian time, it belongs to the previous day's session
-  // (late night matches are part of the previous evening's session)
-  if (hour < 9) {
-    const d = new Date(date + 'T00:00:00');
-    d.setDate(d.getDate() - 1);
-    return d.toISOString().split('T')[0];
-  }
-
-  return date;
-}
-
-// Helper to update daily awards
-async function updateDailyAwards(supabase: ReturnType<typeof getSupabaseAdmin>, dateStr: string) {
-  // Get all matches that belong to this competition day
-  const matchesOnCompetitionDay = (matches as any[]).filter(m =>
-    getCompetitionDay(m.date, m.time) === dateStr
-  );
-  if (matchesOnCompetitionDay.length === 0) return;
-
-  const matchIds = matchesOnCompetitionDay.map(m => m.id);
-
-  // Check which of these matches have results
-  const { data: resultsData } = await supabase
-    .from('match_results')
-    .select('match_id')
-    .in('match_id', matchIds);
-
-  if (!resultsData || resultsData.length === 0) return;
-
-  const completedMatchIds = resultsData.map(r => r.match_id);
-
-  // Get points for completed matches on this competition day
-  const { data: pointsData } = await supabase
-    .from('points_log')
-    .select('user_id, total_points')
-    .in('match_id', completedMatchIds);
-
-  if (!pointsData || pointsData.length === 0) return;
-
-  // Sum points per user
-  const userPoints: Record<string, number> = {};
-  for (const p of pointsData) {
-    userPoints[p.user_id] = (userPoints[p.user_id] || 0) + p.total_points;
-  }
-
-  // Find max points
-  const maxPoints = Math.max(...Object.values(userPoints));
-  if (maxPoints === 0) return;
-
-  // Find users with max points (could be multiple)
-  const drereUsers = Object.entries(userPoints)
-    .filter(([, points]) => points === maxPoints)
-    .map(([userId]) => userId);
-
-  // Create daily awards (delete existing for today first)
-  await supabase
-    .from('daily_awards')
-    .delete()
-    .eq('award_date', dateStr)
-    .eq('award_type', 'drere');
-
-  const awards = drereUsers.map(userId => ({
-    user_id: userId,
-    award_date: dateStr,
-    award_type: 'drere' as const,
-    points_earned: maxPoints,
-  }));
-
-  await supabase.from('daily_awards').insert(awards);
-
-  // Send notification to Drère(s)
-  const drereNotifications = drereUsers.map(userId => ({
-    user_id: userId,
-    type: 'activity_created' as const,
-    title: '👑 Tu es le Drère du jour !',
-    message: `Avec ${maxPoints} pts aujourd'hui, tu portes la couronne !`,
-    link: '/leaderboard',
-    created_by: userId,
-  }));
-
-  await supabase.from('notifications').insert(drereNotifications);
-}
+// getCompetitionDay + updateDailyAwards now live in '@/lib/awards' (single source of
+// truth shared with the auto-sync: computes Drère + Mzi, no crown-notif spam).

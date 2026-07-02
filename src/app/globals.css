@@ -25,15 +25,25 @@
   --color-card: var(--card);
   --color-border: var(--border);
   --color-muted: var(--muted);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+  /* Custom breakpoint used across the app via `xs:` utilities. It was never
+     defined, so every `xs:` class silently never matched (labels like
+     "Aujourd'hui" / "Créer une activité" stayed hidden at all sizes). */
+  --breakpoint-xs: 30rem;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   min-height: 100vh;
+}
+
+/* Clear the fixed mobile bottom tab bar so content isn't hidden behind it */
+@media (max-width: 767px) {
+  body {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+  }
 }
 
 /* Custom scrollbar */
@@ -53,6 +63,15 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted);
+}
+
+/* Hide scrollbar (used on the horizontal filter bars) */
+.scrollbar-hide {
+  scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* IE/Edge */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;                /* Chrome/Safari */
 }
 
 /* Glass effect */

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSessionUser, getSupabaseClient } from '@/lib/auth/session';
+import { getSessionUser, getSupabaseAdmin } from '@/lib/auth/session';
 
 export async function GET() {
   try {
@@ -34,7 +34,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = getSupabaseClient();
+    // Service role: pin_hash is not readable with the anon key.
+    const supabase = getSupabaseAdmin();
 
     const { data: user, error } = await supabase
       .from('users')

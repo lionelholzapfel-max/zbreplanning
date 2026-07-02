@@ -7,9 +7,12 @@ const PUBLIC_PATHS = [
   '/api/auth/setup-pin',
   '/api/auth/me',
   '/api/auth/logout',
-  '/api/results/sync', // Cron job (protected by CRON_SECRET)
-  '/api/knockout/teams', // Public: get resolved knockout teams
-  '/api/knockout/sync', // Public: sync knockout teams from API
+  // Cron endpoints: reachable without a session cookie, but each route
+  // enforces CRON_SECRET / the x-vercel-cron header itself.
+  '/api/results/sync',
+  '/api/knockout/sync',
+  '/api/awards/weekly',
+  '/api/knockout/teams', // Public read: resolved knockout teams
 ];
 
 export async function middleware(request: NextRequest) {
@@ -39,7 +42,10 @@ export async function middleware(request: NextRequest) {
 
   // Verify JWT
   try {
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'dev-secret-change-in-prod');
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET not configured');
+    }
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET);
     await jwtVerify(sessionToken, secret);
     return NextResponse.next();
   } catch {

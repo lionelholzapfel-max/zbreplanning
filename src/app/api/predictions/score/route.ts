@@ -4,7 +4,7 @@ import { getMatchById, hasMatchStarted, isPredictionLocked, parseMatchTeams, get
 import { MEMBERS } from '@/data/members';
 
 // GET /api/predictions/score?match_id=X
-// SECURITY: Scores are hidden until lock time (2h before kickoff)
+// SECURITY: Scores are hidden until lock time (at kickoff)
 // - Before lock: return only {user_id} of predictors + current user's own prediction
 // - After lock: return all predictions with scores
 export async function GET(request: NextRequest) {
@@ -237,10 +237,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if predictions are locked (ANTI-CHEAT)
-    // Predictions lock 2 HOURS BEFORE kickoff
+    // Predictions lock at kickoff (PREDICTION_LOCK_OFFSET_MS = 1 min before)
     if (isPredictionLocked(matchId)) {
       return NextResponse.json(
-        { error: 'Pronos verrouillés 🔒 (2h avant le match)' },
+        { error: 'Pronos verrouillés 🔒 (le match a commencé)' },
         { status: 403 }
       );
     }

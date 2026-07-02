@@ -12,7 +12,8 @@ export const metadata: Metadata = {
   title: "ZbrePlanning - La team au complet",
   description: "Plateforme de planning pour la Zbre Team - Activités, Coupe du Monde 2026 et plus",
   icons: {
-    icon: "/team/group.png",
+    icon: "/icon.png",
+    apple: "/apple-icon.png",
   },
 };
 

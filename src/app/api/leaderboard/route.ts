@@ -63,6 +63,42 @@ export interface StreakRecord {
   end_date: string;
 }
 
+export interface StreakRecordHolder {
+  user_id: string;
+  member_name: string;
+  member_slug: string;
+  start_date: string;
+  end_date: string;
+}
+
+export interface StreakRecordWithHolders {
+  streak: number;
+  holders: StreakRecordHolder[];
+}
+
+export interface CountRecordHolder {
+  user_id: string;
+  member_name: string;
+  member_slug: string;
+}
+
+export interface CountRecordWithHolders {
+  count: number;
+  holders: CountRecordHolder[];
+}
+
+export interface AverageRecordHolder {
+  user_id: string;
+  member_name: string;
+  member_slug: string;
+  matches_predicted: number;
+}
+
+export interface AverageRecordWithHolders {
+  average: number;
+  holders: AverageRecordHolder[];
+}
+
 /**
  * Get the boundaries of the CURRENT week (ongoing)
  * Week starts Monday at 6am UTC and runs until next Monday 6am
@@ -126,111 +162,63 @@ export async function GET() {
       drereDisplayDate = yesterday.toISOString().split('T')[0];
     }
 
-    // Get all match points
-    const { data: pointsData } = await supabase
-      .from('points_log')
-      .select('user_id, total_points, base_points, visionary_bonus, outsider_bonus');
-
-    // Get global prediction points (+20 per correct)
-    let globalPointsData: Array<{ user_id: string; points_awarded: number }> = [];
-    try {
-      const { data, error } = await supabase
-        .from('global_prediction_points')
-        .select('user_id, points_awarded');
-      if (!error && data) {
-        globalPointsData = data;
-      }
-    } catch {
-      // Table might not exist yet - that's ok
-    }
-
-    // Get crown counts (Drère)
-    const { data: crownsData } = await supabase
-      .from('daily_awards')
-      .select('user_id')
-      .eq('award_type', 'drere');
-
-    // Get mzi counts (Type mzi)
-    const { data: mziData } = await supabase
-      .from('daily_awards')
-      .select('user_id')
-      .eq('award_type', 'mzi');
-
-    // Get Drère of the Week counts and total points
-    const { data: drereWeekData } = await supabase
-      .from('daily_awards')
-      .select('user_id, points_earned')
-      .eq('award_type', 'drere_week');
-
-    // Get records - highest points ever for daily and weekly drère
-    const { data: dailyRecordData } = await supabase
-      .from('daily_awards')
-      .select('user_id, points_earned, award_date')
-      .eq('award_type', 'drere')
-      .order('points_earned', { ascending: false })
-      .limit(1);
-
-    const { data: weeklyRecordData } = await supabase
-      .from('daily_awards')
-      .select('user_id, points_earned, award_date')
-      .eq('award_type', 'drere_week')
-      .order('points_earned', { ascending: false })
-      .limit(1);
-
-    // Get all daily drère awards for streak calculation (sorted by date)
-    const { data: allDailyDrere } = await supabase
-      .from('daily_awards')
-      .select('user_id, award_date')
-      .eq('award_type', 'drere')
-      .order('award_date', { ascending: true });
-
-    // Get all weekly drère awards for streak calculation (sorted by date)
-    const { data: allWeeklyDrere } = await supabase
-      .from('daily_awards')
-      .select('user_id, award_date')
-      .eq('award_type', 'drere_week')
-      .order('award_date', { ascending: true });
-
-    // Get Drère for display (previous competition day) with points earned
-    const { data: todayDrere } = await supabase
-      .from('daily_awards')
-      .select('user_id, points_earned')
-      .eq('award_date', drereDisplayDate)
-      .eq('award_type', 'drere');
-
-    // Get Mzi for display (previous competition day)
-    const { data: todayMzi } = await supabase
-      .from('daily_awards')
-      .select('user_id, points_earned')
-      .eq('award_date', drereDisplayDate)
-      .eq('award_type', 'mzi');
-
-    // Get Drère of the Week (calculated Monday at 6am UTC)
-    // We display the PREVIOUS COMPLETED week's drère
-    // The cron runs Monday 6am and stores the award with the PREVIOUS Monday's date
+    // Previous completed week's Monday (Drère of the Week is stored under that date;
+    // the cron runs Monday 6am UTC and writes the award with the PREVIOUS Monday's date).
     const getPreviousWeekStartDate = (date: Date): string => {
       const d = new Date(date);
       const day = d.getUTCDay(); // 0=Sunday, 1=Monday, etc.
-
-      // First, find the most recent Monday (or today if Monday)
-      let daysToMostRecentMonday: number;
-      if (day === 0) {
-        daysToMostRecentMonday = 6; // Sunday -> Monday was 6 days ago
-      } else {
-        daysToMostRecentMonday = day - 1; // Monday=0, Tuesday=1, etc.
-      }
-
-      // Then go back 7 more days to get the start of the completed week
+      const daysToMostRecentMonday = day === 0 ? 6 : day - 1;
       d.setUTCDate(d.getUTCDate() - daysToMostRecentMonday - 7);
       return d.toISOString().split('T')[0];
     };
-
     const weekStartDate = getPreviousWeekStartDate(now);
-    const { data: weeklyDrere } = await supabase
-      .from('daily_awards')
-      .select('user_id, points_earned')
-      .eq('award_date', weekStartDate)
-      .eq('award_type', 'drere_week');
+
+    // These reads are all independent → run them concurrently (was ~13 sequential
+    // round-trips ≈ ~1s of TTFB, now ~1 round-trip). 14 users, tiny payloads.
+    const [
+      pointsRes,
+      globalPointsRes,
+      crownsRes,
+      mziRes,
+      drereWeekRes,
+      dailyRecordRes,
+      weeklyRecordRes,
+      allDailyDrereRes,
+      allWeeklyDrereRes,
+      allMziAwardsRes,
+      todayDrereRes,
+      todayMziRes,
+      weeklyDrereRes,
+    ] = await Promise.all([
+      supabase.from('points_log').select('user_id, total_points, base_points, visionary_bonus'),
+      supabase.from('global_prediction_points').select('user_id, points_awarded'),
+      supabase.from('daily_awards').select('user_id').eq('award_type', 'drere'),
+      supabase.from('daily_awards').select('user_id').eq('award_type', 'mzi'),
+      supabase.from('daily_awards').select('user_id, points_earned').eq('award_type', 'drere_week'),
+      supabase.from('daily_awards').select('user_id, points_earned, award_date').eq('award_type', 'drere').order('points_earned', { ascending: false }).limit(1),
+      supabase.from('daily_awards').select('user_id, points_earned, award_date').eq('award_type', 'drere_week').order('points_earned', { ascending: false }).limit(1),
+      supabase.from('daily_awards').select('user_id, award_date').eq('award_type', 'drere').order('award_date', { ascending: true }),
+      supabase.from('daily_awards').select('user_id, award_date').eq('award_type', 'drere_week').order('award_date', { ascending: true }),
+      supabase.from('daily_awards').select('user_id, award_date').eq('award_type', 'mzi').order('award_date', { ascending: true }),
+      supabase.from('daily_awards').select('user_id, points_earned').eq('award_date', drereDisplayDate).eq('award_type', 'drere'),
+      supabase.from('daily_awards').select('user_id, points_earned').eq('award_date', drereDisplayDate).eq('award_type', 'mzi'),
+      supabase.from('daily_awards').select('user_id, points_earned').eq('award_date', weekStartDate).eq('award_type', 'drere_week'),
+    ]);
+
+    const pointsData = pointsRes.data;
+    // global_prediction_points might not exist yet on a fresh DB — tolerate that.
+    const globalPointsData = (!globalPointsRes.error && globalPointsRes.data) ? globalPointsRes.data : [];
+    const crownsData = crownsRes.data;
+    const mziData = mziRes.data;
+    const drereWeekData = drereWeekRes.data;
+    const dailyRecordData = dailyRecordRes.data;
+    const weeklyRecordData = weeklyRecordRes.data;
+    const allDailyDrere = allDailyDrereRes.data;
+    const allWeeklyDrere = allWeeklyDrereRes.data;
+    const allMziAwards = allMziAwardsRes.data;
+    const todayDrere = todayDrereRes.data;
+    const todayMzi = todayMziRes.data;
+    const weeklyDrere = weeklyDrereRes.data;
 
     const todayDrereIds = new Set((todayDrere || []).map(d => d.user_id));
     const todayMziIds = new Set((todayMzi || []).map(d => d.user_id));
@@ -336,13 +324,12 @@ export async function GET() {
       entry.rank = index + 1;
     });
 
-    // Calculate fun stats
-    const stats = await calculateFunStats(supabase);
-
-    // Get count of matches with results
-    const { count: totalMatchesWithResults } = await supabase
-      .from('match_results')
-      .select('*', { count: 'exact', head: true });
+    // Fun stats + match count are independent → run concurrently.
+    const [stats, matchesCountRes] = await Promise.all([
+      calculateFunStats(supabase),
+      supabase.from('match_results').select('*', { count: 'exact', head: true }),
+    ]);
+    const totalMatchesWithResults = matchesCountRes.count;
 
     // Build Drère of the Week leaderboard (sorted by count, then total points)
     const drereWeekLeaderboard: DrereWeekLeaderboardEntry[] = MEMBERS
@@ -368,19 +355,28 @@ export async function GET() {
     // Calculate current week race (points accumulated this week so far)
     const { weekStart, weekEnd } = getCurrentWeekBoundaries(now);
 
-    const { data: weekPointsData } = await supabase
-      .from('points_log')
-      .select(`
-        user_id,
-        total_points,
-        match_results!inner(entered_at)
-      `)
-      .gte('match_results.entered_at', weekStart.toISOString())
-      .lt('match_results.entered_at', weekEnd.toISOString());
+    // First get match_ids that fall within this week
+    const { data: weekMatchResults } = await supabase
+      .from('match_results')
+      .select('match_id')
+      .gte('entered_at', weekStart.toISOString())
+      .lt('entered_at', weekEnd.toISOString());
+
+    const weekMatchIds = (weekMatchResults || []).map(r => r.match_id);
+
+    // Then get points for those matches
+    let weekPointsData: Array<{ user_id: string; total_points: number }> = [];
+    if (weekMatchIds.length > 0) {
+      const { data } = await supabase
+        .from('points_log')
+        .select('user_id, total_points')
+        .in('match_id', weekMatchIds);
+      weekPointsData = data || [];
+    }
 
     // Sum points per user for the current week
     const weekPointsByUser: Record<string, number> = {};
-    for (const p of weekPointsData || []) {
+    for (const p of weekPointsData) {
       weekPointsByUser[p.user_id] = (weekPointsByUser[p.user_id] || 0) + p.total_points;
     }
 
@@ -433,109 +429,437 @@ export async function GET() {
     }
 
     // Calculate daily streak record
-    // A streak is consecutive days where the same user won
-    let dailyStreakRecord: StreakRecord | null = null;
+    // A streak is consecutive days where the same user won (handles ties - multiple winners same day)
+    let dailyStreakRecord: StreakRecordWithHolders | null = null;
     if (allDailyDrere && allDailyDrere.length > 0) {
-      let bestStreak = { userId: '', streak: 0, startDate: '', endDate: '' };
-      let currentStreak = { userId: '', streak: 0, startDate: '', endDate: '' };
-      let lastDate: Date | null = null;
-
+      // Group awards by user - get all dates each user won
+      const userDates: Record<string, string[]> = {};
       for (const award of allDailyDrere) {
-        const awardDate = new Date(award.award_date);
+        if (!userDates[award.user_id]) {
+          userDates[award.user_id] = [];
+        }
+        // Avoid duplicates (shouldn't happen but just in case)
+        if (!userDates[award.user_id].includes(award.award_date)) {
+          userDates[award.user_id].push(award.award_date);
+        }
+      }
 
-        // Check if this continues a streak (same user, consecutive day)
-        if (lastDate && currentStreak.userId === award.user_id) {
-          const daysDiff = Math.round((awardDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+      // For each user, calculate their best streak and collect all streaks
+      const allBestStreaks: Array<{ userId: string; streak: number; startDate: string; endDate: string }> = [];
+
+      for (const [userId, dates] of Object.entries(userDates)) {
+        // Sort dates chronologically
+        const sortedDates = dates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+        let currentStreak = 1;
+        let currentStart = sortedDates[0];
+        let currentEnd = sortedDates[0];
+        let userBestStreak = { streak: 1, startDate: sortedDates[0], endDate: sortedDates[0] };
+
+        for (let i = 1; i < sortedDates.length; i++) {
+          const prevDate = new Date(sortedDates[i - 1]);
+          const currDate = new Date(sortedDates[i]);
+          const daysDiff = Math.round((currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+
           if (daysDiff === 1) {
-            // Consecutive day, extend streak
-            currentStreak.streak++;
-            currentStreak.endDate = award.award_date;
+            // Consecutive day
+            currentStreak++;
+            currentEnd = sortedDates[i];
           } else {
-            // Gap in days, start new streak
-            if (currentStreak.streak > bestStreak.streak) {
-              bestStreak = { ...currentStreak };
+            // Gap - check if this was the best streak for this user
+            if (currentStreak > userBestStreak.streak) {
+              userBestStreak = { streak: currentStreak, startDate: currentStart, endDate: currentEnd };
             }
-            currentStreak = { userId: award.user_id, streak: 1, startDate: award.award_date, endDate: award.award_date };
+            // Reset
+            currentStreak = 1;
+            currentStart = sortedDates[i];
+            currentEnd = sortedDates[i];
           }
-        } else {
-          // Different user or first entry
-          if (currentStreak.streak > bestStreak.streak) {
-            bestStreak = { ...currentStreak };
-          }
-          currentStreak = { userId: award.user_id, streak: 1, startDate: award.award_date, endDate: award.award_date };
         }
-        lastDate = awardDate;
-      }
-      // Check final streak
-      if (currentStreak.streak > bestStreak.streak) {
-        bestStreak = { ...currentStreak };
+        // Check final streak for this user
+        if (currentStreak > userBestStreak.streak) {
+          userBestStreak = { streak: currentStreak, startDate: currentStart, endDate: currentEnd };
+        }
+
+        if (userBestStreak.streak > 1) {
+          allBestStreaks.push({ userId, ...userBestStreak });
+        }
       }
 
-      if (bestStreak.streak > 1) {
-        const member = MEMBERS.find(m => m.id === bestStreak.userId);
-        if (member) {
-          dailyStreakRecord = {
-            user_id: bestStreak.userId,
-            member_name: member.name,
-            member_slug: member.slug,
-            streak: bestStreak.streak,
-            start_date: bestStreak.startDate,
-            end_date: bestStreak.endDate,
-          };
-        }
+      // Find the maximum streak
+      const maxStreak = Math.max(0, ...allBestStreaks.map(s => s.streak));
+
+      if (maxStreak > 1) {
+        // Get all users with this max streak
+        const holders: StreakRecordHolder[] = allBestStreaks
+          .filter(s => s.streak === maxStreak)
+          .map(s => {
+            const member = MEMBERS.find(m => m.id === s.userId);
+            return {
+              user_id: s.userId,
+              member_name: member?.name || 'Unknown',
+              member_slug: member?.slug || '',
+              start_date: s.startDate,
+              end_date: s.endDate,
+            };
+          });
+
+        dailyStreakRecord = {
+          streak: maxStreak,
+          holders,
+        };
       }
     }
 
-    // Calculate weekly streak record
-    let weeklyStreakRecord: StreakRecord | null = null;
+    // Calculate weekly streak record (same logic, but for weeks = 7 days apart)
+    let weeklyStreakRecord: StreakRecordWithHolders | null = null;
     if (allWeeklyDrere && allWeeklyDrere.length > 0) {
-      let bestStreak = { userId: '', streak: 0, startDate: '', endDate: '' };
-      let currentStreak = { userId: '', streak: 0, startDate: '', endDate: '' };
-      let lastDate: Date | null = null;
-
+      // Group awards by user
+      const userDates: Record<string, string[]> = {};
       for (const award of allWeeklyDrere) {
-        const awardDate = new Date(award.award_date);
+        if (!userDates[award.user_id]) {
+          userDates[award.user_id] = [];
+        }
+        if (!userDates[award.user_id].includes(award.award_date)) {
+          userDates[award.user_id].push(award.award_date);
+        }
+      }
 
-        // Check if this continues a streak (same user, consecutive week = 7 days apart)
-        if (lastDate && currentStreak.userId === award.user_id) {
-          const daysDiff = Math.round((awardDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+      const allBestStreaks: Array<{ userId: string; streak: number; startDate: string; endDate: string }> = [];
+
+      for (const [userId, dates] of Object.entries(userDates)) {
+        const sortedDates = dates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+        let currentStreak = 1;
+        let currentStart = sortedDates[0];
+        let currentEnd = sortedDates[0];
+        let userBestStreak = { streak: 1, startDate: sortedDates[0], endDate: sortedDates[0] };
+
+        for (let i = 1; i < sortedDates.length; i++) {
+          const prevDate = new Date(sortedDates[i - 1]);
+          const currDate = new Date(sortedDates[i]);
+          const daysDiff = Math.round((currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+
           if (daysDiff === 7) {
-            // Consecutive week, extend streak
-            currentStreak.streak++;
-            currentStreak.endDate = award.award_date;
+            // Consecutive week
+            currentStreak++;
+            currentEnd = sortedDates[i];
           } else {
-            // Gap in weeks, start new streak
-            if (currentStreak.streak > bestStreak.streak) {
-              bestStreak = { ...currentStreak };
+            if (currentStreak > userBestStreak.streak) {
+              userBestStreak = { streak: currentStreak, startDate: currentStart, endDate: currentEnd };
             }
-            currentStreak = { userId: award.user_id, streak: 1, startDate: award.award_date, endDate: award.award_date };
+            currentStreak = 1;
+            currentStart = sortedDates[i];
+            currentEnd = sortedDates[i];
           }
-        } else {
-          // Different user or first entry
-          if (currentStreak.streak > bestStreak.streak) {
-            bestStreak = { ...currentStreak };
-          }
-          currentStreak = { userId: award.user_id, streak: 1, startDate: award.award_date, endDate: award.award_date };
         }
-        lastDate = awardDate;
-      }
-      // Check final streak
-      if (currentStreak.streak > bestStreak.streak) {
-        bestStreak = { ...currentStreak };
+        if (currentStreak > userBestStreak.streak) {
+          userBestStreak = { streak: currentStreak, startDate: currentStart, endDate: currentEnd };
+        }
+
+        if (userBestStreak.streak > 1) {
+          allBestStreaks.push({ userId, ...userBestStreak });
+        }
       }
 
-      if (bestStreak.streak > 1) {
-        const member = MEMBERS.find(m => m.id === bestStreak.userId);
-        if (member) {
-          weeklyStreakRecord = {
-            user_id: bestStreak.userId,
-            member_name: member.name,
-            member_slug: member.slug,
-            streak: bestStreak.streak,
-            start_date: bestStreak.startDate,
-            end_date: bestStreak.endDate,
+      const maxStreak = Math.max(0, ...allBestStreaks.map(s => s.streak));
+
+      if (maxStreak > 1) {
+        const holders: StreakRecordHolder[] = allBestStreaks
+          .filter(s => s.streak === maxStreak)
+          .map(s => {
+            const member = MEMBERS.find(m => m.id === s.userId);
+            return {
+              user_id: s.userId,
+              member_name: member?.name || 'Unknown',
+              member_slug: member?.slug || '',
+              start_date: s.startDate,
+              end_date: s.endDate,
+            };
+          });
+
+        weeklyStreakRecord = {
+          streak: maxStreak,
+          holders,
+        };
+      }
+    }
+
+    // Build count records (most drère du jour, most mzi du jour, most exact scores)
+    // All records support ties (multiple holders)
+    let mostDrereRecord: CountRecordWithHolders | null = null;
+    let mostMziRecord: CountRecordWithHolders | null = null;
+    let mostExactScoresRecord: CountRecordWithHolders | null = null;
+
+    // Find all users with most drère du jour
+    const maxDrereCount = Math.max(0, ...Object.values(crownCounts));
+    if (maxDrereCount > 0) {
+      const holders: CountRecordHolder[] = Object.entries(crownCounts)
+        .filter(([, c]) => c === maxDrereCount)
+        .map(([userId]) => {
+          const member = MEMBERS.find(m => m.id === userId);
+          return {
+            user_id: userId,
+            member_name: member?.name || 'Unknown',
+            member_slug: member?.slug || '',
           };
+        })
+        .filter(h => h.member_slug !== '');
+
+      if (holders.length > 0) {
+        mostDrereRecord = { count: maxDrereCount, holders };
+      }
+    }
+
+    // Find all users with most mzi du jour
+    const maxMziCount = Math.max(0, ...Object.values(mziCounts));
+    if (maxMziCount > 0) {
+      const holders: CountRecordHolder[] = Object.entries(mziCounts)
+        .filter(([, c]) => c === maxMziCount)
+        .map(([userId]) => {
+          const member = MEMBERS.find(m => m.id === userId);
+          return {
+            user_id: userId,
+            member_name: member?.name || 'Unknown',
+            member_slug: member?.slug || '',
+          };
+        })
+        .filter(h => h.member_slug !== '');
+
+      if (holders.length > 0) {
+        mostMziRecord = { count: maxMziCount, holders };
+      }
+    }
+
+    // Find all users with most exact scores
+    const exactScoreCounts: Record<string, number> = {};
+    for (const member of MEMBERS) {
+      exactScoreCounts[member.id] = userStats[member.id]?.exact_scores || 0;
+    }
+    const maxExactCount = Math.max(0, ...Object.values(exactScoreCounts));
+    if (maxExactCount > 0) {
+      const holders: CountRecordHolder[] = Object.entries(exactScoreCounts)
+        .filter(([, c]) => c === maxExactCount)
+        .map(([userId]) => {
+          const member = MEMBERS.find(m => m.id === userId);
+          return {
+            user_id: userId,
+            member_name: member?.name || 'Unknown',
+            member_slug: member?.slug || '',
+          };
+        })
+        .filter(h => h.member_slug !== '');
+
+      if (holders.length > 0) {
+        mostExactScoresRecord = { count: maxExactCount, holders };
+      }
+    }
+
+    // Find all users with most visionary bonuses
+    let mostVisionaryRecord: CountRecordWithHolders | null = null;
+    const visionaryCounts: Record<string, number> = {};
+    for (const member of MEMBERS) {
+      visionaryCounts[member.id] = userStats[member.id]?.visionary_count || 0;
+    }
+    const maxVisionaryCount = Math.max(0, ...Object.values(visionaryCounts));
+    if (maxVisionaryCount > 0) {
+      const holders: CountRecordHolder[] = Object.entries(visionaryCounts)
+        .filter(([, c]) => c === maxVisionaryCount)
+        .map(([userId]) => {
+          const member = MEMBERS.find(m => m.id === userId);
+          return {
+            user_id: userId,
+            member_name: member?.name || 'Unknown',
+            member_slug: member?.slug || '',
+          };
+        })
+        .filter(h => h.member_slug !== '');
+
+      if (holders.length > 0) {
+        mostVisionaryRecord = { count: maxVisionaryCount, holders };
+      }
+    }
+
+    // Find best average points per match (minimum 10 matches to qualify)
+    let bestAverageRecord: AverageRecordWithHolders | null = null;
+    const MIN_MATCHES_FOR_AVERAGE = 10;
+    const userAverages: Record<string, { average: number; matches: number }> = {};
+    for (const member of MEMBERS) {
+      const stats = userStats[member.id];
+      if (stats && stats.matches_predicted >= MIN_MATCHES_FOR_AVERAGE) {
+        const avg = Math.round((stats.match_points / stats.matches_predicted) * 100) / 100;
+        userAverages[member.id] = { average: avg, matches: stats.matches_predicted };
+      }
+    }
+    if (Object.keys(userAverages).length > 0) {
+      const maxAverage = Math.max(...Object.values(userAverages).map(u => u.average));
+      const holders: AverageRecordHolder[] = Object.entries(userAverages)
+        .filter(([, u]) => u.average === maxAverage)
+        .map(([userId, u]) => {
+          const member = MEMBERS.find(m => m.id === userId);
+          return {
+            user_id: userId,
+            member_name: member?.name || 'Unknown',
+            member_slug: member?.slug || '',
+            matches_predicted: u.matches,
+          };
+        })
+        .filter(h => h.member_slug !== '');
+
+      if (holders.length > 0) {
+        bestAverageRecord = { average: maxAverage, holders };
+      }
+    }
+
+    // Calculate MZI streak record (consecutive days being MZI - the shame record)
+    let mziStreakRecord: StreakRecordWithHolders | null = null;
+    if (allMziAwards && allMziAwards.length > 0) {
+      const userMziDates: Record<string, string[]> = {};
+      for (const award of allMziAwards) {
+        if (!userMziDates[award.user_id]) {
+          userMziDates[award.user_id] = [];
         }
+        if (!userMziDates[award.user_id].includes(award.award_date)) {
+          userMziDates[award.user_id].push(award.award_date);
+        }
+      }
+
+      const allMziStreaks: Array<{ userId: string; streak: number; startDate: string; endDate: string }> = [];
+
+      for (const [userId, dates] of Object.entries(userMziDates)) {
+        const sortedDates = dates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+        let currentStreak = 1;
+        let currentStart = sortedDates[0];
+        let currentEnd = sortedDates[0];
+        let userBestStreak = { streak: 1, startDate: sortedDates[0], endDate: sortedDates[0] };
+
+        for (let i = 1; i < sortedDates.length; i++) {
+          const prevDate = new Date(sortedDates[i - 1]);
+          const currDate = new Date(sortedDates[i]);
+          const daysDiff = Math.round((currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+
+          if (daysDiff === 1) {
+            currentStreak++;
+            currentEnd = sortedDates[i];
+          } else {
+            if (currentStreak > userBestStreak.streak) {
+              userBestStreak = { streak: currentStreak, startDate: currentStart, endDate: currentEnd };
+            }
+            currentStreak = 1;
+            currentStart = sortedDates[i];
+            currentEnd = sortedDates[i];
+          }
+        }
+        if (currentStreak > userBestStreak.streak) {
+          userBestStreak = { streak: currentStreak, startDate: currentStart, endDate: currentEnd };
+        }
+
+        if (userBestStreak.streak >= 1) {
+          allMziStreaks.push({ userId, ...userBestStreak });
+        }
+      }
+
+      const maxMziStreak = Math.max(0, ...allMziStreaks.map(s => s.streak));
+
+      if (maxMziStreak >= 2) {
+        const holders: StreakRecordHolder[] = allMziStreaks
+          .filter(s => s.streak === maxMziStreak)
+          .map(s => {
+            const member = MEMBERS.find(m => m.id === s.userId);
+            return {
+              user_id: s.userId,
+              member_name: member?.name || 'Unknown',
+              member_slug: member?.slug || '',
+              start_date: s.startDate,
+              end_date: s.endDate,
+            };
+          });
+
+        mziStreakRecord = {
+          streak: maxMziStreak,
+          holders,
+        };
+      }
+    }
+
+    // Calculate longest streak without MZI (for users who have participated)
+    // This requires knowing all competition days and finding gaps in MZI awards
+    let longestWithoutMziRecord: StreakRecordWithHolders | null = null;
+
+    // Get all unique competition days from daily_awards
+    const { data: allCompetitionDays } = await supabase
+      .from('daily_awards')
+      .select('award_date')
+      .order('award_date', { ascending: true });
+
+    if (allCompetitionDays && allCompetitionDays.length > 0) {
+      const uniqueDays = [...new Set(allCompetitionDays.map(d => d.award_date))].sort();
+
+      // For each user who has participated, calculate their longest streak without MZI
+      const allWithoutMziStreaks: Array<{ userId: string; streak: number; startDate: string; endDate: string }> = [];
+
+      for (const member of MEMBERS) {
+        // Skip users who haven't played
+        if (!userStats[member.id] || userStats[member.id].matches_predicted === 0) continue;
+
+        const userMziDays = new Set(
+          (allMziAwards || [])
+            .filter(a => a.user_id === member.id)
+            .map(a => a.award_date)
+        );
+
+        let currentStreak = 0;
+        let currentStart = '';
+        let currentEnd = '';
+        let userBestStreak = { streak: 0, startDate: '', endDate: '' };
+
+        for (const day of uniqueDays) {
+          if (!userMziDays.has(day)) {
+            // Not MZI on this day
+            if (currentStreak === 0) {
+              currentStart = day;
+            }
+            currentStreak++;
+            currentEnd = day;
+          } else {
+            // Was MZI - streak ends
+            if (currentStreak > userBestStreak.streak) {
+              userBestStreak = { streak: currentStreak, startDate: currentStart, endDate: currentEnd };
+            }
+            currentStreak = 0;
+          }
+        }
+        // Check final streak
+        if (currentStreak > userBestStreak.streak) {
+          userBestStreak = { streak: currentStreak, startDate: currentStart, endDate: currentEnd };
+        }
+
+        if (userBestStreak.streak >= 2) {
+          allWithoutMziStreaks.push({ userId: member.id, ...userBestStreak });
+        }
+      }
+
+      const maxWithoutMziStreak = Math.max(0, ...allWithoutMziStreaks.map(s => s.streak));
+
+      if (maxWithoutMziStreak >= 2) {
+        const holders: StreakRecordHolder[] = allWithoutMziStreaks
+          .filter(s => s.streak === maxWithoutMziStreak)
+          .map(s => {
+            const member = MEMBERS.find(m => m.id === s.userId);
+            return {
+              user_id: s.userId,
+              member_name: member?.name || 'Unknown',
+              member_slug: member?.slug || '',
+              start_date: s.startDate,
+              end_date: s.endDate,
+            };
+          });
+
+        longestWithoutMziRecord = {
+          streak: maxWithoutMziStreak,
+          holders,
+        };
       }
     }
 
@@ -557,6 +881,13 @@ export async function GET() {
       weekly_record: weeklyRecord,
       daily_streak_record: dailyStreakRecord,
       weekly_streak_record: weeklyStreakRecord,
+      most_drere_record: mostDrereRecord,
+      most_mzi_record: mostMziRecord,
+      most_exact_scores_record: mostExactScoresRecord,
+      most_visionary_record: mostVisionaryRecord,
+      best_average_record: bestAverageRecord,
+      mzi_streak_record: mziStreakRecord,
+      longest_without_mzi_record: longestWithoutMziRecord,
     });
   } catch (error) {
     return NextResponse.json(

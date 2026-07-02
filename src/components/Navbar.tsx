@@ -9,9 +9,10 @@ import { useSupabase } from '@/hooks/useSupabase';
 const navItems = [
   { href: '/', label: 'Accueil', icon: '🏠', mobileLabel: 'Home' },
   { href: '/world-cup', label: 'Coupe du Monde', icon: '⚽', mobileLabel: 'CDM' },
-  { href: '/leaderboard', label: 'Classement', icon: '🏆', mobileLabel: 'Classement' },
+  { href: '/leaderboard', label: 'Classement', icon: '🏆', mobileLabel: 'Classt' },
   { href: '/predictions', label: 'Pronostics', icon: '🎰', mobileLabel: 'Pronos' },
-  { href: '/activities', label: 'Activités', icon: '📅', mobileLabel: 'Activités' },
+  { href: '/activities', label: 'Activités', icon: '📅', mobileLabel: 'Activ' },
+  { href: '/games', label: 'Zbrétoile', icon: '⭐', mobileLabel: 'Zbré' },
 ];
 
 export default function Navbar() {
@@ -52,6 +53,7 @@ export default function Navbar() {
   if (loading || !currentUser) return null;
 
   return (
+    <>
     <nav className="sticky top-0 z-50 bg-[#0a0a0f] border-b border-white/10">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
@@ -134,24 +136,28 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Mobile Nav */}
-        <div className="md:hidden flex items-center justify-around py-2 border-t border-white/5">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all ${
-                pathname === item.href
-                  ? 'text-[#6366f1]'
-                  : 'text-gray-400'
-              }`}
-            >
-              <span className="text-xl">{item.icon}</span>
-              <span className="text-xs font-medium">{item.mobileLabel}</span>
-            </Link>
-          ))}
-        </div>
       </div>
     </nav>
+
+    {/* Mobile bottom tab bar — native-app feel, thumb-friendly during matches */}
+    <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 glass border-t border-white/10 pb-[env(safe-area-inset-bottom)]">
+      <div className="flex items-stretch">
+        {navItems.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`flex-1 min-w-0 flex flex-col items-center gap-0.5 px-1 py-2 transition-all ${
+              pathname === item.href
+                ? 'text-[#6366f1]'
+                : 'text-gray-400'
+            }`}
+          >
+            <span className="text-xl leading-none">{item.icon}</span>
+            <span className="text-[10px] font-medium leading-none truncate max-w-full">{item.mobileLabel}</span>
+          </Link>
+        ))}
+      </div>
+    </nav>
+    </>
   );
 }
