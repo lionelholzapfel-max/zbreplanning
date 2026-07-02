@@ -383,8 +383,8 @@ export default function GamesPage() {
                 </span>
               )}
             </h2>
-            <div className="glass rounded-xl overflow-hidden">
-              <table className="w-full">
+            <div className="glass rounded-xl overflow-x-auto">
+              <table className="w-full min-w-[600px]">
                 <thead>
                   <tr className="border-b border-white/10">
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">#</th>

@@ -188,8 +188,8 @@ export default function GameDetailPage({ params }: { params: Promise<{ gameId: s
                 </span>
               )}
             </h2>
-            <div className="glass rounded-xl overflow-hidden">
-              <table className="w-full">
+            <div className="glass rounded-xl overflow-x-auto">
+              <table className="w-full min-w-[560px]">
                 <thead>
                   <tr className="border-b border-white/10">
                     <th className="text-left py-3 px-4 text-sm text-gray-400">#</th>

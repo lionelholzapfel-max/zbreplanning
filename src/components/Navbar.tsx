@@ -9,10 +9,10 @@ import { useSupabase } from '@/hooks/useSupabase';
 const navItems = [
   { href: '/', label: 'Accueil', icon: '🏠', mobileLabel: 'Home' },
   { href: '/world-cup', label: 'Coupe du Monde', icon: '⚽', mobileLabel: 'CDM' },
-  { href: '/leaderboard', label: 'Classement', icon: '🏆', mobileLabel: 'Classement' },
+  { href: '/leaderboard', label: 'Classement', icon: '🏆', mobileLabel: 'Classt' },
   { href: '/predictions', label: 'Pronostics', icon: '🎰', mobileLabel: 'Pronos' },
-  { href: '/activities', label: 'Activités', icon: '📅', mobileLabel: 'Activités' },
-  { href: '/games', label: 'Zbrétoile', icon: '⭐', mobileLabel: 'Zbrétoile' },
+  { href: '/activities', label: 'Activités', icon: '📅', mobileLabel: 'Activ' },
+  { href: '/games', label: 'Zbrétoile', icon: '⭐', mobileLabel: 'Zbré' },
 ];
 
 export default function Navbar() {
@@ -135,20 +135,20 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Mobile Nav */}
-        <div className="md:hidden flex items-center justify-around py-2 border-t border-white/5">
+        {/* Mobile Nav — flex-1 + min-w-0 so 6 items always fit without horizontal scroll */}
+        <div className="md:hidden flex items-stretch py-2 border-t border-white/5">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all ${
+              className={`flex-1 min-w-0 flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-lg transition-all ${
                 pathname === item.href
                   ? 'text-[#6366f1]'
                   : 'text-gray-400'
               }`}
             >
-              <span className="text-xl">{item.icon}</span>
-              <span className="text-xs font-medium">{item.mobileLabel}</span>
+              <span className="text-lg leading-none">{item.icon}</span>
+              <span className="text-[10px] font-medium leading-none truncate max-w-full">{item.mobileLabel}</span>
             </Link>
           ))}
         </div>
