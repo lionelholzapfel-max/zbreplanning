@@ -84,7 +84,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ gameId: s
   if (!mounted || userLoading) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500" />
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#6366f1]" />
       </div>
     );
   }
@@ -121,7 +121,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ gameId: s
                   onClick={() => setPeriodFilter(period)}
                   className={`px-3 py-1 text-sm rounded-lg transition-colors ${
                     periodFilter === period
-                      ? 'bg-purple-600 text-white'
+                      ? 'bg-[#6366f1] text-white'
                       : 'bg-white/10 text-gray-400 hover:bg-white/20'
                   }`}
                 >
@@ -159,7 +159,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ gameId: s
                 <p className="text-sm text-gray-400">
                   Roi du {stats.game.name}
                   {periodFilter !== 'all' && (
-                    <span className="ml-2 text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full">
+                    <span className="ml-2 text-xs bg-[#6366f1]/20 text-[#a855f7] px-2 py-0.5 rounded-full">
                       {getPeriodLabel(periodFilter)}
                     </span>
                   )}
@@ -180,10 +180,10 @@ export default function GameDetailPage({ params }: { params: Promise<{ gameId: s
         {stats && stats.leaderboard.length > 0 && (
           <div className="mb-6">
             <h2 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-purple-400" />
+              <Trophy className="w-5 h-5 text-[#a855f7]" />
               Classement
               {periodFilter !== 'all' && (
-                <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full">
+                <span className="text-xs bg-[#6366f1]/20 text-[#a855f7] px-2 py-0.5 rounded-full">
                   {getPeriodLabel(periodFilter)}
                 </span>
               )}
@@ -258,7 +258,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ gameId: s
                       className={`text-sm px-2 py-0.5 rounded-full ${
                         p.user.id === session.winner_id
                           ? 'bg-yellow-500/20 text-yellow-400 font-medium'
-                          : 'bg-gray-700/50 text-gray-300'
+                          : 'bg-[#1e1e2e]/50 text-gray-300'
                       }`}
                     >
                       {p.user.member_name}

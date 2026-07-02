@@ -297,7 +297,7 @@ export default function GamesPage() {
   if (!mounted || userLoading) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500" />
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#6366f1]" />
       </div>
     );
   }
@@ -317,14 +317,14 @@ export default function GamesPage() {
           <div className="flex gap-2">
             <button
               onClick={() => setShowCreateGame(true)}
-              className="flex items-center gap-1 px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center gap-1 px-3 py-2 bg-[#6366f1] hover:bg-[#4f46e5] rounded-lg text-sm font-medium transition-colors"
             >
               <Plus className="w-4 h-4" />
               Jeu
             </button>
             <button
               onClick={() => setShowCreateSession(true)}
-              className="flex items-center gap-1 px-3 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center gap-1 px-3 py-2 bg-[#22c55e] hover:bg-[#16a34a] rounded-lg text-sm font-medium transition-colors"
             >
               <Plus className="w-4 h-4" />
               Partie
@@ -344,7 +344,7 @@ export default function GamesPage() {
                   onClick={() => setPeriodFilter(period)}
                   className={`px-3 py-1 text-sm rounded-lg transition-colors ${
                     periodFilter === period
-                      ? 'bg-purple-600 text-white'
+                      ? 'bg-[#6366f1] text-white'
                       : 'bg-white/10 text-gray-400 hover:bg-white/20'
                   }`}
                 >
@@ -375,10 +375,10 @@ export default function GamesPage() {
         {stats?.eloLeaderboard && stats.eloLeaderboard.length > 0 && (
           <div className="mb-6">
             <h2 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-purple-400" />
+              <TrendingUp className="w-5 h-5 text-[#a855f7]" />
               Classement ELO
               {periodFilter !== 'all' && (
-                <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full">
+                <span className="text-xs bg-[#6366f1]/20 text-[#a855f7] px-2 py-0.5 rounded-full">
                   {getPeriodLabel(periodFilter)}
                 </span>
               )}
@@ -414,7 +414,7 @@ export default function GamesPage() {
                       </td>
                       <td className="px-4 py-3 font-medium text-white">{entry.userName}</td>
                       <td className="px-4 py-3 text-right">
-                        <span className="font-mono font-bold text-purple-400">{entry.elo}</span>
+                        <span className="font-mono font-bold text-[#a855f7]">{entry.elo}</span>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <span className="flex items-center justify-end gap-1 text-yellow-400">
@@ -541,14 +541,14 @@ export default function GamesPage() {
                     </span>
                     <button
                       onClick={() => openEditModal(session)}
-                      className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                      className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
                       title="Modifier"
                     >
                       <Pencil className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setDeleteSession(session)}
-                      className="p-1.5 rounded-lg hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors"
+                      className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors"
                       title="Supprimer"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -564,7 +564,7 @@ export default function GamesPage() {
                       className={`text-sm px-2 py-0.5 rounded-full ${
                         p.user.id === session.winner_id
                           ? 'bg-yellow-500/20 text-yellow-400 font-medium'
-                          : 'bg-gray-700/50 text-gray-300'
+                          : 'bg-[#1e1e2e]/50 text-gray-300'
                       }`}
                     >
                       {p.user.member_name}
@@ -601,7 +601,7 @@ export default function GamesPage() {
                           key={idx}
                           className={`w-8 h-8 flex items-center justify-center rounded-lg font-bold ${
                             result === 'W'
-                              ? 'bg-green-500/20 text-green-400'
+                              ? 'bg-[#22c55e]/20 text-green-400'
                               : 'bg-red-500/20 text-red-400'
                           }`}
                         >
@@ -618,7 +618,7 @@ export default function GamesPage() {
             )}
             <button
               onClick={() => setSelectedPlayerForm(null)}
-              className="mt-6 w-full py-3 bg-gray-700 hover:bg-gray-600 rounded-xl font-medium transition-colors"
+              className="mt-6 w-full py-3 bg-[#1e1e2e] hover:bg-[#2a2a3a] rounded-xl font-medium transition-colors"
             >
               Fermer
             </button>
@@ -644,14 +644,14 @@ export default function GamesPage() {
                 <button
                   type="button"
                   onClick={() => setShowCreateGame(false)}
-                  className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl font-medium transition-colors"
+                  className="flex-1 py-3 bg-[#1e1e2e] hover:bg-[#2a2a3a] rounded-xl font-medium transition-colors"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={loading || !newGameName.trim()}
-                  className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-xl font-medium transition-colors"
+                  className="flex-1 py-3 bg-[#6366f1] hover:bg-[#4f46e5] disabled:opacity-50 rounded-xl font-medium transition-colors"
                 >
                   Créer
                 </button>
@@ -754,7 +754,7 @@ export default function GamesPage() {
                       onClick={() => toggleParticipant(user.id)}
                       className={`px-2 py-1 text-sm rounded-lg transition-colors ${
                         newSession.participant_ids.includes(user.id)
-                          ? 'bg-purple-600 text-white'
+                          ? 'bg-[#6366f1] text-white'
                           : 'bg-white/10 text-gray-400 hover:bg-white/20'
                       }`}
                     >
@@ -788,14 +788,14 @@ export default function GamesPage() {
                 <button
                   type="button"
                   onClick={() => setShowCreateSession(false)}
-                  className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl font-medium transition-colors"
+                  className="flex-1 py-3 bg-[#1e1e2e] hover:bg-[#2a2a3a] rounded-xl font-medium transition-colors"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={loading || !newSession.game_id || newSession.participant_ids.length < 2}
-                  className="flex-1 py-3 bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded-xl font-medium transition-colors"
+                  className="flex-1 py-3 bg-[#22c55e] hover:bg-[#16a34a] disabled:opacity-50 rounded-xl font-medium transition-colors"
                 >
                   Enregistrer
                 </button>
@@ -897,7 +897,7 @@ export default function GamesPage() {
                       onClick={() => toggleEditParticipant(user.id)}
                       className={`px-2 py-1 text-sm rounded-lg transition-colors ${
                         editSession.participant_ids.includes(user.id)
-                          ? 'bg-purple-600 text-white'
+                          ? 'bg-[#6366f1] text-white'
                           : 'bg-white/10 text-gray-400 hover:bg-white/20'
                       }`}
                     >
@@ -931,7 +931,7 @@ export default function GamesPage() {
                 <button
                   type="button"
                   onClick={() => setEditingSession(null)}
-                  className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl font-medium transition-colors"
+                  className="flex-1 py-3 bg-[#1e1e2e] hover:bg-[#2a2a3a] rounded-xl font-medium transition-colors"
                 >
                   Annuler
                 </button>
@@ -960,7 +960,7 @@ export default function GamesPage() {
               <button
                 type="button"
                 onClick={() => setDeleteSession(null)}
-                className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl font-medium transition-colors"
+                className="flex-1 py-3 bg-[#1e1e2e] hover:bg-[#2a2a3a] rounded-xl font-medium transition-colors"
               >
                 Annuler
               </button>
