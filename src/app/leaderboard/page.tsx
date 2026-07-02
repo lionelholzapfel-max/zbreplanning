@@ -233,8 +233,31 @@ export default function LeaderboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-[#6366f1] border-t-transparent rounded-full" />
+      <div className="min-h-screen bg-[#0a0a0f]">
+        <Navbar />
+        <div className="max-w-4xl mx-auto px-4 pt-8 space-y-6">
+          {/* Podium skeleton */}
+          <div className="flex items-end justify-center gap-4">
+            {[64, 96, 48].map((h, i) => (
+              <div key={i} className="flex flex-col items-center flex-1 max-w-[120px]">
+                <div className={`rounded-full bg-white/5 animate-pulse ${i === 1 ? 'w-20 h-20' : 'w-14 h-14'}`} />
+                <div className="mt-2 h-3 w-12 rounded bg-white/5 animate-pulse" />
+                <div className="mt-2 w-full rounded-t-xl bg-white/5 animate-pulse" style={{ height: `${h}px` }} />
+              </div>
+            ))}
+          </div>
+          {/* Rows skeleton */}
+          <div className="bg-[#12121a] rounded-3xl border border-white/10 overflow-hidden divide-y divide-white/5">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 px-6 py-4">
+                <div className="w-6 h-6 rounded bg-white/5 animate-pulse" />
+                <div className="w-10 h-10 rounded-full bg-white/5 animate-pulse" />
+                <div className="flex-1 h-4 rounded bg-white/5 animate-pulse max-w-[120px]" />
+                <div className="w-10 h-5 rounded bg-white/5 animate-pulse" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
