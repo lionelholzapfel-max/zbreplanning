@@ -7,6 +7,7 @@ import Navbar from '@/components/Navbar';
 import { MEMBERS } from '@/data/members';
 import { useSupabase } from '@/hooks/useSupabase';
 import { toast } from 'sonner';
+import { PageHeader, Avatar } from '@/components/ui';
 
 interface UserStatus {
   id: string;
@@ -91,11 +92,8 @@ export default function AdminMembersPage() {
   // Show loading spinner while validating session
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-[#6366f1] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Chargement...</p>
-        </div>
+      <div className="min-h-screen bg-[var(--canvas)] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -103,104 +101,61 @@ export default function AdminMembersPage() {
   if (!currentUser?.is_admin) return null;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f]">
+    <div className="min-h-screen bg-[var(--canvas)]">
       <Navbar />
 
-      {/* Hero */}
-      <section className="relative py-12 px-4 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-red-500/20 via-[#1a472a]/20 to-transparent" />
-        <div className="absolute top-0 right-0 w-96 h-96 bg-red-500/10 rounded-full blur-3xl" />
-
-        <div className={`max-w-4xl mx-auto relative transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-3 mb-4">
-              <span className="text-5xl">👥</span>
-              <h1 className="text-4xl md:text-5xl font-black">
-                <span className="text-white">Admin </span>
-                <span className="bg-gradient-to-r from-red-400 to-red-600 bg-clip-text text-transparent">Membres</span>
-              </h1>
-            </div>
-            <p className="text-gray-400 text-lg">Gestion des comptes et PIN</p>
-          </div>
-        </div>
+      {/* Header */}
+      <section className="max-w-4xl mx-auto px-4 pt-8">
+        <PageHeader title="Admin — Membres" subtitle="Gestion des comptes et PIN" />
       </section>
 
-      {/* Members List */}
+      {/* Members */}
       <section className="max-w-4xl mx-auto px-4 pb-8">
-        <div className="space-y-4">
-          {MEMBERS.map((member, index) => {
+        <div className="rounded-[10px] overflow-hidden">
+          {MEMBERS.map((member) => {
             const status = userStatuses[member.id];
             const hasPin = status?.has_pin ?? false;
             const isAdmin = status?.is_admin ?? false;
-            const isCurrentUser = member.id === currentUser.id;
+            const isMe = member.id === currentUser.id;
 
             return (
               <div
                 key={member.id}
-                className={`relative overflow-hidden rounded-2xl border transition-all duration-300 ${
-                  mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-                } ${
-                  isCurrentUser
-                    ? 'border-[#fbbf24]/30 bg-gradient-to-r from-[#fbbf24]/10 to-transparent'
-                    : 'border-white/10 bg-[#12121a]'
+                className={`flex items-center justify-between gap-3 min-h-[56px] px-3 border-b border-[var(--hairline)] last:border-b-0 transition-colors ${
+                  isMe ? 'bg-[var(--surface-1)] top-light' : 'hover:bg-[var(--surface-1)]'
                 }`}
-                style={{ transitionDelay: `${index * 50}ms` }}
               >
-                <div className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="relative w-12 h-12 rounded-full overflow-hidden">
-                      <Image
-                        src={member.photo}
-                        alt={member.name}
-                        fill
-                        className="object-cover"
-                      />
+                <div className="flex items-center gap-3 min-w-0">
+                  <Avatar slug={member.slug} name={member.name} size={32} />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[14px] font-medium ${isMe ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}>{member.name}</span>
+                      {isAdmin && <span className="text-[10px] uppercase tracking-[0.08em] px-1.5 py-0.5 rounded bg-[var(--surface-3)] text-[var(--text-secondary)]">Admin</span>}
+                      {isMe && <span className="text-[10px] uppercase tracking-[0.08em] px-1.5 py-0.5 rounded bg-[var(--surface-3)] text-[var(--text-secondary)]">Toi</span>}
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-white">{member.name}</span>
-                        {isAdmin && (
-                          <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full">
-                            Admin
-                          </span>
-                        )}
-                        {isCurrentUser && (
-                          <span className="px-2 py-0.5 bg-[#fbbf24]/20 text-[#fbbf24] text-xs rounded-full">
-                            Toi
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        {status ? (
-                          hasPin ? (
-                            <span className="text-green-400">PIN configuré</span>
-                          ) : (
-                            <span className="text-gray-500">Pas de PIN</span>
-                          )
+                    <div className="mt-0.5 flex items-center gap-1.5 text-[12px] text-[var(--text-tertiary)]">
+                      {status ? (
+                        hasPin ? (
+                          <><span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />PIN configuré</>
                         ) : (
-                          <span className="text-gray-600">Non inscrit</span>
-                        )}
-                      </div>
+                          'Pas de PIN'
+                        )
+                      ) : (
+                        'Non inscrit'
+                      )}
                     </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {hasPin && !isCurrentUser && (
-                      <button
-                        onClick={() => handleResetPin(member.id, member.name)}
-                        disabled={resetting === member.id}
-                        className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl transition-all disabled:opacity-50"
-                      >
-                        {resetting === member.id ? 'Reset...' : 'Reset PIN'}
-                      </button>
-                    )}
-                    {isCurrentUser && (
-                      <span className="text-sm text-gray-500">
-                        (Ton compte)
-                      </span>
-                    )}
                   </div>
                 </div>
+
+                {hasPin && !isMe && (
+                  <button
+                    onClick={() => handleResetPin(member.id, member.name)}
+                    disabled={resetting === member.id}
+                    className="shrink-0 h-8 px-3 rounded-[8px] border border-[var(--danger)]/40 text-[13px] text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors disabled:opacity-50"
+                  >
+                    {resetting === member.id ? 'Reset…' : 'Reset PIN'}
+                  </button>
+                )}
               </div>
             );
           })}
