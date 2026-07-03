@@ -22,13 +22,14 @@ const ACTIVITY_TYPES = [
 
 export default function ActivitiesPage() {
   const router = useRouter();
-  const { currentUser, loading: userLoading, getActivities, createActivity, getActivityParticipations, setActivityParticipation } = useSupabase();
+  const { currentUser, loading: userLoading, getActivities, createActivity, updateActivity, getActivityParticipations, setActivityParticipation } = useSupabase();
 
   const [activities, setActivitiesState] = useState<Activity[]>([]);
   const [participations, setParticipations] = useState<Record<string, ActivityParticipation[]>>({});
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [newActivity, setNewActivity] = useState({ title: '', description: '', date: '', time: '', location: '' });
+  const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [loadingActivity, setLoadingActivity] = useState<string | null>(null);
 
@@ -54,24 +55,47 @@ export default function ActivitiesPage() {
     if (currentUser) loadData();
   }, [currentUser, loadData]);
 
-  const handleCreateActivity = async (e: React.FormEvent) => {
+  const handleSubmitActivity = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser || !selectedType) return;
+    if (!currentUser) return;
 
-    const type = ACTIVITY_TYPES.find(t => t.id === selectedType);
-
-    await createActivity({
-      title: newActivity.title || `${type?.icon} ${type?.label}`,
-      description: newActivity.description,
-      date: newActivity.date,
-      time: newActivity.time,
-      location: newActivity.location,
-    });
+    if (editingActivityId) {
+      await updateActivity(editingActivityId, {
+        title: newActivity.title,
+        description: newActivity.description,
+        date: newActivity.date,
+        time: newActivity.time,
+        location: newActivity.location,
+      });
+    } else {
+      if (!selectedType) return;
+      const type = ACTIVITY_TYPES.find(t => t.id === selectedType);
+      await createActivity({
+        title: newActivity.title || `${type?.icon} ${type?.label}`,
+        description: newActivity.description,
+        date: newActivity.date,
+        time: newActivity.time,
+        location: newActivity.location,
+      });
+    }
 
     setShowCreateModal(false);
     setSelectedType(null);
+    setEditingActivityId(null);
     setNewActivity({ title: '', description: '', date: '', time: '', location: '' });
     loadData();
+  };
+
+  const openEditActivity = (activity: Activity) => {
+    setEditingActivityId(activity.id);
+    setNewActivity({
+      title: activity.title,
+      description: activity.description || '',
+      date: activity.date || '',
+      time: activity.time || '',
+      location: activity.location || '',
+    });
+    setShowCreateModal(true);
   };
 
   const handleParticipation = async (activityId: string, status: 'yes' | 'no' | 'maybe', activityTitle: string, creatorId: string) => {
@@ -187,19 +211,29 @@ export default function ActivitiesPage() {
                       </div>
                     </div>
 
-                    <div className="shrink-0 self-start inline-flex rounded-[8px] bg-[var(--surface-2)] p-0.5">
-                      {([['yes', 'Je viens'], ['maybe', 'Peut-être'], ['no', 'Non']] as const).map(([k, label]) => (
+                    <div className="shrink-0 self-start flex flex-col items-end gap-2">
+                      <div className="inline-flex rounded-[8px] bg-[var(--surface-2)] p-0.5">
+                        {([['yes', 'Je viens'], ['maybe', 'Peut-être'], ['no', 'Non']] as const).map(([k, label]) => (
+                          <button
+                            key={k}
+                            onClick={() => handleParticipation(activity.id, k, activity.title, activity.created_by)}
+                            disabled={isLoading}
+                            className={`px-3 py-1.5 rounded-[6px] text-[13px] transition-colors ${
+                              myStatus === k ? 'bg-[var(--accent-muted)] text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                            } ${isLoading ? 'opacity-50' : ''}`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      {(activity.created_by === currentUser.id || myStatus) && (
                         <button
-                          key={k}
-                          onClick={() => handleParticipation(activity.id, k, activity.title, activity.created_by)}
-                          disabled={isLoading}
-                          className={`px-3 py-1.5 rounded-[6px] text-[13px] transition-colors ${
-                            myStatus === k ? 'bg-[var(--accent-muted)] text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                          } ${isLoading ? 'opacity-50' : ''}`}
+                          onClick={() => openEditActivity(activity)}
+                          className="text-[12px] text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors"
                         >
-                          {label}
+                          Modifier
                         </button>
-                      ))}
+                      )}
                     </div>
                   </div>
 
@@ -247,11 +281,11 @@ export default function ActivitiesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="glass rounded-3xl p-8 w-full max-w-lg border border-white/10 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold">Nouvelle activité</h2>
+              <h2 className="text-2xl font-bold">{editingActivityId ? 'Modifier l’activité' : 'Nouvelle activité'}</h2>
               <button onClick={() => { setShowCreateModal(false); setSelectedType(null); }} className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/20 transition-all">✕</button>
             </div>
 
-            {!selectedType ? (
+            {!selectedType && !editingActivityId ? (
               <div className="space-y-4">
                 <p className="text-gray-400 mb-4">Quel type d&apos;activité ?</p>
                 <div className="grid grid-cols-2 gap-3">
@@ -267,7 +301,7 @@ export default function ActivitiesPage() {
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleCreateActivity} className="space-y-4">
+              <form onSubmit={handleSubmitActivity} className="space-y-4">
                 <div className="flex items-center gap-3 p-4 bg-[#6366f1]/20 rounded-2xl border border-[#6366f1]/30 mb-4">
                   <span className="text-3xl">{ACTIVITY_TYPES.find(t => t.id === selectedType)?.icon}</span>
                   <div>
@@ -311,8 +345,8 @@ export default function ActivitiesPage() {
                 </div>
 
                 <div className="flex gap-3 pt-4">
-                  <button type="button" onClick={() => { setShowCreateModal(false); setSelectedType(null); }} className="flex-1 px-6 py-3 bg-white/10 text-white rounded-xl font-bold hover:bg-white/20 transition-colors">Annuler</button>
-                  <button type="submit" className="flex-1 px-6 py-3 bg-gradient-to-r from-[#6366f1] to-[#a855f7] text-white rounded-xl font-bold hover:scale-[1.02] transition-transform shadow-lg shadow-[#6366f1]/30">Créer</button>
+                  <button type="button" onClick={() => { setShowCreateModal(false); setSelectedType(null); setEditingActivityId(null); }} className="flex-1 h-11 rounded-[8px] bg-[var(--surface-2)] text-[14px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Annuler</button>
+                  <button type="submit" className="flex-1 h-11 rounded-[8px] bg-[var(--accent)] text-[#0A0C0B] text-[14px] font-medium hover:opacity-90 transition-opacity">{editingActivityId ? 'Enregistrer' : 'Créer'}</button>
                 </div>
               </form>
             )}

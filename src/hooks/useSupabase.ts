@@ -664,6 +664,34 @@ export function useSupabase() {
     return { success: true };
   }, [supabase, currentUser]);
 
+  // Update activity — allowed for the creator OR anyone who has responded (enforced in the UI;
+  // activities RLS is permissive, the app authorizes via its own JWT).
+  const updateActivity = useCallback(async (activityId: string, activity: {
+    title: string;
+    description: string;
+    date: string;
+    time: string;
+    location: string;
+  }): Promise<WriteResult> => {
+    if (!currentUser) {
+      toast.error('Tu dois être connecté');
+      return { success: false, error: 'Non connecté' };
+    }
+
+    const { error } = await supabase
+      .from('activities')
+      .update(activity)
+      .eq('id', activityId);
+
+    if (error) {
+      toast.error('Erreur lors de la modification');
+      return { success: false, error: error.message };
+    }
+
+    toast.success('Activité modifiée');
+    return { success: true };
+  }, [supabase, currentUser]);
+
   // Activity Participations
   const getActivityParticipations = useCallback(async (activityId: string): Promise<ActivityParticipation[]> => {
     const { data, error } = await supabase
@@ -1042,6 +1070,7 @@ export function useSupabase() {
     // Activities
     getActivities,
     createActivity,
+    updateActivity,
     deleteActivity,
     getActivityParticipations,
     setActivityParticipation,
