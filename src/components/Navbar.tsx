@@ -6,14 +6,15 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
 import { Avatar } from '@/components/ui';
+import { Home, Trophy, BarChart3, Target, Users, Gamepad2, type LucideIcon } from 'lucide-react';
 
-const navItems = [
-  { href: '/', label: 'Accueil', mobileLabel: 'Accueil' },
-  { href: '/world-cup', label: 'Coupe du Monde', mobileLabel: 'CDM' },
-  { href: '/leaderboard', label: 'Classement', mobileLabel: 'Classt' },
-  { href: '/predictions', label: 'Pronostics', mobileLabel: 'Pronos' },
-  { href: '/activities', label: 'Activités', mobileLabel: 'Activ' },
-  { href: '/games', label: 'Zbrétoile', mobileLabel: 'Zbré' },
+const navItems: { href: string; label: string; mobileLabel: string; icon: LucideIcon }[] = [
+  { href: '/', label: 'Accueil', mobileLabel: 'Accueil', icon: Home },
+  { href: '/world-cup', label: 'Coupe du Monde', mobileLabel: 'Matchs', icon: Trophy },
+  { href: '/leaderboard', label: 'Classement', mobileLabel: 'Classement', icon: BarChart3 },
+  { href: '/predictions', label: 'Pronostics', mobileLabel: 'Pronos', icon: Target },
+  { href: '/activities', label: 'Activités', mobileLabel: 'Sorties', icon: Users },
+  { href: '/games', label: 'Zbrétoile', mobileLabel: 'Jeux', icon: Gamepad2 },
 ];
 
 export default function Navbar() {
@@ -120,20 +121,22 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Mobile bottom tab bar — text only, active = accent */}
+      {/* Mobile bottom tab bar — icon + full label, active = accent */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 bg-[var(--bg)]/90 backdrop-blur border-t border-[var(--hairline)] pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-stretch">
           {navItems.map((item) => {
             const active = pathname === item.href;
+            const Icon = item.icon;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex-1 min-w-0 flex items-center justify-center py-3 text-[11px] font-medium truncate px-1 transition-colors duration-150 ease-out ${
-                  active ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'
+                className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-1 py-2 px-1 transition-colors duration-150 ease-out ${
+                  active ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)]'
                 }`}
               >
-                {item.mobileLabel}
+                <Icon className="w-5 h-5 shrink-0" strokeWidth={1.75} />
+                <span className="text-[10px] leading-none">{item.mobileLabel}</span>
               </Link>
             );
           })}

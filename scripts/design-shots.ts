@@ -141,7 +141,7 @@ async function captureStates(browser: Awaited<ReturnType<typeof chromium.launch>
         await page.goto(`${BASE_URL}${target.page}`, { waitUntil: 'domcontentloaded', timeout: 20000 });
         await page.waitForTimeout(state === 'loading' ? 2500 : 3500);
         await page.evaluate(() => window.scrollTo(0, 0));
-        await page.addStyleTag({ content: 'nav[class*="sticky"] { position: static !important; }' });
+        await page.addStyleTag({ content: 'nav[class*="sticky"], nav[class*="fixed"] { position: static !important; }' });
         await page.waitForTimeout(200);
         const out = `${OUT_DIR}/states-${state}-${target.name}.png`;
         await page.screenshot({ path: out, fullPage: state !== 'loading' });
@@ -212,10 +212,10 @@ async function main() {
           await el.waitFor({ state: 'visible', timeout: 5000 });
           await el.screenshot({ path: out });
         } else {
-          // Neutralize only the STICKY top navbar so it doesn't re-paint mid-page in
-          // fullPage shots. Do NOT touch the fixed mobile bottom tab bar (it must stay fixed).
+          // Neutralize the sticky top navbar AND the fixed mobile bottom tab bar so
+          // neither re-paints/floats mid-page in fullPage shots.
           await page.evaluate(() => window.scrollTo(0, 0));
-          await page.addStyleTag({ content: 'nav[class*="sticky"] { position: static !important; }' });
+          await page.addStyleTag({ content: 'nav[class*="sticky"], nav[class*="fixed"] { position: static !important; }' });
           await page.waitForTimeout(300);
           await page.screenshot({ path: out, fullPage: true });
         }

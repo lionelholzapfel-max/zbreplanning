@@ -280,7 +280,7 @@ export default function HomePage() {
 
       {/* Stats nues — directement sur --canvas, le chiffre EST l'icône (§3) */}
       <section data-shot="stats" className="max-w-5xl mx-auto px-4 pt-16">
-        <div className="flex flex-wrap items-start gap-x-14 gap-y-8">
+        <div className="grid grid-cols-2 gap-6 sm:flex sm:flex-wrap sm:items-start sm:gap-x-14 sm:gap-y-8">
           {statCards.map(({ value, label, accent }) => (
             <div key={label} className="flex flex-col">
               <span className={`score text-[40px] ${accent ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}>
@@ -338,17 +338,17 @@ export default function HomePage() {
       {/* Upcoming matches */}
       {nextMatches.length > 0 && (
         <section className="max-w-5xl mx-auto px-4 pt-12">
-          <div className="flex items-center justify-between gap-4 mb-4">
-            <div className="flex items-center gap-3">
-              <h2 className="display text-[22px] text-[var(--text-primary)]">Prochains matchs</h2>
-              {toPredictCount > 0 && (
-                <span className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[11px] uppercase tracking-[0.04em] bg-[var(--surface-raised)] border border-[var(--hairline)]">
-                  <span className="stat text-[var(--accent)]">{toPredictCount}</span>
-                  <span className="text-[var(--text-tertiary)]">à pronostiquer</span>
-                </span>
-              )}
-            </div>
-            <Link href="/world-cup" className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+          {/* Header: desktop = title + badge left, action right (one row). Mobile (<sm):
+              title on its own line, badge + action wrap to the line below. */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-4">
+            <h2 className="display text-[22px] text-[var(--text-primary)] w-full sm:w-auto">Prochains matchs</h2>
+            {toPredictCount > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[11px] uppercase tracking-[0.04em] bg-[var(--surface-raised)] border border-[var(--hairline)]">
+                <span className="stat text-[var(--accent)]">{toPredictCount}</span>
+                <span className="text-[var(--text-tertiary)]">à pronostiquer</span>
+              </span>
+            )}
+            <Link href="/world-cup" className="ml-auto text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
               Voir tous →
             </Link>
           </div>
@@ -364,8 +364,10 @@ export default function HomePage() {
                       <span className="text-xs text-[var(--text-tertiary)] tabular-nums">{match.dateDisplay}</span>
                       <span className="score text-[15px] text-[var(--text-secondary)]">{match.time}</span>
                     </div>
-                    <div className="flex-1 min-w-0 text-[14px] text-[var(--text-primary)] font-medium truncate">
-                      {team1} <span className="text-[var(--text-tertiary)]">—</span> {team2}
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="flex-1 min-w-0 text-[14px] font-medium text-[var(--text-primary)] truncate">{team1}</span>
+                      <span className="shrink-0 text-[14px] text-[var(--text-tertiary)]">—</span>
+                      <span className="flex-1 min-w-0 text-[14px] font-medium text-[var(--text-primary)] truncate text-right">{team2}</span>
                     </div>
                     {hasPrediction ? (
                       <Badge variant="accent">Enregistré</Badge>
@@ -497,15 +499,15 @@ export default function HomePage() {
       {/* Team */}
       <section className="max-w-5xl mx-auto px-4 pt-12">
         <h2 className="display text-[22px] text-[var(--text-primary)] mb-4">La team</h2>
-        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-4">
+        <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 gap-4">
           {MEMBERS.map((member) => {
             const isMe = currentUser.member_slug === member.slug;
             return (
-              <div key={member.id} className="text-center">
-                <div className="mx-auto w-14 h-14 md:w-20 md:h-20">
+              <div key={member.id} className="min-w-0 text-center">
+                <div className="mx-auto w-16 h-16 md:w-20 md:h-20">
                   <Avatar slug={member.slug} name={member.name} size={80} ring={isMe ? 'accent' : 'none'} className="w-full h-full" />
                 </div>
-                <p className={`mt-2 text-sm truncate ${isMe ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'}`}>
+                <p className={`mt-2 text-[11px] sm:text-sm truncate ${isMe ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'}`}>
                   {member.name.split(' ')[0]}
                 </p>
               </div>
