@@ -57,6 +57,11 @@ const SHOTS: Shot[] = [
   { page: '/world-cup', name: '03-worldcup-default' },
   { page: '/world-cup', name: '04-worldcup-groups', actions: (p) => clickButton(p, /groupes/i) },
   { page: '/world-cup', name: '05-worldcup-knockout', actions: (p) => clickButton(p, /16es/i) },
+  // Element-level captures of individual match cards (the signature moment).
+  { page: '/world-cup', name: 'worldcup-filters', selector: '[data-shot="filters"]' },
+  { page: '/world-cup', name: 'worldcup-match-open', selector: '[data-shot="match-open"]' },
+  { page: '/world-cup', name: 'worldcup-match-done', selector: '[data-shot="match-done"]' },
+  { page: '/world-cup', name: 'worldcup-match-live', selector: '[data-shot="match-live"]' },
   { page: '/predictions', name: '06-predictions' },
   { page: '/leaderboard', name: '07-leaderboard-general' },
   { page: '/leaderboard', name: '07-leaderboard-semaine', actions: (p) => clickButton(p, /^semaine$/i) },
