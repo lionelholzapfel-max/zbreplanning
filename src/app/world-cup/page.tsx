@@ -139,7 +139,7 @@ export default function WorldCupPage() {
   const { currentUser, loading: userLoading, getMatchParticipations, getMatchParticipationsBatch, setMatchParticipation, getWatchLocations, getWatchLocationsBatch, addWatchLocation, toggleVoteLocation } = useSupabase();
   const { getTeamNames } = useTeamOverrides();
 
-  const [selectedPhase, setSelectedPhase] = useState<Phase>(PHASES.ROUND_OF_32);
+  const [selectedPhase, setSelectedPhase] = useState<Phase | 'ALL'>('ALL');
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [participations, setParticipations] = useState<Record<number, MatchParticipation[]>>({});
   const [locations, setLocations] = useState<Record<number, WatchLocation[]>>({});
@@ -316,7 +316,7 @@ export default function WorldCupPage() {
 
     let result = (matches as Match[]).filter(m => {
       // Phase filter - exact match only (phases are unique values from constants)
-      const phaseMatch = m.phase === selectedPhase;
+      const phaseMatch = selectedPhase === 'ALL' || m.phase === selectedPhase;
 
       const groupMatch = !selectedGroup || m.group === `GROUPE ${selectedGroup}`;
 
@@ -621,8 +621,6 @@ export default function WorldCupPage() {
 
   useEffect(() => {
     setMounted(true);
-    // Auto-select current phase on mount (client-side)
-    setSelectedPhase(getCurrentPhase());
   }, []);
 
   // Track which matches we've already loaded predictions for to avoid infinite loops
@@ -844,6 +842,16 @@ export default function WorldCupPage() {
       <section className="max-w-7xl mx-auto px-4 pt-6">
         <div className="flex justify-start sm:justify-center">
           <div className="inline-flex max-w-full overflow-x-auto scrollbar-hide rounded-[8px] bg-[var(--surface-2)] p-0.5">
+            <button
+              onClick={() => { setSelectedPhase('ALL'); setSelectedGroup(null); }}
+              className={`shrink-0 px-3 py-2.5 sm:py-1.5 rounded-[6px] text-[13px] whitespace-nowrap transition-colors ${
+                selectedPhase === 'ALL'
+                  ? 'bg-[var(--surface-3)] top-light text-[var(--text-primary)]'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              Tout
+            </button>
             {phases.map(phase => (
               <button
                 key={phase.id}
