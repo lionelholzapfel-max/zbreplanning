@@ -16,28 +16,23 @@ export async function GET(request: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
-    // Check if there's a speech for this date
+    // There can be SEVERAL Drères tied on the same day → several speeches (one per
+    // Drère). Return them all; the UI shows one slot per Drère.
     const { data, error } = await supabase
       .from('drere_speeches')
       .select('*')
-      .eq('award_date', date)
-      .single();
+      .eq('award_date', date);
 
     if (error || !data) {
-      return NextResponse.json({ speech: null });
+      return NextResponse.json({ speeches: [] });
     }
 
-    // Get public URL for the audio
-    const { data: urlData } = supabase.storage
-      .from('drere-speeches')
-      .getPublicUrl(data.audio_path);
+    const speeches = data.map((s) => ({
+      ...s,
+      audio_url: supabase.storage.from('drere-speeches').getPublicUrl(s.audio_path).data?.publicUrl,
+    }));
 
-    return NextResponse.json({
-      speech: {
-        ...data,
-        audio_url: urlData?.publicUrl,
-      },
-    });
+    return NextResponse.json({ speeches });
   } catch (error) {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
@@ -72,7 +67,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (!drereData) {
-      return NextResponse.json({ error: "Tu n'es pas le Drère de ce jour !" }, { status: 403 });
+      return NextResponse.json({ error: "Tu n'es pas le Drère de ce jour" }, { status: 403 });
     }
 
     // Upload audio to storage

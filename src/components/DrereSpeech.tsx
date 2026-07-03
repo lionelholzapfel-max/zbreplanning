@@ -4,11 +4,12 @@ import { useState, useRef, useEffect } from 'react';
 
 interface DrereSpeechProps {
   date: string; // YYYY-MM-DD
-  isDrere: boolean; // Is the current user the Drère?
+  drereUserId: string; // the specific Drère this slot is for
   drereName: string;
+  isMe: boolean; // is the current user this Drère?
 }
 
-export function DrereSpeech({ date, isDrere, drereName }: DrereSpeechProps) {
+export function DrereSpeech({ date, drereUserId, drereName, isMe }: DrereSpeechProps) {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -34,16 +35,22 @@ export function DrereSpeech({ date, isDrere, drereName }: DrereSpeechProps) {
     }
   }, []);
 
-  // Load existing speech
+  // Load THIS Drère's existing speech (several Drères tied → several speeches)
   useEffect(() => {
     async function loadSpeech() {
       try {
         const res = await fetch(`/api/drere-speech?date=${date}`);
         if (res.ok) {
           const data = await res.json();
-          if (data.speech?.audio_url) {
-            setAudioUrl(data.speech.audio_url);
+          const mine = (data.speeches || []).find(
+            (s: { user_id: string; audio_url?: string }) => s.user_id === drereUserId
+          );
+          if (mine?.audio_url) {
+            setAudioUrl(mine.audio_url);
             setHasRecorded(true);
+          } else {
+            setAudioUrl(null);
+            setHasRecorded(false);
           }
         }
       } catch (error) {
@@ -52,7 +59,7 @@ export function DrereSpeech({ date, isDrere, drereName }: DrereSpeechProps) {
     }
 
     loadSpeech();
-  }, [date]);
+  }, [date, drereUserId]);
 
   // Get supported MIME type
   const getSupportedMimeType = (): string => {
@@ -224,7 +231,7 @@ export function DrereSpeech({ date, isDrere, drereName }: DrereSpeechProps) {
           <p className="text-sm text-white font-medium">🎤 Discours du Drère</p>
           <p className="text-xs text-gray-400">&quot;{drereName} a quelque chose à dire...&quot;</p>
         </div>
-        {isDrere && (
+        {isMe && (
           <button
             onClick={() => {
               setAudioUrl(null);
@@ -243,7 +250,7 @@ export function DrereSpeech({ date, isDrere, drereName }: DrereSpeechProps) {
   }
 
   // If user is Drère and hasn't recorded yet, show record button
-  if (isDrere && !hasRecorded) {
+  if (isMe && !hasRecorded) {
     // Check if recording is not supported
     if (!isSupported) {
       return (
