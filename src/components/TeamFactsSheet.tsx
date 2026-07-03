@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { Info } from 'lucide-react';
 import { getTeamFacts, type TeamFacts } from '@/data/team-facts';
 
 // Flag mapping - all 48 World Cup 2026 teams
@@ -181,9 +182,11 @@ function FactItem({ label, text }: { label: string; text: string }) {
 interface TeamInfoButtonProps {
   teamName: string;
   className?: string;
+  /** Optional label shown next to the info icon (e.g. in the Détails panel). */
+  label?: string;
 }
 
-export function TeamInfoButton({ teamName, className = '' }: TeamInfoButtonProps) {
+export function TeamInfoButton({ teamName, className = '', label }: TeamInfoButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const facts = getTeamFacts(teamName);
@@ -199,11 +202,11 @@ export function TeamInfoButton({ teamName, className = '' }: TeamInfoButtonProps
           e.stopPropagation();
           setIsOpen(!isOpen);
         }}
-        className={`w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-[#6366f1]/20 hover:bg-[#6366f1]/40 active:bg-[#6366f1]/50 border border-[#6366f1]/30 hover:border-[#6366f1]/60 transition-all text-xs sm:text-base hover:scale-110 ${className}`}
+        className={`inline-flex items-center gap-1.5 text-[13px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors ${className}`}
         aria-label={`Info sur ${teamName}`}
-        style={{ minWidth: '32px', minHeight: '32px' }}
       >
-        💡
+        <Info className="w-3.5 h-3.5" strokeWidth={1.75} />
+        {label && <span>{label}</span>}
       </button>
 
       <TeamFactsSheet

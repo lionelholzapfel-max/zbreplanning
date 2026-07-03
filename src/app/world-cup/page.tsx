@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { TeamInfoButton } from '@/components/TeamFactsSheet';
 import { PHASES, PHASE_DISPLAY, PHASE_ORDER, GROUPS, isKnockoutPhase, getPhaseBadge, Phase } from '@/lib/constants';
 import { PageHeader } from '@/components/ui';
-import { Lock, ExternalLink } from 'lucide-react';
+import { Lock, ExternalLink, Star } from 'lucide-react';
 
 // Filter types
 type TimeFilter = 'all' | 'today' | 'week';
@@ -915,6 +915,7 @@ export default function WorldCupPage() {
             const showDaySeparator = !prevMatch || prevMatch.date !== match.date;
             const myStatus = getMyStatus(match.id);
             const yesCount = getParticipantCount(match.id, 'yes');
+            const maybeCount = getParticipantCount(match.id, 'maybe');
             const isExpanded = expandedMatch === match.id;
             const matchLocations = locations[match.id] || [];
             const matchParticipants = participations[match.id] || [];
@@ -1007,14 +1008,13 @@ export default function WorldCupPage() {
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         <span className="text-[20px] shrink-0">{getFlag(team1)}</span>
                         <span className="text-[15px] font-medium text-[var(--text-primary)] truncate">{team1}</span>
-                        <TeamInfoButton teamName={team1} className="shrink-0" />
                         <button
                           onClick={(e) => { e.stopPropagation(); toggleFavorite(team1); }}
                           disabled={loadingFavorite === team1}
-                          className={`shrink-0 text-sm transition-colors ${favorites.includes(team1) ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}
+                          className={`shrink-0 transition-colors ${favorites.includes(team1) ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}
                           aria-label="Favori"
                         >
-                          {favorites.includes(team1) ? '★' : '☆'}
+                          <Star className="w-3.5 h-3.5" strokeWidth={1.75} fill={favorites.includes(team1) ? 'currentColor' : 'none'} />
                         </button>
                       </div>
                       <div className="shrink-0 px-2">
@@ -1030,12 +1030,11 @@ export default function WorldCupPage() {
                         <button
                           onClick={(e) => { e.stopPropagation(); toggleFavorite(team2); }}
                           disabled={loadingFavorite === team2}
-                          className={`shrink-0 text-sm transition-colors ${favorites.includes(team2) ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}
+                          className={`shrink-0 transition-colors ${favorites.includes(team2) ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}
                           aria-label="Favori"
                         >
-                          {favorites.includes(team2) ? '★' : '☆'}
+                          <Star className="w-3.5 h-3.5" strokeWidth={1.75} fill={favorites.includes(team2) ? 'currentColor' : 'none'} />
                         </button>
-                        <TeamInfoButton teamName={team2} className="shrink-0" />
                         <span className="text-[15px] font-medium text-[var(--text-primary)] truncate text-right">{team2}</span>
                         <span className="text-[20px] shrink-0">{getFlag(team2)}</span>
                       </div>
@@ -1154,278 +1153,66 @@ export default function WorldCupPage() {
                       )
                     )}
 
-                  {/* Response Progress Bar */}
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between text-xs mb-1.5">
-                      <span className="text-gray-400">{matchParticipants.length}/{14} ont répondu</span>
-                      {yesCount < 5 && yesCount > 0 && (
-                        <span className="text-[#fbbf24]">Encore {5 - yesCount} pour confirmer</span>
-                      )}
-                    </div>
-                    <div className="h-2 bg-[#1e1e2e] rounded-full overflow-hidden">
-                      <div
-                        className={`h-full transition-all ${yesCount >= 5 ? 'bg-gradient-to-r from-[#22c55e] to-[#16a34a]' : 'bg-gradient-to-r from-[#fbbf24] to-[#f59e0b]'}`}
-                        style={{ width: `${(matchParticipants.length / 14) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Participation section - SECONDARY (smaller buttons) */}
-                  <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-white/10">
-                    <span className="text-xs text-gray-500">Tu regardes ?</span>
-
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => handleParticipation(match.id, 'yes')}
-                        disabled={isLoading}
-                        className={`min-h-[36px] px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
-                          myStatus === 'yes'
-                            ? 'bg-[#22c55e] text-white shadow-md shadow-[#22c55e]/30'
-                            : 'bg-[#22c55e]/15 text-[#22c55e] hover:bg-[#22c55e]/25 border border-[#22c55e]/20'
-                        } ${isLoading ? 'opacity-50' : ''}`}
-                      >
-                        <span>✓</span>
-                        <span className="hidden sm:inline">Oui</span>
-                      </button>
-                      <button
-                        onClick={() => handleParticipation(match.id, 'maybe')}
-                        disabled={isLoading}
-                        className={`min-h-[36px] px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
-                          myStatus === 'maybe'
-                            ? 'bg-[#fbbf24] text-black shadow-md shadow-[#fbbf24]/30'
-                            : 'bg-[#fbbf24]/15 text-[#fbbf24] hover:bg-[#fbbf24]/25 border border-[#fbbf24]/20'
-                        } ${isLoading ? 'opacity-50' : ''}`}
-                      >
-                        <span>🤔</span>
-                        <span className="hidden sm:inline">Peut-être</span>
-                      </button>
-                      <button
-                        onClick={() => handleParticipation(match.id, 'no')}
-                        disabled={isLoading}
-                        className={`min-h-[36px] px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
-                          myStatus === 'no'
-                            ? 'bg-[#ef4444] text-white shadow-md shadow-[#ef4444]/30'
-                            : 'bg-[#ef4444]/15 text-[#ef4444] hover:bg-[#ef4444]/25 border border-[#ef4444]/20'
-                        } ${isLoading ? 'opacity-50' : ''}`}
-                      >
-                        <span>✗</span>
-                        <span className="hidden sm:inline">Non</span>
-                      </button>
-                    </div>
-
-                    <button
-                      onClick={() => setExpandedMatch(isExpanded ? null : match.id)}
-                      className="ml-auto min-h-[36px] px-3 py-1.5 bg-white/10 rounded-lg text-sm text-white/70 hover:text-white hover:bg-white/20 transition-all flex items-center gap-1.5"
-                    >
-                      <span>{isExpanded ? '▲' : '▼'}</span>
-                      <span>{isExpanded ? 'Moins' : 'Détails'}</span>
-                    </button>
-                  </div>
-
-                  {isExpanded && (
-                    <div className="mt-6 pt-6 border-t border-white/10 space-y-6">
-                      {/* All Predictions - ALWAYS visible in expanded mode */}
-                      {predState?.allPredictions && predState.allPredictions.length > 0 && (
-                        <div>
-                          <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-                            <span>🎯</span>
-                            Pronostics ({predState.allPredictions.length}/14)
-                            {!myPrediction && !isLocked && <span className="text-[#fbbf24] text-xs font-normal ml-2">Fais ton prono !</span>}
-                          </h4>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                            {predState.allPredictions
-                              .sort((a, b) => (b.points?.total || 0) - (a.points?.total || 0))
-                              .map(pred => {
-                                const member = MEMBERS.find(m => m.id === pred.user_id);
-                                const isMe = pred.user_id === currentUser?.id;
-                                const isExact = hasResult &&
-                                  pred.home_score === predState.result?.home_score &&
-                                  pred.away_score === predState.result?.away_score;
-
-                                return (
-                                  <div
-                                    key={pred.user_id}
-                                    className={`p-3 rounded-xl border transition-all ${
-                                      isExact ? 'bg-[#fbbf24]/20 border-[#fbbf24]/50' :
-                                      isMe ? 'bg-[#6366f1]/20 border-[#6366f1]/30' :
-                                      'bg-[#1e1e2e] border-white/10'
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <div className={`w-8 h-8 rounded-full overflow-hidden relative ${isExact ? 'ring-2 ring-[#fbbf24]' : ''}`}>
-                                        <Image
-                                          src={`/members/${member?.slug || 'default'}.png`}
-                                          alt={member?.name || ''}
-                                          fill
-                                          className="object-cover"
-                                        />
-                                      </div>
-                                      <span className={`text-sm font-medium truncate ${isMe ? 'text-[#6366f1]' : 'text-white'}`}>
-                                        {member?.name.split(' ')[0] || '?'}
-                                      </span>
-                                      {isExact && <span className="text-sm">🎯</span>}
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-lg font-bold text-white">
-                                        {pred.home_score} - {pred.away_score}
-                                      </span>
-                                      {pred.points && (
-                                        <span className={`text-sm font-bold ${
-                                          pred.points.total >= 3 ? 'text-[#fbbf24]' :
-                                          pred.points.total > 0 ? 'text-green-400' :
-                                          'text-red-400'
-                                        }`}>
-                                          +{pred.points.total}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* No predictions yet hint */}
-                      {(!predState?.allPredictions || predState.allPredictions.length === 0) && !isLocked && (
-                        <div className="flex items-center gap-2 text-sm text-gray-400">
-                          <span>🎯</span>
-                          <span>Aucun prono pour l&apos;instant</span>
-                          <span className="text-[#fbbf24]">— Sois le premier !</span>
-                        </div>
-                      )}
-
-                      <div>
-                        <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-                          <span>👥</span>
-                          Qui regarde ce match ?
-                        </h4>
-                        <div className="flex flex-wrap gap-2">
-                          {matchParticipants.filter(p => p.status === 'yes').map(p => {
-                            const isFirst = getFirstYesParticipant(match.id) === p.user_id;
-                            return (
-                              <div key={p.id} className="flex items-center gap-2 px-3 py-2 bg-[#22c55e]/20 rounded-xl border border-[#22c55e]/30">
-                                <div className="relative">
-                                  <div className={`w-8 h-8 rounded-full overflow-hidden relative ring-2 ${isFirst ? 'ring-[#fbbf24]' : 'ring-[#22c55e]'}`}>
-                                    <Image src={`/members/${p.users?.member_slug || 'default'}.png`} alt="" fill className="object-cover" />
-                                  </div>
-                                  {isFirst && (
-                                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#fbbf24] rounded-full flex items-center justify-center text-[8px] font-bold text-black" title="Premier inscrit !">
-                                      🥇
-                                    </div>
-                                  )}
-                                </div>
-                                <span className="text-sm font-medium text-[#22c55e]">{p.users?.member_name?.split(' ')[0]}</span>
-                                <span className="text-[#22c55e]">✓</span>
-                              </div>
-                            );
-                          })}
-                          {matchParticipants.filter(p => p.status === 'maybe').map(p => (
-                            <div key={p.id} className="flex items-center gap-2 px-3 py-2 bg-[#fbbf24]/20 rounded-xl border border-[#fbbf24]/30">
-                              <div className="w-8 h-8 rounded-full overflow-hidden relative ring-2 ring-[#fbbf24]">
-                                <Image src={`/members/${p.users?.member_slug || 'default'}.png`} alt="" fill className="object-cover" />
-                              </div>
-                              <span className="text-sm font-medium text-[#fbbf24]">{p.users?.member_name?.split(' ')[0]} ?</span>
-                            </div>
+                    {/* Participation — segmented v2 (Je regarde / Peut-être / Non) */}
+                    <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <div className="inline-flex rounded-[8px] bg-[var(--surface-2)] p-0.5">
+                          {([['yes', 'Je regarde'], ['maybe', 'Peut-être'], ['no', 'Non']] as const).map(([k, label]) => (
+                            <button
+                              key={k}
+                              onClick={() => handleParticipation(match.id, k)}
+                              disabled={isLoading}
+                              className={`px-3 py-1.5 rounded-[6px] text-[13px] transition-colors ${
+                                myStatus === k
+                                  ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
+                                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                              } ${isLoading ? 'opacity-50' : ''}`}
+                            >
+                              {label}
+                            </button>
                           ))}
-                          {matchParticipants.filter(p => p.status !== 'no').length === 0 && (
-                            <p className="text-gray-500 text-sm italic">Personne inscrit - sois le premier !</p>
-                          )}
                         </div>
-                      </div>
-
-                      <div>
-                        <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-                          <span>📍</span>
-                          Où regarder ensemble ?
-                        </h4>
-                        <div className="space-y-2 mb-4">
-                          {matchLocations.map(loc => {
-                            const proposer = loc.proposer;
-                            const voters = (loc.votes || []).map(id => MEMBERS.find(m => m.id === id)).filter(Boolean);
-                            const hasVoted = loc.votes?.includes(currentUser?.id || '');
-
-                            return (
-                              <div key={loc.id} className="p-4 bg-[#1e1e2e] rounded-xl border border-white/10 hover:border-[#fbbf24]/30 transition-colors">
-                                <div className="flex items-center justify-between mb-3">
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-2xl">📍</span>
-                                    <div>
-                                      <span className="text-white font-medium">{loc.location}</span>
-                                      {proposer && (
-                                        <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                                          <span>Proposé par</span>
-                                          <span className="text-[#fbbf24]">{proposer.member_name}</span>
-                                        </p>
-                                      )}
-                                    </div>
+                        {(yesCount > 0 || maybeCount > 0) && (
+                          <span className="text-[12px] text-[var(--text-tertiary)]">
+                            {yesCount > 0 && `${yesCount} regarde${yesCount > 1 ? 'nt' : ''}`}
+                            {yesCount > 0 && maybeCount > 0 && ' · '}
+                            {maybeCount > 0 && `${maybeCount} peut-être`}
+                          </span>
+                        )}
+                        {(() => {
+                          const confirmed = (participations[match.id] || []).filter(p => p.status === 'yes');
+                          return confirmed.length > 0 ? (
+                            <div className="flex -space-x-2">
+                              {confirmed.slice(0, 6).map(p => {
+                                const member = MEMBERS.find(m => m.id === p.user_id);
+                                return member ? (
+                                  <div key={p.user_id} className="relative w-5 h-5 rounded-full overflow-hidden ring-1 ring-[var(--hairline)]">
+                                    <Image src={`/members/${member.slug}.png`} alt={member.name} fill sizes="20px" className="object-cover object-top" />
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    {hasVoted && (
-                                      <span className="text-xs text-[#fbbf24] font-medium">Tu as voté</span>
-                                    )}
-                                    <button
-                                      onClick={() => handleVoteLocation(loc.id, match.id, loc.votes || [])}
-                                      className={`px-4 py-2 rounded-xl font-bold transition-all flex items-center gap-2 ${
-                                        hasVoted
-                                          ? 'bg-[#fbbf24] text-black'
-                                          : 'bg-[#fbbf24]/20 text-[#fbbf24] hover:bg-[#fbbf24]/30 border border-[#fbbf24]/30'
-                                      }`}
-                                    >
-                                      <span>{hasVoted ? '✓' : '👍'}</span>
-                                      <span>{loc.votes?.length || 0}</span>
-                                    </button>
-                                  </div>
-                                </div>
-                                {voters.length > 0 && (
-                                  <div className="flex items-center gap-2 pt-2 border-t border-white/5">
-                                    <span className="text-xs text-gray-500">Votes:</span>
-                                    <div className="flex -space-x-1">
-                                      {voters.slice(0, 5).map((voter) => (
-                                        <div key={voter!.id} className="w-6 h-6 rounded-full overflow-hidden relative ring-1 ring-[#1e1e2e]" title={voter!.name}>
-                                          <Image src={voter!.photo} alt={voter!.name} fill className="object-cover" />
-                                        </div>
-                                      ))}
-                                      {voters.length > 5 && (
-                                        <div className="w-6 h-6 rounded-full bg-[#fbbf24] flex items-center justify-center text-xs font-bold text-black ring-1 ring-[#1e1e2e]">
-                                          +{voters.length - 5}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        <div className="flex gap-3">
-                          <input
-                            type="text"
-                            value={newLocation}
-                            onChange={(e) => setNewLocation(e.target.value)}
-                            placeholder="Proposer un lieu..."
-                            className="flex-1 px-4 py-3 bg-[#1e1e2e] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#fbbf24] transition-colors"
-                            onKeyDown={(e) => { if (e.key === 'Enter') handleProposeLocation(match.id); }}
-                          />
-                          <button
-                            onClick={() => handleProposeLocation(match.id)}
-                            className="px-6 py-3 bg-[#fbbf24] text-black rounded-xl font-bold hover:bg-[#fbbf24]/80 transition-colors"
-                          >
-                            Proposer
-                          </button>
-                        </div>
+                                ) : null;
+                              })}
+                            </div>
+                          ) : null;
+                        })()}
                       </div>
-
-                      <div className="p-4 bg-white/5 rounded-xl flex items-center gap-4">
-                        <span className="text-3xl">🏟️</span>
-                        <div>
-                          <p className="text-white font-medium">{match.stadium}</p>
-                          <p className="text-gray-400 text-sm">{match.city}</p>
-                        </div>
-                      </div>
+                      <button
+                        onClick={() => setExpandedMatch(isExpanded ? null : match.id)}
+                        className="text-[13px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+                      >
+                        {isExpanded ? 'Moins' : 'Détails'}
+                      </button>
                     </div>
-                  )}
+
+                    {/* Détails — v2 panel with team facts */}
+                    {isExpanded && (
+                      <div className="mt-3 rounded-[10px] bg-[var(--surface-2)] top-light p-4">
+                        <p className="eyebrow mb-2">Facts équipes</p>
+                        <div className="flex flex-wrap gap-4">
+                          <TeamInfoButton teamName={team1} label={team1} />
+                          <TeamInfoButton teamName={team2} label={team2} />
+                        </div>
+                      </div>
+                    )}
                 </div>
                 </div>
               </div>
