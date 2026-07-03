@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import matches from '@/data/matches.json';
 import { useSupabase, Activity, MatchParticipation } from '@/hooks/useSupabase';
+import { useTeamOverrides } from '@/hooks/useTeamOverrides';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isSameDay, isToday } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -51,6 +52,7 @@ export default function CalendarPage() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [matchParticipations, setMatchParticipations] = useState<Record<number, MatchParticipation[]>>({});
   const { getActivities, getMatchParticipations } = useSupabase();
+  const { getTeamNames } = useTeamOverrides();
 
   const loadActivities = useCallback(async () => {
     const data = await getActivities();
@@ -282,7 +284,8 @@ export default function CalendarPage() {
                       </h3>
                       <div className="space-y-3">
                         {selectedDateMatches.map(match => {
-                          const { team1, team2 } = parseMatch(match.match);
+                          const def = parseMatch(match.match);
+                          const { home: team1, away: team2 } = getTeamNames(match.id, def.team1, def.team2);
                           const participation = matchParticipations[match.id] || [];
                           const yesCount = participation.filter(p => p.status === 'yes').length;
 

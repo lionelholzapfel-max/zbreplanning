@@ -9,6 +9,7 @@ import Navbar from '@/components/Navbar';
 import { MEMBERS } from '@/data/members';
 import matches from '@/data/matches.json';
 import { useSupabase, Activity, ActivityParticipation } from '@/hooks/useSupabase';
+import { useTeamOverrides } from '@/hooks/useTeamOverrides';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { FunFactCard } from '@/components/FunFactCard';
@@ -53,6 +54,7 @@ export default function HomePage() {
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const router = useRouter();
   const { currentUser, loading, getUserStats, getUpcomingActivities, getMyUpcomingMatches } = useSupabase();
+  const { getTeamNames } = useTeamOverrides();
 
   // Load user's predictions (single API call instead of 20+)
   const loadPredictions = useCallback(async () => {
@@ -140,6 +142,14 @@ export default function HomePage() {
   const parseMatch = (matchStr: string) => {
     const parts = matchStr.split(' - ');
     return parts.length === 2 ? { team1: parts[0].trim(), team2: parts[1].trim() } : { team1: matchStr, team2: '' };
+  };
+
+  // Resolve knockout placeholders ("Vainqueur M73") to real team names via overrides.
+  // Placeholders remain only for genuinely undetermined matches.
+  const resolveTeams = (matchId: number, matchStr: string) => {
+    const def = parseMatch(matchStr);
+    const r = getTeamNames(matchId, def.team1, def.team2);
+    return { team1: r.home, team2: r.away };
   };
 
   // Get next upcoming matches (sorted by date)
@@ -281,7 +291,7 @@ export default function HomePage() {
                   <p className="eyebrow">Prochain match</p>
                   <h3 className="mt-3 text-[18px] font-medium text-[var(--text-primary)] truncate">
                     {(() => {
-                      const { team1, team2 } = parseMatch(nextMatch.match);
+                      const { team1, team2 } = resolveTeams(nextMatch.id, nextMatch.match);
                       return `${team1} — ${team2}`;
                     })()}
                   </h3>
@@ -329,7 +339,7 @@ export default function HomePage() {
 
           <div data-shot="matches">
             {nextMatches.map((match) => {
-              const { team1, team2 } = parseMatch(match.match);
+              const { team1, team2 } = resolveTeams(match.id, match.match);
               const hasPrediction = myPredictions.has(match.id);
               return (
                 <Link key={`next-${match.id}`} href="/world-cup" className="block group">
@@ -367,7 +377,7 @@ export default function HomePage() {
             {myUpcomingMatches.slice(0, 3).map((um) => {
               const matchData = getMatchData(um.matchId);
               if (!matchData) return null;
-              const { team1, team2 } = parseMatch(matchData.match);
+              const { team1, team2 } = resolveTeams(matchData.id, matchData.match);
               const pct = Math.round((um.totalResponses / MEMBERS.length) * 100);
               return (
                 <Link key={`match-${um.matchId}`} href="/world-cup" className="block">

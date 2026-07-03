@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser, getSupabaseAdmin } from '@/lib/auth/session';
 import { getMatchById, hasMatchStarted, isPredictionLocked, parseMatchTeams, getTimeUntilLock } from '@/lib/matches';
 import { MEMBERS } from '@/data/members';
+import { getResolvedTeamNames } from '@/lib/team-names';
 
 // GET /api/predictions/score?match_id=X
 // SECURITY: Scores are hidden until lock time (at kickoff)
@@ -291,7 +292,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const teams = parseMatchTeams(match.match);
+    // Real names (overrides) for the user-facing response text only.
+    const teams = await getResolvedTeamNames(matchId);
 
     return NextResponse.json({
       success: true,

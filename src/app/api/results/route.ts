@@ -4,6 +4,7 @@ import { getMatchById, parseMatchTeams } from '@/lib/matches';
 import { calculateMatchPoints, Prediction, MatchResult, PointsBreakdown } from '@/lib/scoring';
 import { MEMBERS } from '@/data/members';
 import { getCompetitionDay, updateDailyAwards } from '@/lib/awards';
+import { getResolvedTeamNames } from '@/lib/team-names';
 
 // GET /api/results?match_id=X
 // Get result for a specific match (public)
@@ -144,6 +145,8 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabaseAdmin();
     const teams = parseMatchTeams(match.match);
+    // Real names (overrides) for user-facing text only — NOT scoring.
+    const displayTeams = await getResolvedTeamNames(matchId);
 
     // Upsert result atomically (avoids the select-then-insert race on double submit)
     const { error: upsertError } = await supabase
@@ -242,7 +245,7 @@ export async function POST(request: NextRequest) {
       return {
         user_id: member.id,
         type: 'match_response' as const,
-        title: `${teams.home} ${homeScore}-${awayScore} ${teams.away}`,
+        title: `${displayTeams.home} ${homeScore}-${awayScore} ${displayTeams.away}`,
         message: `Résultat enregistré — ${pointsText}`,
         link: '/leaderboard',
         created_by: admin.id,
@@ -262,7 +265,7 @@ export async function POST(request: NextRequest) {
         match_id: matchId,
         home_score: homeScore,
         away_score: awayScore,
-        match: `${teams.home} ${homeScore} - ${awayScore} ${teams.away}`,
+        match: `${displayTeams.home} ${homeScore} - ${awayScore} ${displayTeams.away}`,
         entered_by: admin.member_name,
       },
       points_calculated: pointsLogEntries.length,
