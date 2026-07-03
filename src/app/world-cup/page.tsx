@@ -11,6 +11,8 @@ import { MEMBERS } from '@/data/members';
 import { toast } from 'sonner';
 import { TeamInfoButton } from '@/components/TeamFactsSheet';
 import { PHASES, PHASE_DISPLAY, PHASE_ORDER, GROUPS, isKnockoutPhase, getPhaseBadge, Phase } from '@/lib/constants';
+import { PageHeader } from '@/components/ui';
+import { Lock, ExternalLink } from 'lucide-react';
 
 // Filter types
 type TimeFilter = 'all' | 'today' | 'week';
@@ -196,32 +198,6 @@ export default function WorldCupPage() {
     });
     return sorted[0]?.user_id || null;
   }, [participations]);
-
-  // Compute group prediction stats for a match (after lock, i.e., 2h before kickoff)
-  const getPredictionStats = useCallback((matchId: number, team1: string, team2: string): string | null => {
-    const predState = scorePredictions[matchId];
-    if (!predState?.predictionLocked || !predState.allPredictions?.length) return null;
-
-    let team1Wins = 0;
-    let team2Wins = 0;
-    let draws = 0;
-
-    for (const pred of predState.allPredictions) {
-      if (pred.home_score > pred.away_score) team1Wins++;
-      else if (pred.away_score > pred.home_score) team2Wins++;
-      else draws++;
-    }
-
-    const total = predState.allPredictions.length;
-    if (team1Wins > team2Wins && team1Wins > draws) {
-      return `${team1Wins}/${total} voient une victoire de ${team1}`;
-    } else if (team2Wins > team1Wins && team2Wins > draws) {
-      return `${team2Wins}/${total} voient une victoire de ${team2}`;
-    } else if (draws >= team1Wins && draws >= team2Wins) {
-      return `${draws}/${total} voient un match nul`;
-    }
-    return null;
-  }, [scorePredictions]);
 
   // Helper to check if match is in time range
   const isMatchInTimeRange = useCallback((match: Match, range: TimeFilter): boolean => {
@@ -805,89 +781,76 @@ export default function WorldCupPage() {
   // Only redirect after loading completes and no user found
   if (!currentUser) return null;
 
+  // Filter-bar chip style.
+  const chip = (active: boolean) =>
+    `shrink-0 inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[12px] transition-colors ${
+      active
+        ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
+        : 'bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+    }`;
+  // The single strong CTA of the page: the soonest match not yet predicted (and still open).
+  const strongCtaMatchId = filteredMatches.find((m) => {
+    const ps = scorePredictions[m.id];
+    return !ps?.result && !ps?.predictionLocked && !ps?.myPrediction;
+  })?.id ?? null;
+
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
       <Navbar />
 
-      {/* Hero */}
-      <section className="relative py-8 sm:py-16 px-4 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#1a472a] via-[#0d2818] to-[#0a0a0f]" />
-        <div className="absolute inset-0 opacity-30 hidden sm:block">
-          <div className="absolute top-10 left-10 text-6xl animate-bounce" style={{ animationDelay: '0s' }}>⚽</div>
-          <div className="absolute top-20 right-20 text-5xl animate-bounce" style={{ animationDelay: '0.5s' }}>🏆</div>
-          <div className="absolute bottom-10 left-1/4 text-4xl animate-bounce" style={{ animationDelay: '1s' }}>⚽</div>
-          <div className="absolute bottom-20 right-1/3 text-5xl animate-bounce" style={{ animationDelay: '1.5s' }}>🎯</div>
-        </div>
-        <div className="absolute top-0 left-1/2 w-[800px] h-[400px] -translate-x-1/2 bg-[#fbbf24]/10 rounded-full blur-[128px]" />
-
-        <div className={`max-w-7xl mx-auto text-center relative transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-          {mounted && daysUntil !== null && daysUntil > 0 && (
-            <div className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 bg-[#fbbf24]/20 rounded-full text-[#fbbf24] font-bold mb-4 sm:mb-6 border border-[#fbbf24]/30">
-              <span className="text-lg sm:text-2xl">⏰</span>
-              <span className="text-base sm:text-xl">{daysUntil} jours</span>
-              <span className="text-xs sm:text-sm opacity-70 hidden xs:inline">avant le coup d&apos;envoi</span>
+      {/* Header */}
+      <section className="max-w-7xl mx-auto px-4 pt-8">
+        <PageHeader
+          title="Coupe du Monde"
+          subtitle="USA · Mexique · Canada — 104 matchs"
+          action={mounted && daysUntil !== null && daysUntil > 0 ? (
+            <div className="text-right shrink-0">
+              <span className="score text-[28px] text-[var(--accent)]">J−{daysUntil}</span>
+              <p className="eyebrow mt-1">avant le coup d&apos;envoi</p>
             </div>
-          )}
-
-          <div className="flex items-center justify-center gap-3 sm:gap-6 mb-4 sm:mb-6">
-            <span className="text-4xl sm:text-6xl md:text-8xl">🏆</span>
-            <div>
-              <h1 className="text-3xl sm:text-5xl md:text-7xl font-black text-white">Coupe du Monde</h1>
-              <p className="text-xl sm:text-3xl md:text-4xl font-bold text-[#fbbf24]">2026</p>
-            </div>
-            <span className="text-4xl sm:text-6xl md:text-8xl">⚽</span>
-          </div>
-
-          <div className="flex items-center justify-center gap-2 sm:gap-4 text-sm sm:text-xl text-white/80 mb-2 sm:mb-4">
-            <span>🇺🇸 USA</span>
-            <span className="text-[#fbbf24]">•</span>
-            <span>🇲🇽 Mexique</span>
-            <span className="text-[#fbbf24]">•</span>
-            <span>🇨🇦 Canada</span>
-          </div>
-
-          <p className="text-gray-400 text-xs sm:text-base">11 juin - 19 juillet 2026 • 104 matchs • 48 équipes</p>
-        </div>
+          ) : undefined}
+        />
       </section>
 
-      {/* Phase Filters */}
-      <section className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex flex-wrap justify-center gap-2 mb-6">
-          {phases.map(phase => (
-            <button
-              key={phase.id}
-              onClick={() => {
-                setSelectedPhase(phase.id);
-                if (phase.id !== 'PHASE DE GROUPES') setSelectedGroup(null);
-              }}
-              className={`px-6 py-3 rounded-2xl font-bold transition-all flex items-center gap-2 ${
-                selectedPhase === phase.id
-                  ? 'bg-gradient-to-r from-[#fbbf24] to-[#f59e0b] text-black scale-105 shadow-lg shadow-[#fbbf24]/30'
-                  : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a] hover:text-white'
-              }`}
-            >
-              <span>{phase.icon}</span>
-              <span>{phase.label}</span>
-            </button>
-          ))}
+      {/* Phase filters — segmented */}
+      <section className="max-w-7xl mx-auto px-4 pt-6">
+        <div className="flex justify-center">
+          <div className="inline-flex rounded-[8px] bg-[var(--surface-2)] p-0.5 max-w-full overflow-x-auto scrollbar-hide">
+            {phases.map(phase => (
+              <button
+                key={phase.id}
+                onClick={() => {
+                  setSelectedPhase(phase.id);
+                  if (phase.id !== 'PHASE DE GROUPES') setSelectedGroup(null);
+                }}
+                className={`px-3 py-1.5 rounded-[6px] text-[13px] whitespace-nowrap transition-colors ${
+                  selectedPhase === phase.id
+                    ? 'bg-[var(--surface-3)] top-light text-[var(--text-primary)]'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                {phase.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {selectedPhase === 'PHASE DE GROUPES' && (
-          <div className="flex flex-wrap justify-center gap-2">
+          <div className="flex flex-wrap justify-center gap-1.5 mt-3">
             <button
               onClick={() => setSelectedGroup(null)}
-              className={`w-10 h-10 rounded-xl font-bold transition-all ${
-                !selectedGroup ? 'bg-[#6366f1] text-white' : 'bg-[#1e1e2e] text-gray-400 hover:bg-[#2a2a3a]'
+              className={`h-9 px-3 rounded-[6px] text-[13px] transition-colors ${
+                !selectedGroup ? 'bg-[var(--surface-3)] top-light text-[var(--text-primary)]' : 'bg-[var(--surface-2)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
               }`}
             >
-              All
+              Tous
             </button>
             {groups.map(group => (
               <button
                 key={group}
                 onClick={() => setSelectedGroup(group)}
-                className={`w-10 h-10 rounded-xl font-bold transition-all ${
-                  selectedGroup === group ? 'bg-[#6366f1] text-white' : 'bg-[#1e1e2e] text-gray-400 hover:bg-[#2a2a3a]'
+                className={`w-9 h-9 rounded-[6px] text-[13px] transition-colors ${
+                  selectedGroup === group ? 'bg-[var(--surface-3)] top-light text-[var(--text-primary)]' : 'bg-[var(--surface-2)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
                 }`}
               >
                 {group}
@@ -897,169 +860,44 @@ export default function WorldCupPage() {
         )}
       </section>
 
-      {/* Sticky Filter Bar - positioned below navbar */}
-      <section className="sticky top-16 z-30 bg-[#0a0a0f] border-b border-white/10 py-2 sm:py-3 px-3 sm:px-4">
+      {/* Sticky filter bar — one row of chips */}
+      <section data-shot="filters" className="sticky top-14 z-30 bg-[var(--canvas)]/95 backdrop-blur-sm border-b border-[var(--hairline)] py-2.5 px-4 mt-6">
         <div className="max-w-7xl mx-auto">
-          <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-2 scrollbar-hide">
-            {/* Time filters */}
-            <button
-              onClick={() => setFilters(f => ({ ...f, time: 'today' }))}
-              className={`flex-shrink-0 min-h-[36px] sm:min-h-[44px] px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 sm:gap-2 ${
-                filters.time === 'today'
-                  ? 'bg-[#fbbf24] text-black'
-                  : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
-              }`}
-              title={mounted ? `Matchs du ${todayFormatted}` : undefined}
-            >
-              <span>📅</span>
-              <span className="hidden xs:inline">Aujourd&apos;hui</span>
-              <span className="xs:hidden">Auj.</span>
+          <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
+            <button onClick={() => setFilters(f => ({ ...f, time: 'today' }))} className={chip(filters.time === 'today')} title={mounted ? `Matchs du ${todayFormatted}` : undefined}>Aujourd&apos;hui</button>
+            <button onClick={() => setFilters(f => ({ ...f, time: 'week' }))} className={chip(filters.time === 'week')} title={mounted ? `Du ${todayFormatted} au ${weekEndFormatted}` : undefined}>Cette semaine</button>
+            <button onClick={() => setFilters(f => ({ ...f, time: 'all' }))} className={chip(filters.time === 'all')}>Tous</button>
+
+            <button onClick={() => setFilters(f => ({ ...f, myTeams: !f.myTeams }))} className={chip(filters.myTeams)}>
+              Mes équipes{favorites.length > 0 && <span className="opacity-70">{favorites.length}</span>}
             </button>
-            <button
-              onClick={() => setFilters(f => ({ ...f, time: 'week' }))}
-              className={`flex-shrink-0 min-h-[36px] sm:min-h-[44px] px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 sm:gap-2 ${
-                filters.time === 'week'
-                  ? 'bg-[#fbbf24] text-black'
-                  : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
-              }`}
-              title={mounted ? `Du ${todayFormatted} au ${weekEndFormatted}` : undefined}
-            >
-              <span>📆</span>
-              <span className="hidden xs:inline">Cette semaine</span>
-              <span className="xs:hidden">Sem.</span>
-            </button>
-            <button
-              onClick={() => setFilters(f => ({ ...f, time: 'all' }))}
-              className={`flex-shrink-0 min-h-[36px] sm:min-h-[44px] px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 sm:gap-2 ${
-                filters.time === 'all'
-                  ? 'bg-[#fbbf24] text-black'
-                  : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
-              }`}
-            >
-              <span>🌍</span>
-              <span>Tous</span>
+            <button onClick={() => setFilters(f => ({ ...f, toPredictOnly: !f.toPredictOnly }))} className={chip(filters.toPredictOnly)}>
+              À pronostiquer{toPredictCount > 0 && <span className="opacity-70">{toPredictCount}</span>}
             </button>
 
-            <div className="w-px bg-white/20 mx-0.5 sm:mx-1 flex-shrink-0" />
-
-            {/* My teams filter */}
-            <button
-              onClick={() => setFilters(f => ({ ...f, myTeams: !f.myTeams }))}
-              className={`flex-shrink-0 min-h-[36px] sm:min-h-[44px] px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 sm:gap-2 ${
-                filters.myTeams
-                  ? 'bg-[#6366f1] text-white'
-                  : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
-              }`}
-            >
-              <span>⭐</span>
-              <span className="hidden sm:inline">Mes équipes</span>
-              {favorites.length > 0 && (
-                <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                  filters.myTeams ? 'bg-white/20' : 'bg-[#6366f1]/30 text-[#6366f1]'
-                }`}>
-                  {favorites.length}
-                </span>
-              )}
+            <button onClick={() => setFilters(f => ({ ...f, timeSlot: f.timeSlot === 'evening' ? 'all' : 'evening' }))} className={chip(filters.timeSlot === 'evening')}>
+              Soirée<span className="opacity-70">{timeSlotCounts.evening}</span>
             </button>
-
-            {/* To predict filter */}
-            <button
-              onClick={() => setFilters(f => ({ ...f, toPredictOnly: !f.toPredictOnly }))}
-              className={`flex-shrink-0 min-h-[36px] sm:min-h-[44px] px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 sm:gap-2 ${
-                filters.toPredictOnly
-                  ? 'bg-[#22c55e] text-white'
-                  : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
-              }`}
-            >
-              <span>✍️</span>
-              <span className="hidden sm:inline">À pronostiquer</span>
-              {toPredictCount > 0 && (
-                <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                  filters.toPredictOnly ? 'bg-white/20' : 'bg-[#22c55e]/30 text-[#22c55e]'
-                }`}>
-                  {toPredictCount}
-                </span>
-              )}
-            </button>
-
-            <div className="w-px bg-white/20 mx-0.5 sm:mx-1 flex-shrink-0" />
-
-            {/* Time slot filters - based on actual World Cup 2026 schedule */}
-            <button
-              onClick={() => setFilters(f => ({ ...f, timeSlot: f.timeSlot === 'evening' ? 'all' : 'evening' }))}
-              className={`flex-shrink-0 min-h-[36px] sm:min-h-[44px] px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1 sm:gap-2 ${
-                filters.timeSlot === 'evening'
-                  ? 'bg-[#f59e0b] text-black'
-                  : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
-              }`}
-            >
-              <span>🌙</span>
-              <span className="hidden sm:inline">Soirée</span>
-              <span className={`text-xs px-1 sm:px-1.5 py-0.5 rounded-full ${
-                filters.timeSlot === 'evening' ? 'bg-black/20' : 'bg-white/10'
-              }`}>
-                {timeSlotCounts.evening}
-              </span>
-            </button>
-            <button
-              onClick={() => setFilters(f => ({ ...f, timeSlot: f.timeSlot === 'night' ? 'all' : 'night' }))}
-              className={`flex-shrink-0 min-h-[36px] sm:min-h-[44px] px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1 sm:gap-2 ${
-                filters.timeSlot === 'night'
-                  ? 'bg-[#6366f1] text-white'
-                  : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
-              }`}
-            >
-              <span>🌃</span>
-              <span className="hidden sm:inline">Nuit</span>
-              <span className={`text-xs px-1 sm:px-1.5 py-0.5 rounded-full ${
-                filters.timeSlot === 'night' ? 'bg-white/20' : 'bg-white/10'
-              }`}>
-                {timeSlotCounts.night}
-              </span>
+            <button onClick={() => setFilters(f => ({ ...f, timeSlot: f.timeSlot === 'night' ? 'all' : 'night' }))} className={chip(filters.timeSlot === 'night')}>
+              Nuit<span className="opacity-70">{timeSlotCounts.night}</span>
             </button>
 
             {resultsCount > 0 && (
               <>
-                <div className="w-px bg-white/20 mx-0.5 sm:mx-1 flex-shrink-0" />
-
-                {/* Results filters */}
-                <button
-                  onClick={() => setFilters(f => ({ ...f, resultsOnly: f.resultsOnly === 'last24h' ? 'all' : 'last24h' }))}
-                  className={`flex-shrink-0 min-h-[36px] sm:min-h-[44px] px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1 sm:gap-2 ${
-                    filters.resultsOnly === 'last24h'
-                      ? 'bg-[#ef4444] text-white'
-                      : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
-                  }`}
-                >
-                  <span>🕐</span>
-                  <span className="hidden sm:inline">24h</span>
-                  <span className="sm:hidden">24h</span>
-                </button>
-                <button
-                  onClick={() => setFilters(f => ({ ...f, resultsOnly: f.resultsOnly === 'last10' ? 'all' : 'last10' }))}
-                  className={`flex-shrink-0 min-h-[36px] sm:min-h-[44px] px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1 sm:gap-2 ${
-                    filters.resultsOnly === 'last10'
-                      ? 'bg-[#ef4444] text-white'
-                      : 'bg-[#1e1e2e] text-gray-300 hover:bg-[#2a2a3a]'
-                  }`}
-                >
-                  <span>🏆</span>
-                  <span className="hidden sm:inline">10 derniers</span>
-                  <span className="sm:hidden">10</span>
-                </button>
+                <button onClick={() => setFilters(f => ({ ...f, resultsOnly: f.resultsOnly === 'last24h' ? 'all' : 'last24h' }))} className={chip(filters.resultsOnly === 'last24h')}>Résultats 24h</button>
+                <button onClick={() => setFilters(f => ({ ...f, resultsOnly: f.resultsOnly === 'last10' ? 'all' : 'last10' }))} className={chip(filters.resultsOnly === 'last10')}>10 derniers</button>
               </>
             )}
           </div>
 
-          {/* Active filters summary */}
           {(filters.time !== 'all' || filters.myTeams || filters.toPredictOnly || filters.timeSlot !== 'all' || filters.resultsOnly !== 'all') && (
-            <div className="flex items-center justify-between mt-2 text-sm">
-              <span className="text-gray-400">
-                {filteredMatches.length} match{filteredMatches.length > 1 ? 's' : ''} trouvé{filteredMatches.length > 1 ? 's' : ''}
+            <div className="flex items-center justify-between mt-2 text-[12px]">
+              <span className="text-[var(--text-tertiary)]">
+                {filteredMatches.length} match{filteredMatches.length > 1 ? 's' : ''}
               </span>
               <button
                 onClick={() => setFilters({ time: 'all', myTeams: false, toPredictOnly: false, timeSlot: 'all', resultsOnly: 'all' })}
-                className="text-[#ef4444] hover:text-[#f87171] transition-colors"
+                className="text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
               >
                 Réinitialiser
               </button>
@@ -1077,7 +915,6 @@ export default function WorldCupPage() {
             const showDaySeparator = !prevMatch || prevMatch.date !== match.date;
             const myStatus = getMyStatus(match.id);
             const yesCount = getParticipantCount(match.id, 'yes');
-            const maybeCount = getParticipantCount(match.id, 'maybe');
             const isExpanded = expandedMatch === match.id;
             const matchLocations = locations[match.id] || [];
             const matchParticipants = participations[match.id] || [];
@@ -1119,384 +956,203 @@ export default function WorldCupPage() {
 
             return (
               <div key={match.id}>
-                {/* Day Separator */}
+                {/* Day separator */}
                 {showDaySeparator && (
-                  <div className={`flex items-center gap-4 py-4 ${index > 0 ? 'mt-6' : ''}`}>
-                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[#fbbf24]/30 to-transparent" />
-                    <div className="flex items-center gap-3 px-4 py-2 bg-[#1e1e2e] rounded-full border border-[#fbbf24]/20">
-                      <span className="text-lg">📅</span>
-                      <span className="text-[#fbbf24] font-bold">{match.dateDisplay}</span>
-                    </div>
-                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[#fbbf24]/30 to-transparent" />
+                  <div className={`flex items-center gap-3 ${index > 0 ? 'pt-8' : 'pt-2'} pb-3`}>
+                    <span className="eyebrow">{match.dateDisplay}</span>
+                    <div className="flex-1 h-px bg-[var(--hairline)]" />
                   </div>
                 )}
 
                 <div
-                  className={`relative overflow-hidden rounded-3xl border transition-all duration-300 ${
+                  data-shot={hasResult ? 'match-done' : isLive ? 'match-live' : (!isLocked ? 'match-open' : undefined)}
+                  className={`rounded-[10px] bg-[var(--surface-1)] top-light transition-all duration-300 ${
                     mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-                  } ${
-                    yesCount > 0
-                      ? 'border-[#22c55e]/30 bg-gradient-to-br from-[#1a472a]/80 to-[#0d2818]/80'
-                      : 'border-[#fbbf24]/20 bg-gradient-to-br from-[#1a472a]/50 to-[#0d2818]/50'
-                  } ${isLive ? 'ring-2 ring-[#ef4444]/60' : ''}`}
-                  style={{ transitionDelay: `${index * 30}ms` }}
+                  } ${isLive ? 'ring-1 ring-[var(--live)]/40' : ''}`}
+                  style={{ transitionDelay: `${Math.min(index, 20) * 30}ms` }}
                 >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-[#fbbf24]/5 rounded-full blur-2xl" />
-
-                <div className="relative p-4 sm:p-6">
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-3 flex-wrap">
-                        {isLive && (
-                          <span className="px-3 py-1 bg-[#ef4444]/20 text-[#ef4444] rounded-lg text-xs font-bold animate-pulse flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-[#ef4444] inline-block" />
-                            LIVE
-                          </span>
-                        )}
+                  <div className="relative p-4 sm:p-5">
+                    {/* Row 1 — time / place + status */}
+                    <div className="flex items-center justify-between gap-3 mb-4">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="score text-[13px] text-[var(--text-tertiary)]">{match.time}</span>
+                        <span className="text-[12px] text-[var(--text-tertiary)] truncate">· {match.city}</span>
                         {match.group ? (
-                          <span className="px-3 py-1 bg-[#fbbf24]/20 text-[#fbbf24] rounded-lg text-xs font-bold">{match.group}</span>
+                          <span className="eyebrow">{match.group}</span>
+                        ) : (() => {
+                          const badge = getPhaseBadge(match.phase);
+                          return badge ? <span className="eyebrow">{badge.label}</span> : null;
+                        })()}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {isLive && (
+                          <span className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.08em] text-[var(--live)]">
+                            <span className="relative flex h-1.5 w-1.5">
+                              <span className="animate-live absolute inline-flex h-full w-full rounded-full bg-[var(--live)]" />
+                              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[var(--live)]" />
+                            </span>
+                            Live
+                          </span>
+                        )}
+                        {hasResult && <span className="text-[11px] uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Terminé</span>}
+                        {showLockCountdown && !isLocked && !hasResult && (
+                          <span className="text-[11px] text-[var(--text-tertiary)]">{lockCountdownText?.replace('🔒 ', '')}</span>
+                        )}
+                        {isLocked && !hasResult && <Lock className="w-3.5 h-3.5 text-[var(--text-tertiary)]" strokeWidth={1.75} />}
+                      </div>
+                    </div>
+
+                    {/* Row 2 — teams + score */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <span className="text-[20px] shrink-0">{getFlag(team1)}</span>
+                        <span className="text-[15px] font-medium text-[var(--text-primary)] truncate">{team1}</span>
+                        <TeamInfoButton teamName={team1} className="shrink-0" />
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleFavorite(team1); }}
+                          disabled={loadingFavorite === team1}
+                          className={`shrink-0 text-sm transition-colors ${favorites.includes(team1) ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}
+                          aria-label="Favori"
+                        >
+                          {favorites.includes(team1) ? '★' : '☆'}
+                        </button>
+                      </div>
+                      <div className="shrink-0 px-2">
+                        {hasResult ? (
+                          <span className="score text-[28px] text-[var(--text-primary)] whitespace-nowrap">
+                            {predState.result?.home_score}<span className="text-[var(--text-tertiary)] mx-1.5">:</span>{predState.result?.away_score}
+                          </span>
                         ) : (
-                          // Show phase badge for knockout matches
-                          (() => {
-                            const badge = getPhaseBadge(match.phase);
-                            return badge ? (
-                              <span className={`px-3 py-1 rounded-lg text-xs font-bold ${badge.color}`}>
-                                {badge.label}
+                          <span className="score text-[28px] text-[var(--text-tertiary)]">—</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleFavorite(team2); }}
+                          disabled={loadingFavorite === team2}
+                          className={`shrink-0 text-sm transition-colors ${favorites.includes(team2) ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}
+                          aria-label="Favori"
+                        >
+                          {favorites.includes(team2) ? '★' : '☆'}
+                        </button>
+                        <TeamInfoButton teamName={team2} className="shrink-0" />
+                        <span className="text-[15px] font-medium text-[var(--text-primary)] truncate text-right">{team2}</span>
+                        <span className="text-[20px] shrink-0">{getFlag(team2)}</span>
+                      </div>
+                    </div>
+
+                    {/* Row 3 — my prediction / score input (the signature moment) */}
+                    <div className="mt-4">
+                      {hasResult ? (
+                        myPrediction ? (
+                          <div className="inline-flex items-center gap-2 rounded-full bg-[var(--surface-2)] px-3 py-1.5">
+                            <span className="text-[12px] text-[var(--text-tertiary)]">Ton prono</span>
+                            <span className="score text-[13px] text-[var(--text-secondary)]">{myPrediction.home_score}-{myPrediction.away_score}</span>
+                            {myPoints && (
+                              <span className={`score text-[13px] ${myPoints.total > 0 ? 'text-[var(--accent)]' : myPoints.total < 0 ? 'text-[var(--danger)]' : 'text-[var(--text-tertiary)]'}`}>
+                                {myPoints.total > 0 ? `+${myPoints.total}` : myPoints.total} pt{Math.abs(myPoints.total) > 1 ? 's' : ''}
                               </span>
-                            ) : null;
-                          })()
-                        )}
-                        <span className="px-3 py-1 bg-white/10 text-white/70 rounded-lg text-xs">Match #{match.id}</span>
-                        {predState?.totalPredictions > 0 && (
-                          <span className={`px-3 py-1 rounded-lg text-xs font-medium ${
-                            myPrediction ? 'bg-[#6366f1]/20 text-[#6366f1]' : 'bg-gray-500/20 text-gray-400'
-                          }`}>
-                            🎯 {predState.totalPredictions}/14
-                          </span>
-                        )}
-                        {hasResult && myPoints && (
-                          <span className={`px-3 py-1 rounded-lg text-xs font-bold ${
-                            myPoints.total >= 3 ? 'bg-[#fbbf24]/20 text-[#fbbf24]' :
-                            myPoints.total > 0 ? 'bg-green-500/20 text-green-400' :
-                            'bg-red-500/20 text-red-400'
-                          }`}>
-                            +{myPoints.total} pt{myPoints.total > 1 ? 's' : ''}
-                          </span>
-                        )}
-                        {lockCountdownText && (
-                          <span className="px-3 py-1 bg-orange-500/20 text-orange-400 rounded-lg text-xs font-medium animate-pulse">
-                            {lockCountdownText}
-                          </span>
-                        )}
-                        {isLocked && !hasResult && (
-                          <span className="px-3 py-1 bg-gray-500/20 text-gray-400 rounded-lg text-xs font-medium">
-                            🔒 Verrouillé
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Team names - Stacked on mobile, horizontal on desktop */}
-                      {/* Mobile: compact horizontal layout */}
-                      <div className="flex sm:hidden items-center justify-between gap-2 mb-2">
-                        {/* Home team */}
-                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                          <span className="text-xl flex-shrink-0">{getFlag(team1)}</span>
-                          <span className="text-sm font-bold text-white truncate">{team1}</span>
-                          <TeamInfoButton teamName={team1} className="flex-shrink-0" />
-                          <button
-                            onClick={(e) => { e.stopPropagation(); toggleFavorite(team1); }}
-                            disabled={loadingFavorite === team1}
-                            className={`flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full transition-all text-sm ${
-                              favorites.includes(team1) ? 'text-[#fbbf24]' : 'text-gray-500'
-                            }`}
-                          >
-                            {favorites.includes(team1) ? '★' : '☆'}
-                          </button>
-                        </div>
-                        {/* VS */}
-                        <span className="text-gray-500 text-xs font-bold px-2 py-0.5 bg-white/5 rounded-full flex-shrink-0">VS</span>
-                        {/* Away team */}
-                        <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); toggleFavorite(team2); }}
-                            disabled={loadingFavorite === team2}
-                            className={`flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full transition-all text-sm ${
-                              favorites.includes(team2) ? 'text-[#fbbf24]' : 'text-gray-500'
-                            }`}
-                          >
-                            {favorites.includes(team2) ? '★' : '☆'}
-                          </button>
-                          <TeamInfoButton teamName={team2} className="flex-shrink-0" />
-                          <span className="text-sm font-bold text-white truncate">{team2}</span>
-                          <span className="text-xl flex-shrink-0">{getFlag(team2)}</span>
-                        </div>
-                      </div>
-
-                      {/* Desktop: horizontal layout */}
-                      <div className="hidden sm:flex items-center justify-between gap-4 mb-2">
-                        {/* Home team */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-3xl">{getFlag(team1)}</span>
-                          <TeamInfoButton teamName={team1} />
-                          <span className="text-xl font-bold text-white">{team1}</span>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); toggleFavorite(team1); }}
-                            disabled={loadingFavorite === team1}
-                            className={`min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full transition-all text-lg ${
-                              favorites.includes(team1) ? 'text-[#fbbf24]' : 'text-gray-500 hover:text-gray-300'
-                            }`}
-                          >
-                            {favorites.includes(team1) ? '★' : '☆'}
-                          </button>
-                        </div>
-                        {/* VS */}
-                        <span className="text-gray-500 text-xl font-bold">VS</span>
-                        {/* Away team */}
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); toggleFavorite(team2); }}
-                            disabled={loadingFavorite === team2}
-                            className={`min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full transition-all text-lg ${
-                              favorites.includes(team2) ? 'text-[#fbbf24]' : 'text-gray-500 hover:text-gray-300'
-                            }`}
-                          >
-                            {favorites.includes(team2) ? '★' : '☆'}
-                          </button>
-                          <span className="text-xl font-bold text-white">{team2}</span>
-                          <TeamInfoButton teamName={team2} />
-                          <span className="text-3xl">{getFlag(team2)}</span>
-                        </div>
-                      </div>
-
-                      {/* Date/Time/Location row */}
-                      <div className="flex flex-wrap items-center gap-3 text-sm mb-4">
-                        <span className="flex items-center gap-1.5 text-gray-300">
-                          <span>📅</span>
-                          <span>{match.dateDisplay}</span>
-                        </span>
-                        <span className="flex items-center gap-1.5 text-[#fbbf24] font-bold">
-                          <span>⏰</span>
-                          <span>{match.time}</span>
-                        </span>
-                        <span className="flex items-center gap-1.5 text-gray-400">
-                          <span>📍</span>
-                          <span>{match.city}</span>
-                        </span>
-                        {lockCountdownText && (
-                          <span className="px-2 py-1 bg-orange-500/20 text-orange-400 rounded-lg text-xs font-medium animate-pulse">
-                            {lockCountdownText}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* PROMINENT SCORE PREDICTION SECTION */}
-                      <div className={`p-4 rounded-2xl mb-4 ${
-                        hasResult
-                          ? 'bg-[#22c55e]/10 border border-[#22c55e]/30'
-                          : isLocked
-                            ? 'bg-gray-500/10 border border-gray-500/30'
-                            : myPrediction
-                              ? 'bg-[#6366f1]/10 border border-[#6366f1]/30'
-                              : 'bg-[#fbbf24]/10 border border-[#fbbf24]/30'
-                      }`}>
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="text-sm font-bold flex items-center gap-2">
-                            <span>🎯</span>
-                            <span className={hasResult ? 'text-[#22c55e]' : isLocked ? 'text-gray-400' : myPrediction ? 'text-[#6366f1]' : 'text-[#fbbf24]'}>
-                              {hasResult ? 'Résultat final' : isLocked ? 'Ton prono (verrouillé)' : myPrediction ? 'Ton prono' : 'Fais ton prono !'}
-                            </span>
-                          </span>
-                          {hasResult && myPoints && (
-                            <span className={`px-2 py-1 rounded-lg text-xs font-bold ${
-                              myPoints.total >= 3 ? 'bg-[#fbbf24]/20 text-[#fbbf24]' :
-                              myPoints.total > 0 ? 'bg-green-500/20 text-green-400' :
-                              'bg-red-500/20 text-red-400'
-                            }`}>
-                              {myPoints.total >= 3 && '🎯 '}+{myPoints.total} pt{myPoints.total > 1 ? 's' : ''}
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex items-center justify-center gap-4">
-                          {hasResult ? (
-                            // Show actual result prominently
-                            <div className="flex items-center gap-4">
-                              <div className="text-center">
-                                <span className="text-4xl font-black text-white">{predState.result?.home_score}</span>
-                              </div>
-                              <span className="text-2xl text-gray-400">-</span>
-                              <div className="text-center">
-                                <span className="text-4xl font-black text-white">{predState.result?.away_score}</span>
-                              </div>
-                              {myPrediction && (
-                                <div className="ml-4 text-sm text-gray-400">
-                                  <span>Ton prono : </span>
-                                  <span className={`font-bold ${
-                                    myPrediction.home_score === predState.result?.home_score &&
-                                    myPrediction.away_score === predState.result?.away_score
-                                      ? 'text-[#fbbf24]' : 'text-white'
-                                  }`}>
-                                    {myPrediction.home_score}-{myPrediction.away_score}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          ) : isLocked ? (
-                            // Locked prediction display
-                            <div className="flex items-center gap-4">
-                              {myPrediction ? (
-                                <>
-                                  <span className="text-4xl font-black text-gray-400">{myPrediction.home_score}</span>
-                                  <span className="text-2xl text-gray-500">-</span>
-                                  <span className="text-4xl font-black text-gray-400">{myPrediction.away_score}</span>
-                                  <span className="text-2xl text-gray-500">🔒</span>
-                                </>
-                              ) : (
-                                <span className="text-gray-500 flex items-center gap-2">
-                                  <span>😔</span>
-                                  <span>Pas de prono enregistré</span>
-                                  <span>🔒</span>
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            // Editable score inputs - BIG and prominent
-                            <div className="flex items-center gap-2 sm:gap-3">
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                value={currentHome}
-                                onChange={(e) => handleScoreChange(match.id, 'home', e.target.value)}
-                                onBlur={() => handleScoreBlur(match.id)}
-                                placeholder="?"
-                                className={`w-12 h-12 sm:w-16 sm:h-16 text-center text-2xl sm:text-3xl font-black rounded-xl sm:rounded-2xl border-2 transition-all focus:outline-none focus:ring-2 focus:ring-[#6366f1] ${
-                                  currentHome
-                                    ? 'bg-[#6366f1]/30 border-[#6366f1] text-white'
-                                    : 'bg-[#1e1e2e] border-[#fbbf24]/50 text-[#fbbf24] placeholder-[#fbbf24]/50'
-                                } ${isSaving ? 'opacity-50' : ''}`}
-                                disabled={isSaving}
-                              />
-                              <span className="text-xl sm:text-2xl text-gray-400 font-bold">-</span>
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                value={currentAway}
-                                onChange={(e) => handleScoreChange(match.id, 'away', e.target.value)}
-                                onBlur={() => handleScoreBlur(match.id)}
-                                placeholder="?"
-                                className={`w-12 h-12 sm:w-16 sm:h-16 text-center text-2xl sm:text-3xl font-black rounded-xl sm:rounded-2xl border-2 transition-all focus:outline-none focus:ring-2 focus:ring-[#6366f1] ${
-                                  currentAway
-                                    ? 'bg-[#6366f1]/30 border-[#6366f1] text-white'
-                                    : 'bg-[#1e1e2e] border-[#fbbf24]/50 text-[#fbbf24] placeholder-[#fbbf24]/50'
-                                } ${isSaving ? 'opacity-50' : ''}`}
-                                disabled={isSaving}
-                              />
-                              {isSaving && (
-                                <div className="animate-spin w-5 h-5 sm:w-6 sm:h-6 border-2 border-[#6366f1] border-t-transparent rounded-full" />
-                              )}
-                              {myPrediction && !editingThis && !isSaving && (
-                                <span className="text-green-400 text-lg sm:text-xl">✓</span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Hint text for empty state */}
-                        {!isLocked && !hasResult && !myPrediction && (
-                          <p className="text-center text-sm text-[#fbbf24]/70 mt-2">
-                            Saisis le score que tu prédis !
-                          </p>
-                        )}
-
-                        {/* Other predictions - compact display with avatars */}
-                        {predState?.allPredictions && predState.allPredictions.filter(p => p.user_id !== currentUser?.id).length > 0 && (
-                          <div className="mt-3 pt-3 border-t border-white/10">
-                            <p className="text-xs text-gray-500 text-center mb-2">Pronos des autres</p>
-                            <div className="flex flex-wrap gap-2 justify-center">
-                              {predState.allPredictions
-                                .filter(p => p.user_id !== currentUser?.id)
-                                .map(pred => {
-                                  const member = MEMBERS.find(m => m.id === pred.user_id);
-                                  return member ? (
-                                    <div
-                                      key={pred.user_id}
-                                      className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-lg"
-                                      title={member.name}
-                                    >
-                                      <div className="w-5 h-5 rounded-full overflow-hidden relative">
-                                        <Image src={`/members/${member.slug}.png`} alt={member.name} fill className="object-cover" />
-                                      </div>
-                                      <span className="text-xs text-gray-300 font-medium">
-                                        {pred.home_score}-{pred.away_score}
-                                      </span>
-                                    </div>
-                                  ) : null;
-                                })}
-                            </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-
-                      {/* Auvio Button - visible on all today's matches */}
-                      {isMatchToday(match) && (
-                        isInAuvioWindow(match) ? (
-                          <a
-                            href="https://auvio.rtbf.be/categorie/sport~s-3/football~sc-32"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-[#e30613]/20 text-[#e30613] rounded-xl font-bold hover:bg-[#e30613]/30 transition-colors border border-[#e30613]/30 mb-3"
-                          >
-                            <span>📺</span>
-                            <span>Regarder sur Auvio</span>
-                          </a>
                         ) : (
-                          <div
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-500/10 text-gray-500 rounded-xl font-bold border border-gray-500/20 mb-3 cursor-not-allowed"
-                            title="Dispo 30 min avant le match"
-                          >
-                            <span>📺</span>
-                            <span>Auvio</span>
-                            <span className="text-xs opacity-70">(dispo 30 min avant)</span>
-                          </div>
+                          <span className="text-[12px] text-[var(--text-tertiary)]">Pas de prono enregistré</span>
                         )
-                      )}
-
-                      {/* Group prediction stats after kickoff */}
-                      {(() => {
-                        const stats = getPredictionStats(match.id, team1, team2);
-                        return stats && (
-                          <div className="mb-3 px-3 py-1.5 bg-[#6366f1]/10 rounded-lg text-[#6366f1] text-sm font-medium inline-flex items-center gap-2">
-                            <span>📊</span>
-                            <span>{stats}</span>
+                      ) : isLocked ? (
+                        <div className="inline-flex items-center gap-2 rounded-full bg-[var(--surface-2)] px-3 py-1.5 opacity-50">
+                          <Lock className="w-3 h-3 text-[var(--text-tertiary)]" strokeWidth={1.75} />
+                          {myPrediction ? (
+                            <>
+                              <span className="text-[12px] text-[var(--text-tertiary)]">Ton prono</span>
+                              <span className="score text-[13px] text-[var(--text-secondary)]">{myPrediction.home_score}-{myPrediction.away_score}</span>
+                            </>
+                          ) : (
+                            <span className="text-[12px] text-[var(--text-tertiary)]">Pas de prono</span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={currentHome}
+                              onChange={(e) => handleScoreChange(match.id, 'home', e.target.value)}
+                              onBlur={() => handleScoreBlur(match.id)}
+                              placeholder="–"
+                              disabled={isSaving}
+                              className={`w-14 h-14 text-center score text-[24px] rounded-[8px] bg-[var(--surface-2)] border border-[var(--hairline)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)] focus:border-[var(--accent)] transition-colors ${isSaving ? 'opacity-50' : ''}`}
+                            />
+                            <span className="score text-[20px] text-[var(--text-tertiary)]">:</span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={currentAway}
+                              onChange={(e) => handleScoreChange(match.id, 'away', e.target.value)}
+                              onBlur={() => handleScoreBlur(match.id)}
+                              placeholder="–"
+                              disabled={isSaving}
+                              className={`w-14 h-14 text-center score text-[24px] rounded-[8px] bg-[var(--surface-2)] border border-[var(--hairline)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)] focus:border-[var(--accent)] transition-colors ${isSaving ? 'opacity-50' : ''}`}
+                            />
                           </div>
-                        );
-                      })()}
+                          <button
+                            onClick={() => saveScorePrediction(match.id, parseInt(currentHome, 10), parseInt(currentAway, 10))}
+                            disabled={isSaving || currentHome === '' || currentAway === ''}
+                            className={`h-14 px-5 rounded-[8px] text-[14px] font-medium transition-colors disabled:opacity-40 ${
+                              match.id === strongCtaMatchId
+                                ? 'bg-[var(--accent)] text-[#0A0C0B] hover:opacity-90'
+                                : 'bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--accent)]'
+                            }`}
+                          >
+                            {isSaving ? '…' : 'Valider'}
+                          </button>
+                          {myPrediction && !editingThis && !isSaving && (
+                            <span className="inline-flex items-center gap-2 rounded-full bg-[var(--accent-muted)] px-3 py-1.5 text-[12px] text-[var(--accent)]">
+                              Prono enregistré
+                              <span className="score">{myPrediction.home_score}-{myPrediction.away_score}</span>
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      {/* Confirmed Badge with confetti */}
-                      {yesCount >= 5 && (
-                        <div className="px-3 py-1.5 bg-[#22c55e] text-white text-sm font-bold rounded-xl flex items-center gap-1.5 shadow-lg shadow-[#22c55e]/30 animate-pulse">
-                          <span>🎉</span> Confirmé !
-                        </div>
-                      )}
-                      {yesCount > 0 && (
-                        <div className="flex items-center gap-2 px-4 py-2 bg-[#22c55e]/20 rounded-xl border border-[#22c55e]/30">
-                          <span className="text-lg">✓</span>
-                          <span className="text-[#22c55e] font-bold">{yesCount}</span>
-                          <span className="text-[#22c55e]/70 text-sm">viennent</span>
-                        </div>
-                      )}
-                      {maybeCount > 0 && (
-                        <div className="flex items-center gap-2 px-4 py-2 bg-[#fbbf24]/20 rounded-xl border border-[#fbbf24]/30">
-                          <span className="text-lg">?</span>
-                          <span className="text-[#fbbf24] font-bold">{maybeCount}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                    {/* Others' predictions — compact reveal */}
+                    {predState?.allPredictions && predState.allPredictions.filter(p => p.user_id !== currentUser?.id).length > 0 && (
+                      <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
+                        {predState.allPredictions.filter(p => p.user_id !== currentUser?.id).map(pred => {
+                          const member = MEMBERS.find(m => m.id === pred.user_id);
+                          return member ? (
+                            <div key={pred.user_id} className="flex items-center gap-1.5">
+                              <div className="relative w-5 h-5 rounded-full overflow-hidden ring-1 ring-[var(--hairline)]">
+                                <Image src={`/members/${member.slug}.png`} alt={member.name} fill sizes="20px" className="object-cover object-top" />
+                              </div>
+                              <span className="text-[12px] text-[var(--text-tertiary)]">{member.name.split(' ')[0]}</span>
+                              <span className="score text-[13px] text-[var(--text-secondary)]">{pred.home_score}-{pred.away_score}</span>
+                            </div>
+                          ) : null;
+                        })}
+                      </div>
+                    )}
+
+                    {/* Auvio */}
+                    {isMatchToday(match) && (
+                      isInAuvioWindow(match) ? (
+                        <a
+                          href="https://auvio.rtbf.be/categorie/sport~s-3/football~sc-32"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-3 inline-flex items-center gap-1.5 text-[13px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+                        >
+                          Regarder sur Auvio
+                          <ExternalLink className="w-3 h-3" strokeWidth={1.75} />
+                        </a>
+                      ) : (
+                        <span className="mt-3 inline-flex items-center gap-1.5 text-[13px] text-[var(--text-tertiary)]">
+                          Auvio <span className="text-[12px]">(dispo 30 min avant)</span>
+                        </span>
+                      )
+                    )}
 
                   {/* Response Progress Bar */}
                   <div className="mb-4">
