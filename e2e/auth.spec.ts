@@ -12,13 +12,13 @@ test.describe('Authentication', () => {
 
   test('should display login page correctly', async ({ page }) => {
     await page.goto('/login');
-    await expect(page.locator('text=Salut ! Qui es-tu ?')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Qui es-tu ?')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('text=14 membres actifs')).toBeVisible({ timeout: 10000 });
   });
 
   test('should show PIN input when clicking avatar', async ({ page }) => {
     await page.goto('/login');
-    await expect(page.locator('text=Salut ! Qui es-tu ?')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Qui es-tu ?')).toBeVisible({ timeout: 10000 });
     await page.locator('button').filter({ has: page.locator('img') }).first().click();
     // Should show PIN input
     await expect(page.locator('input[type="password"]').first()).toBeVisible({ timeout: 10000 });

@@ -10,6 +10,8 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
+    // Seed the TEST database (idempotent) before the suite runs.
+    globalSetup: './scripts/vitest-global-setup.ts',
     // Ensure .env.test is loaded
     env: {
       ...dotenv.config({ path: '.env.test' }).parsed,

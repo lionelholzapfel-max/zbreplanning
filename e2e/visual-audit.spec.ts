@@ -53,8 +53,8 @@ test.describe('Visual Audit - UX Contract Compliance', () => {
       await page.screenshot({ path: 'screenshots/audit/03-worldcup-score-inputs-visible.png', fullPage: false });
     }
 
-    // Verify participation buttons are smaller (check they exist)
-    const ouiButton = page.locator('button:has-text("✓")').first();
+    // Verify participation segmented is present (v2: "Je regarde" / "Peut-être" / "Non")
+    const ouiButton = page.locator('button:has-text("Je regarde")').first();
     await expect(ouiButton).toBeVisible({ timeout: 5000 });
     await page.screenshot({ path: 'screenshots/audit/03-worldcup-participation-buttons.png', fullPage: false });
   });
@@ -79,7 +79,8 @@ test.describe('Visual Audit - UX Contract Compliance', () => {
   test('05 - Leaderboard page', async ({ page }) => {
     await quickLogin(page, '1');
     await page.goto('/leaderboard');
-    await expect(page.locator('text=Leaderboard').or(page.locator('text=Points')).first()).toBeVisible({ timeout: 10000 });
+    // v2: page title is "Classement" (there is no "Leaderboard"/"Points" literal text)
+    await expect(page.getByRole('heading', { name: 'Classement' })).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(1000);
     await page.screenshot({ path: 'screenshots/audit/05-leaderboard.png', fullPage: true });
   });
@@ -97,8 +98,8 @@ test.describe('Visual Audit - UX Contract Compliance', () => {
     await page.goto('/world-cup');
     await expect(page.getByRole('heading', { name: 'Coupe du Monde' })).toBeVisible({ timeout: 30000 });
 
-    // Test phase filter
-    const phaseBtn = page.locator('button:has-text("8e")');
+    // Test phase filter (v2 shortLabel is "8es")
+    const phaseBtn = page.locator('button:has-text("8es")');
     if (await phaseBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await phaseBtn.click();
       await page.waitForTimeout(500);
@@ -108,22 +109,20 @@ test.describe('Visual Audit - UX Contract Compliance', () => {
 });
 
 test.describe('UX Contract Violations Check', () => {
-  test('Verify clean slate - no compact predictions on main card', async ({ page }) => {
+  test('Verify match card renders the core prono controls', async ({ page }) => {
     await quickLogin(page, '1');
     await page.goto('/world-cup');
     await expect(page.getByRole('heading', { name: 'Coupe du Monde' })).toBeVisible({ timeout: 30000 });
 
-    // The compact display should NOT show individual avatars with scores
-    // It should only show "X autres pronos • Voir dans Détails"
-    const compactPredDisplay = page.locator('text=/\\d+ autres pronos/').first();
-    const avatarInCard = page.locator('.bg-white\\/5 .rounded-full').first();
-
-    // Either compact display exists OR no avatar previews - clean slate maintained
-    const hasCompact = await compactPredDisplay.isVisible({ timeout: 3000 }).catch(() => false);
-    const hasAvatarPreview = await avatarInCard.isVisible({ timeout: 1000 }).catch(() => false);
-
-    // Pass if we don't have avatar previews in non-expanded state
-    expect(hasAvatarPreview).toBe(false);
+    // NOTE: the old "clean slate" contract (no others' predictions on the collapsed card) no
+    // longer applies — the v2 redesign intentionally reveals others' pronos compactly under the
+    // score. That old assertion (`.bg-white/5 .rounded-full` absent) passed only because those
+    // classes were removed, not because the behaviour still held, so it was a false positive.
+    // Robust equivalent: assert each match card renders its core prono controls (participation
+    // segmented always present, and the "Détails" expander).
+    await page.evaluate(() => window.scrollTo(0, 600));
+    await expect(page.locator('button:has-text("Je regarde")').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('button:has-text("Détails")').first()).toBeVisible({ timeout: 10000 });
   });
 
   test('Verify score inputs accessible on mobile', async ({ page }) => {
@@ -155,11 +154,11 @@ test.describe('UX Contract Violations Check', () => {
     await page.evaluate(() => window.scrollTo(0, 600));
     await page.waitForTimeout(500);
 
-    // Participation buttons should have smaller padding (py-1.5 instead of py-2.5)
-    const ouiButton = page.locator('button:has-text("✓")').first();
+    // Participation options use compact padding on desktop (sm:py-1.5); "Je regarde" is the first option
+    const ouiButton = page.locator('button:has-text("Je regarde")').first();
     await expect(ouiButton).toBeVisible({ timeout: 5000 });
 
-    // Button should have the smaller class
+    // Button should carry the compact py-1.5 (sm) padding class
     await expect(ouiButton).toHaveClass(/py-1\.5/);
   });
 });

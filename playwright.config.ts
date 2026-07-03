@@ -15,7 +15,7 @@ export default defineConfig({
   globalSetup: './e2e/global-setup.ts',
 
   use: {
-    baseURL: 'http://localhost:3002',
+    baseURL: 'http://localhost:3003',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
@@ -35,10 +35,12 @@ export default defineConfig({
     },
   ],
 
-  // Run production build before tests (no on-demand compilation)
+  // Production build + start, with .env.test injected into BOTH build (bakes the
+  // test NEXT_PUBLIC_* → client bundles hit the TEST project) and start (server
+  // env). Without this the app would serve with .env.local and hit production.
   webServer: {
-    command: 'npm run build && npm run start -- --port 3002',
-    url: 'http://localhost:3002',
+    command: "env $(grep -v '^#' .env.test | grep -v '^$' | xargs) bash -c 'npm run build && npm run start -- --port 3003'",
+    url: 'http://localhost:3003',
     reuseExistingServer: !process.env.CI,
     timeout: 180000, // Build can take time
   },

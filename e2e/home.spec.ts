@@ -13,8 +13,8 @@ test.describe('Home Page', () => {
   });
 
   test('should display team members section', async ({ page }) => {
-    // Scroll down to find "La Team" section
-    await expect(page.locator('text=La Team').first()).toBeVisible({ timeout: 10000 });
+    // Scroll down to find "La team" section
+    await expect(page.locator('text=La team').first()).toBeVisible({ timeout: 10000 });
   });
 
   test('should display World Cup card', async ({ page }) => {
