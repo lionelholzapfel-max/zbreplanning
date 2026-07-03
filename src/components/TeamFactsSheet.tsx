@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Info } from 'lucide-react';
 import { getTeamFacts, type TeamFacts } from '@/data/team-facts';
 
@@ -129,8 +130,10 @@ export function TeamFactsSheet({ teamName, isOpen, onClose, triggerRef }: TeamFa
     </>
   );
 
-  // Both mobile and desktop use fixed positioning to avoid clipping
-  return (
+  // Rendered through a portal to document.body: a transformed ancestor (the match
+  // card's translate-y) otherwise becomes the containing block for position:fixed
+  // and clips the sheet under the sticky filter bar on mobile.
+  return createPortal(
     <div className="fixed inset-0 z-50">
       {/* Backdrop */}
       <div
@@ -165,7 +168,8 @@ export function TeamFactsSheet({ teamName, isOpen, onClose, triggerRef }: TeamFa
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
