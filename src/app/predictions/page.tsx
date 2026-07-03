@@ -633,9 +633,9 @@ export default function PredictionsPage() {
                     <div className="pt-4 border-t border-white/10">
                       <p className="text-xs text-gray-500 mb-3">Choix de la team ({otherPredictions.length})</p>
                       <div className="flex flex-wrap gap-2">
-                        {otherPredictions.map(pred => (
+                        {otherPredictions.map((pred, idx) => (
                           <div
-                            key={pred.id}
+                            key={pred.user_id ?? pred.user?.member_slug ?? idx}
                             className="flex items-center gap-2 px-3 py-1.5 bg-[#1e1e2e] rounded-xl"
                           >
                             <div className="w-6 h-6 rounded-full overflow-hidden relative">

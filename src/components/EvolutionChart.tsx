@@ -152,6 +152,7 @@ export function EvolutionChart() {
                   strokeWidth={highlighted || isHovered ? 2 : chartTheme.strokeWidth}
                   dot={false}
                   activeDot={{ r: 4 }}
+                  isAnimationActive={false}
                   onMouseOver={() => setHovered(member.id)}
                   onMouseOut={() => setHovered(null)}
                 />
