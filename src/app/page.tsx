@@ -206,7 +206,7 @@ export default function HomePage() {
       <Navbar />
 
       {/* Hero */}
-      <section className="relative h-[420px] overflow-hidden">
+      <section data-shot="hero" className="relative h-[420px] overflow-hidden">
         <Image
           src="/team/group.png"
           alt="Zbre Team"
@@ -285,7 +285,7 @@ export default function HomePage() {
       {nextMatch && (
         <section className="max-w-5xl mx-auto px-4 pt-8">
           <Link href="/world-cup" className="block">
-            <div className="relative overflow-hidden rounded-[10px] bg-[var(--surface-1)] top-light p-6 transition-colors duration-150 hover:bg-[var(--surface-2)]">
+            <div data-shot="next-match" className="relative overflow-hidden rounded-[10px] bg-[var(--surface-1)] top-light p-6 transition-colors duration-150 hover:bg-[var(--surface-2)]">
               <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-8">
                 <div className="min-w-0">
                   <p className="eyebrow">Prochain match</p>
