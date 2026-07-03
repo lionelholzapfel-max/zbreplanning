@@ -32,11 +32,12 @@ export function EvolutionChart() {
   const [loading, setLoading] = useState(true);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [hovered, setHovered] = useState<string | null>(null);
-  // Recharts' tooltip sticks on touch (no hover-out) and covers the chart on
-  // mobile. Only enable it on hover-capable pointers (desktop).
+  // On touch, recharts' tooltip sticks and its active dots / cursor linger with no
+  // way to dismiss. Make the chart view-only on touch devices (lines + legend);
+  // full interactivity on real pointer devices (desktop).
   const [canHover, setCanHover] = useState(false);
   useEffect(() => {
-    setCanHover(window.matchMedia('(hover: hover)').matches);
+    setCanHover(window.matchMedia('(hover: hover) and (pointer: fine)').matches);
   }, []);
 
   useEffect(() => {
@@ -136,7 +137,7 @@ export function EvolutionChart() {
 
   return (
     <div className="rounded-[10px] bg-[var(--surface-1)] top-light p-4 sm:p-6">
-      <div className="h-64 sm:h-80">
+      <div className="h-64 sm:h-80" style={canHover ? undefined : { pointerEvents: 'none' }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={history} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
             <CartesianGrid {...chartGridProps} />
