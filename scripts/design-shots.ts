@@ -16,7 +16,7 @@
  */
 import { chromium, type Page, type BrowserContext } from '@playwright/test';
 import { SignJWT } from 'jose';
-import { readFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, mkdirSync, renameSync } from 'node:fs';
 
 const BASE_URL = 'http://localhost:3001';
 const OUT_DIR = 'design-shots';
@@ -156,6 +156,86 @@ async function captureStates(browser: Awaited<ReturnType<typeof chromium.launch>
   await ctx.close();
 }
 
+// ── Motion mode: record short webm clips of the 3 signature gestures ──
+// The prediction write is mocked (no prod DB mutation); the celebration is forced
+// via a stubbed /api/drere-celebration/check. Video length = context lifetime.
+const MOTION_SIZES = [
+  { key: 'mobile', w: 390, h: 844, mobile: true },
+  { key: 'desktop', w: 1440, h: 900, mobile: false },
+];
+
+async function captureMotion(browser: Awaited<ReturnType<typeof chromium.launch>>, token: string) {
+  const cookie = { name: 'zbre_session', value: token, domain: 'localhost', path: '/', httpOnly: true, secure: false, sameSite: 'Lax' as const };
+  const scenarios: Array<{ name: string; page: string; route: boolean; run: (page: Page) => Promise<void> }> = [
+    {
+      name: 'predict', page: '/world-cup', route: false, run: async (page) => {
+        // Mock the write so nothing touches the prod DB — the success UI still fires.
+        await page.route('**/api/predictions/score', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
+        const inputs = page.locator('input[inputmode="numeric"]');
+        await inputs.first().waitFor({ state: 'visible', timeout: 8000 });
+        await inputs.first().scrollIntoViewIfNeeded();
+        await page.waitForTimeout(700);
+        await inputs.first().click(); await inputs.first().fill('2'); await page.waitForTimeout(400);
+        await inputs.nth(1).fill('1'); await page.waitForTimeout(400);
+        const valider = page.getByRole('button', { name: /valider/i }).first();
+        await valider.click().catch(() => {});
+        await page.waitForTimeout(2200);
+      },
+    },
+    {
+      name: 'leaderboard', page: '/leaderboard', route: false, run: async (page) => {
+        await page.waitForTimeout(800);
+        for (const label of [/^semaine$/i, /^live$/i, /^général$/i]) {
+          const b = page.getByRole('button', { name: label }).first();
+          if (await b.count().catch(() => 0)) { await b.click().catch(() => {}); await page.waitForTimeout(1200); }
+        }
+      },
+    },
+    {
+      name: 'celebration', page: '/', route: true, run: async (page) => {
+        await page.waitForTimeout(3200); // let the staged entrance + delayed confetti play
+      },
+    },
+  ];
+  for (const size of MOTION_SIZES) {
+    console.log(`\n▸ Motion ${size.key} (${size.w}×${size.h})`);
+    for (const sc of scenarios) {
+      const ctx = await browser.newContext({
+        viewport: { width: size.w, height: size.h },
+        deviceScaleFactor: 1,
+        colorScheme: 'dark',
+        ...(size.mobile ? { isMobile: true, hasTouch: true } : {}),
+        recordVideo: { dir: OUT_DIR, size: { width: size.w, height: size.h } },
+      });
+      await ctx.addCookies([cookie]);
+      const page = await ctx.newPage();
+      if (sc.route) {
+        await page.route('**/api/drere-celebration/check', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ isDrere: true, alreadySeen: false, member_name: 'Lionel Holzapfel', member_slug: 'lionel-holzapfel', points: 37, weekDate: '2026-W27' }) }));
+        await page.route('**/api/drere-celebration/seen', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
+      }
+      try {
+        await page.goto(`${BASE_URL}${sc.page}`, { waitUntil: 'domcontentloaded', timeout: 20000 });
+        await page.waitForTimeout(1000);
+        await sc.run(page);
+      } catch (e) {
+        console.log(`  ✗ ${sc.name}/${size.key} — ${(e as Error).message.split('\n')[0]}`);
+      }
+      const video = page.video();
+      await page.close();
+      await ctx.close();
+      if (video) {
+        try {
+          const p = await video.path();
+          renameSync(p, `${OUT_DIR}/motion-${sc.name}-${size.key}.webm`);
+          console.log(`  ✓ motion-${sc.name}-${size.key}.webm`);
+        } catch {
+          console.log(`  ✗ rename ${sc.name}/${size.key}`);
+        }
+      }
+    }
+  }
+}
+
 async function main() {
   mkdirSync(OUT_DIR, { recursive: true });
   const token = await forgeSessionCookie();
@@ -170,6 +250,13 @@ async function main() {
     await captureStates(browser, token);
     await browser.close();
     console.log(`\nStates dans ${OUT_DIR}/`);
+    return;
+  }
+
+  if (arg === 'motion') {
+    await captureMotion(browser, token);
+    await browser.close();
+    console.log(`\nClips motion-*.webm dans ${OUT_DIR}/`);
     return;
   }
   const profiles =

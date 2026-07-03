@@ -45,6 +45,16 @@ interface Match {
 }
 
 
+// Compact a French date string ("4 juillet" → "4 juil.") for tight mobile rows.
+const MONTH_ABBR: Record<string, string> = {
+  janvier: 'janv.', février: 'févr.', mars: 'mars', avril: 'avr.', mai: 'mai', juin: 'juin',
+  juillet: 'juil.', août: 'août', septembre: 'sept.', octobre: 'oct.', novembre: 'nov.', décembre: 'déc.',
+};
+function compactDate(s: string): string {
+  return s.replace(/janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre/i,
+    (m) => MONTH_ABBR[m.toLowerCase()] ?? m);
+}
+
 export default function HomePage() {
   const [mounted, setMounted] = useState(false);
   const [stats, setStats] = useState({ matchesJoined: 0, activitiesCreated: 0 });
@@ -360,9 +370,12 @@ export default function HomePage() {
               return (
                 <Link key={`next-${match.id}`} href="/world-cup" className="block group">
                   <ListRow interactive>
-                    <div className="flex flex-col w-16 shrink-0 pr-3">
-                      <span className="text-xs text-[var(--text-tertiary)] tabular-nums">{match.dateDisplay}</span>
-                      <span className="score text-[15px] text-[var(--text-secondary)]">{match.time}</span>
+                    <div className="flex flex-row sm:flex-col items-baseline sm:items-start gap-1.5 sm:gap-0 shrink-0 pr-3 w-auto sm:w-16">
+                      <span className="text-xs text-[var(--text-tertiary)] tabular-nums whitespace-nowrap">
+                        <span className="sm:hidden">{compactDate(match.dateDisplay)}</span>
+                        <span className="hidden sm:inline">{match.dateDisplay}</span>
+                      </span>
+                      <span className="score text-[13px] sm:text-[15px] text-[var(--text-secondary)]">{match.time}</span>
                     </div>
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <span className="flex-1 min-w-0 text-[14px] font-medium text-[var(--text-primary)] truncate">{team1}</span>

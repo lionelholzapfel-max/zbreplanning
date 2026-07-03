@@ -195,6 +195,27 @@ body {
 .animate-pop-in { animation: pop-in 0.2s ease-out forwards; }
 .animate-bounce-in { animation: bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards; }
 
+/* ===== Signature motion (DA §6 — ~150ms ease, NO bounce/overshoot) ===== */
+/* Segmented view crossfade: outgoing fades, incoming fades + rises 4px */
+@keyframes view-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.animate-view-enter { animation: view-enter 150ms var(--ease); }
+
+/* Prono badge + small confirmations: settle in with a very light scale */
+@keyframes badge-in { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+.animate-badge-in { animation: badge-in 200ms var(--ease); }
+
+/* Celebration avatar / points block entrance */
+@keyframes scale-in { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+.animate-scale-in { animation: scale-in 250ms var(--ease); }
+
+/* Modal/overlay content entrance (replaces bounce-in — no overshoot) */
+@keyframes enter-soft { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.animate-enter-soft { animation: enter-soft 200ms var(--ease); }
+
+/* Success accent flash on a card's top liseré (400ms fade back to normal) */
+@keyframes accent-flash { 0% { box-shadow: inset 0 1px 0 var(--accent); } 100% { box-shadow: var(--top-light); } }
+.animate-accent-flash { animation: accent-flash 400ms var(--ease); }
+
 /* ===== Reduced motion ===== */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

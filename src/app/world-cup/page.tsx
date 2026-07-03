@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { TeamInfoButton } from '@/components/TeamFactsSheet';
 import { PHASES, PHASE_DISPLAY, PHASE_ORDER, GROUPS, isKnockoutPhase, getPhaseBadge, Phase } from '@/lib/constants';
 import { PageHeader, EmptyState, Spinner } from '@/components/ui';
+import { CountUp } from '@/components/CountUp';
 import { Lock, ExternalLink, Star } from 'lucide-react';
 
 // Filter types
@@ -148,6 +149,8 @@ export default function WorldCupPage() {
   const [scorePredictions, setScorePredictions] = useState<Record<number, MatchPredictionState>>({});
   const [editingScore, setEditingScore] = useState<{ matchId: number; home: string; away: string } | null>(null);
   const [savingScore, setSavingScore] = useState<number | null>(null);
+  const [justSavedId, setJustSavedId] = useState<number | null>(null);
+  const [shakeId, setShakeId] = useState<number | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Favorites state
@@ -471,10 +474,14 @@ export default function WorldCupPage() {
 
       if (!res.ok) {
         toast.error(data.error || 'Erreur lors de l\'enregistrement');
+        setShakeId(matchId);
+        setTimeout(() => setShakeId(null), 220);
         return false;
       }
 
       toast.success('Pronostic enregistré');
+      setJustSavedId(matchId);
+      setTimeout(() => setJustSavedId(null), 400);
 
       // Update local state
       setScorePredictions(prev => ({
@@ -489,6 +496,8 @@ export default function WorldCupPage() {
       return true;
     } catch {
       toast.error('Erreur lors de l\'enregistrement');
+      setShakeId(matchId);
+      setTimeout(() => setShakeId(null), 220);
       return false;
     } finally {
       setSavingScore(null);
@@ -793,6 +802,8 @@ export default function WorldCupPage() {
     const ps = scorePredictions[m.id];
     return !ps?.result && !ps?.predictionLocked && !ps?.myPrediction;
   })?.id ?? null;
+  // Sliding-indicator index for the phase segmented.
+  const activePhaseIndex = Math.max(0, phases.findIndex((p) => p.id === selectedPhase));
 
   return (
     <div className="min-h-screen bg-[var(--canvas)]">
@@ -822,7 +833,15 @@ export default function WorldCupPage() {
       {/* Phase filters — segmented */}
       <section className="max-w-7xl mx-auto px-4 pt-6">
         <div className="flex justify-center">
-          <div className="inline-flex rounded-[8px] bg-[var(--surface-2)] p-0.5 max-w-full overflow-x-auto scrollbar-hide">
+          <div
+            className="relative inline-grid rounded-[8px] bg-[var(--surface-2)] p-0.5 max-w-full overflow-x-auto scrollbar-hide"
+            style={{ gridTemplateColumns: `repeat(${phases.length}, minmax(0, 1fr))` }}
+          >
+            <span
+              aria-hidden
+              className="pointer-events-none absolute top-0.5 bottom-0.5 left-0.5 rounded-[6px] bg-[var(--surface-3)] top-light transition-transform duration-150 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]"
+              style={{ width: `calc((100% - 4px) / ${phases.length})`, transform: `translateX(${activePhaseIndex * 100}%)` }}
+            />
             {phases.map(phase => (
               <button
                 key={phase.id}
@@ -830,9 +849,9 @@ export default function WorldCupPage() {
                   setSelectedPhase(phase.id);
                   if (phase.id !== 'PHASE DE GROUPES') setSelectedGroup(null);
                 }}
-                className={`px-3 py-2.5 sm:py-1.5 rounded-[6px] text-[13px] whitespace-nowrap transition-colors ${
+                className={`relative z-10 text-center px-3 py-2.5 sm:py-1.5 rounded-[6px] text-[13px] whitespace-nowrap transition-colors ${
                   selectedPhase === phase.id
-                    ? 'bg-[var(--surface-3)] top-light text-[var(--text-primary)]'
+                    ? 'text-[var(--text-primary)]'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                 }`}
               >
@@ -915,7 +934,7 @@ export default function WorldCupPage() {
 
       {/* Matches */}
       <section className="max-w-7xl mx-auto px-4 pb-12">
-        <div className="space-y-3">
+        <div key={selectedPhase + '-' + (selectedGroup ?? 'all')} className="space-y-3 animate-view-enter">
           {filteredMatches.map((match, index) => {
             // Day separator logic
             const prevMatch = index > 0 ? filteredMatches[index - 1] : null;
@@ -976,7 +995,7 @@ export default function WorldCupPage() {
                   data-shot={hasResult ? 'match-done' : isLive ? 'match-live' : (!isLocked ? 'match-open' : undefined)}
                   className={`rounded-[10px] bg-[var(--surface-1)] top-light transition-all duration-300 ${
                     mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-                  } ${isLive ? 'ring-1 ring-[var(--live)]/40' : ''}`}
+                  } ${isLive ? 'ring-1 ring-[var(--live)]/40' : ''} ${justSavedId === match.id ? 'animate-accent-flash' : ''}`}
                   style={{ transitionDelay: `${Math.min(index, 20) * 30}ms` }}
                 >
                   <div className="relative p-4 sm:p-5">
@@ -1079,7 +1098,7 @@ export default function WorldCupPage() {
                         </div>
                       ) : (
                         <div className="flex items-center gap-3 flex-wrap">
-                          <div className="flex items-center gap-2">
+                          <div className={`flex items-center gap-2 ${shakeId === match.id ? 'animate-shake' : ''}`}>
                             <input
                               type="text"
                               inputMode="numeric"
@@ -1116,9 +1135,9 @@ export default function WorldCupPage() {
                             {isSaving ? '…' : 'Valider'}
                           </button>
                           {myPrediction && !editingThis && !isSaving && (
-                            <span className="inline-flex items-center gap-2 rounded-full bg-[var(--accent-muted)] px-3 py-1.5 text-[12px] text-[var(--accent)]">
+                            <span className="inline-flex items-center gap-2 rounded-full bg-[var(--accent-muted)] px-3 py-1.5 text-[12px] text-[var(--accent)] animate-badge-in">
                               Prono enregistré
-                              <span className="score">{myPrediction.home_score}-{myPrediction.away_score}</span>
+                              <span className="score"><CountUp value={myPrediction.home_score} durationMs={400} />-<CountUp value={myPrediction.away_score} durationMs={400} /></span>
                             </span>
                           )}
                         </div>
@@ -1165,15 +1184,25 @@ export default function WorldCupPage() {
                     {/* Participation — segmented v2 (Je regarde / Peut-être / Non) */}
                     <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
                       <div className="flex items-center gap-3 flex-wrap">
-                        <div className="inline-flex rounded-[8px] bg-[var(--surface-2)] p-0.5">
+                        <div className="relative inline-grid grid-cols-3 rounded-[8px] bg-[var(--surface-2)] p-0.5">
+                          {(() => {
+                            const partIndex = myStatus === 'yes' ? 0 : myStatus === 'maybe' ? 1 : myStatus === 'no' ? 2 : -1;
+                            return partIndex >= 0 ? (
+                              <span
+                                aria-hidden
+                                className="pointer-events-none absolute top-0.5 bottom-0.5 left-0.5 rounded-[6px] bg-[var(--accent-muted)] top-light transition-transform duration-150 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]"
+                                style={{ width: 'calc((100% - 4px) / 3)', transform: `translateX(${partIndex * 100}%)` }}
+                              />
+                            ) : null;
+                          })()}
                           {([['yes', 'Je regarde'], ['maybe', 'Peut-être'], ['no', 'Non']] as const).map(([k, label]) => (
                             <button
                               key={k}
                               onClick={() => handleParticipation(match.id, k)}
                               disabled={isLoading}
-                              className={`px-3 py-2.5 sm:py-1.5 rounded-[6px] text-[13px] transition-colors ${
+                              className={`relative z-10 text-center px-3 py-2.5 sm:py-1.5 rounded-[6px] text-[13px] transition-colors ${
                                 myStatus === k
-                                  ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
+                                  ? 'text-[var(--accent)]'
                                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                               } ${isLoading ? 'opacity-50' : ''}`}
                             >

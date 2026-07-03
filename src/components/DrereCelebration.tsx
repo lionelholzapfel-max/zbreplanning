@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import confetti from 'canvas-confetti';
 import { Play, Pause } from 'lucide-react';
+import { CountUp } from '@/components/CountUp';
 
 interface CelebrationData {
   member_name: string;
@@ -204,13 +205,9 @@ export default function DrereCelebration() {
         setIsPlaying(false);
       });
 
-    if (type === 'weekly') {
-      fireWeeklyConfetti();
-    } else if (type === 'mzi') {
-      fireLoserEffect();
-    } else {
-      fireDailyConfetti();
-    }
+    // Confetti is fired separately (staggered ~1s after the entrance) — see the
+    // dedicated useEffect below. Keeping it out of here means the modal's fade/scale
+    // entrance plays first, then the confetti follows.
 
     // Auto-stop: 40s for MZI, 80s for others
     const timeout = type === 'mzi' ? 40000 : 80000;
@@ -224,7 +221,7 @@ export default function DrereCelebration() {
         clearInterval(loserIntervalRef.current);
       }
     }, timeout);
-  }, [isPlaying, fireDailyConfetti, fireWeeklyConfetti, fireLoserEffect]);
+  }, [isPlaying]);
 
   // Track if we've already checked to prevent multiple fetches
   const hasCheckedRef = useRef(false);
@@ -339,6 +336,33 @@ export default function DrereCelebration() {
     }
   }, [showCelebration, celebrationData]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Staggered confetti: let the entrance (overlay fade → avatar → name → points
+  // count-up) play first, THEN fire the confetti ~1s later. Confetti is JS, not
+  // CSS, so we gate it behind prefers-reduced-motion ourselves.
+  useEffect(() => {
+    if (!showCelebration || !celebrationData) return;
+
+    if (
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    ) {
+      return; // Entrance fades are enough — skip the confetti burst.
+    }
+
+    const type = celebrationData.type;
+    const timer = setTimeout(() => {
+      if (type === 'weekly') {
+        fireWeeklyConfetti();
+      } else if (type === 'mzi') {
+        fireLoserEffect();
+      } else {
+        fireDailyConfetti();
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [showCelebration, celebrationData, fireDailyConfetti, fireWeeklyConfetti, fireLoserEffect]);
+
   const closeCelebration = () => {
     setShowCelebration(false);
     if (loserIntervalRef.current) {
@@ -384,10 +408,10 @@ export default function DrereCelebration() {
     <>
       {/* Celebration Modal */}
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--canvas)]/90 backdrop-blur-sm"
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--canvas)]/90 backdrop-blur-sm animate-fade-in"
         onClick={handleModalClick}
       >
-        <div className="relative w-full max-w-md bg-[var(--surface-3)] top-light rounded-[16px] p-8 text-center animate-bounce-in">
+        <div className="relative w-full max-w-md bg-[var(--surface-3)] top-light rounded-[16px] p-8 text-center animate-enter-soft">
           {/* Close button */}
           <button
             onClick={closeCelebration}
@@ -403,7 +427,10 @@ export default function DrereCelebration() {
             <p className="eyebrow mb-4">{getTitle()}</p>
 
             {/* Avatar */}
-            <div className={`relative w-28 h-28 mx-auto mb-5 rounded-full overflow-hidden ring-2 ${getRingColor()} ${isMzi ? 'grayscale' : ''}`}>
+            <div
+              className={`relative w-28 h-28 mx-auto mb-5 rounded-full overflow-hidden ring-2 animate-scale-in ${getRingColor()} ${isMzi ? 'grayscale' : ''}`}
+              style={{ animationDelay: '80ms' }}
+            >
               <Image
                 src={`/members/${celebrationData.member_slug}.png`}
                 alt={celebrationData.member_name}
@@ -418,7 +445,9 @@ export default function DrereCelebration() {
             </p>
 
             {/* Points — the number is the signature */}
-            <p className={`score text-[44px] ${getTextColor()}`}>{celebrationData.points}</p>
+            <p className={`score text-[44px] ${getTextColor()}`}>
+              <CountUp value={celebrationData.points} durationMs={600} />
+            </p>
             <p className="eyebrow mt-1 mb-6">points {isWeekly ? 'cette semaine' : "aujourd'hui"}</p>
 
             {/* Music control button */}

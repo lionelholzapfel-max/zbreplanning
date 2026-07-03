@@ -436,29 +436,42 @@ export default function LeaderboardPage() {
           ) : (
             <span />
           )}
-          <div className="inline-flex rounded-[8px] bg-[var(--surface-2)] p-0.5">
-            {(['general', 'semaine', 'live'] as const).map((v) => {
-              const label = v === 'general' ? 'Général' : v === 'semaine' ? 'Semaine' : 'Live';
-              const disabled = v === 'live' && !liveAvailable;
-              const active = activeView === v;
-              return (
-                <button
-                  key={v}
-                  onClick={() => !disabled && setView(v)}
-                  disabled={disabled}
-                  className={`px-3 py-2.5 sm:py-1.5 rounded-[6px] text-[13px] transition-colors ${
-                    active
-                      ? 'bg-[var(--surface-3)] top-light text-[var(--text-primary)]'
-                      : disabled
-                        ? 'text-[var(--text-tertiary)] opacity-50 cursor-not-allowed'
-                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
+          {(() => {
+            // Sliding segmented: only render the tabs that actually exist.
+            // Live drops out entirely when unavailable, so the track adapts to 2 or 3 cols.
+            const tabs = (['general', 'semaine', 'live'] as const)
+              .filter((v) => v !== 'live' || liveAvailable)
+              .map((v) => ({ v, label: v === 'general' ? 'Général' : v === 'semaine' ? 'Semaine' : 'Live' }));
+            const cols = tabs.length;
+            const activeIdx = Math.max(0, tabs.findIndex((t) => t.v === activeView));
+            return (
+              <div
+                className={`relative inline-grid ${cols === 2 ? 'grid-cols-2' : 'grid-cols-3'} rounded-[8px] bg-[var(--surface-2)] p-0.5`}
+              >
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute top-0.5 bottom-0.5 left-0.5 rounded-[6px] bg-[var(--surface-3)] top-light transition-transform duration-150 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]"
+                  style={{ width: `calc((100% - 4px) / ${cols})`, transform: `translateX(${activeIdx * 100}%)` }}
+                />
+                {tabs.map(({ v, label }) => {
+                  const active = activeView === v;
+                  return (
+                    <button
+                      key={v}
+                      onClick={() => setView(v)}
+                      className={`relative z-10 text-center bg-transparent px-3 py-2.5 sm:py-1.5 rounded-[6px] text-[13px] transition-colors ${
+                        active
+                          ? 'text-[var(--text-primary)]'
+                          : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
 
         {activeView === 'semaine' && weekRaceEnd && (() => {
@@ -466,6 +479,8 @@ export default function LeaderboardPage() {
           return <p className="mb-3 text-[12px] text-[var(--text-tertiary)]">Reset lundi 6h · verdict dans {diffH}h</p>;
         })()}
 
+        {/* Crossfade on view change: re-mount the header + rows block per activeView. */}
+        <div key={activeView} className="animate-view-enter">
         {/* Column headers — aligned on the row columns */}
         <div className="flex items-center gap-3 px-3 pb-2">
           <span className="w-7 shrink-0" aria-hidden />
@@ -530,6 +545,7 @@ export default function LeaderboardPage() {
               <span className="score text-[20px] text-[var(--text-primary)] w-12 text-right tabular-nums">{r.points}</span>
             </div>
           ))}
+        </div>
         </div>
       </section>
 
