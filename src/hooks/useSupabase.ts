@@ -678,19 +678,25 @@ export function useSupabase() {
       return { success: false, error: 'Non connecté' };
     }
 
-    const { error } = await supabase
-      .from('activities')
-      .update(activity)
-      .eq('id', activityId);
-
-    if (error) {
-      toast.error('Erreur lors de la modification');
-      return { success: false, error: error.message };
+    // Goes through a service-role route that checks the caller is creator or responder.
+    try {
+      const res = await fetch(`/api/activities/${activityId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(activity),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || 'Erreur lors de la modification');
+        return { success: false, error: data.error || 'Erreur' };
+      }
+      toast.success('Activité modifiée');
+      return { success: true };
+    } catch (e) {
+      toast.error('Erreur réseau, réessaie');
+      return { success: false, error: e instanceof Error ? e.message : 'Erreur' };
     }
-
-    toast.success('Activité modifiée');
-    return { success: true };
-  }, [supabase, currentUser]);
+  }, [currentUser]);
 
   // Activity Participations
   const getActivityParticipations = useCallback(async (activityId: string): Promise<ActivityParticipation[]> => {

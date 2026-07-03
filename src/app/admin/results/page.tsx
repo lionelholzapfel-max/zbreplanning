@@ -7,6 +7,7 @@ import Navbar from '@/components/Navbar';
 import matches from '@/data/matches.json';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/ui';
+import { useTeamOverrides } from '@/hooks/useTeamOverrides';
 
 interface Match {
   id: number;
@@ -64,6 +65,7 @@ export default function AdminResultsPage() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const { getTeamNames } = useTeamOverrides();
 
   // Get matches that are past their start time
   const pastMatches = useMemo(() => {
@@ -224,7 +226,8 @@ export default function AdminResultsPage() {
           <p className="eyebrow mb-3">Matchs sans résultat · {matchesWithoutResults.length}</p>
           <div className="rounded-[10px] bg-[var(--surface-1)] top-light overflow-hidden">
             {matchesWithoutResults.map(match => {
-              const { team1, team2 } = parseMatch(match.match);
+              const def = parseMatch(match.match);
+              const { home: team1, away: team2 } = getTeamNames(match.id, def.team1, def.team2);
               const isEditing = editingMatch === match.id;
 
               return (
@@ -286,7 +289,8 @@ export default function AdminResultsPage() {
           <p className="eyebrow mb-3">Matchs avec résultat · {matchesWithResults.length}</p>
           <div className="rounded-[10px] bg-[var(--surface-1)] top-light overflow-hidden">
             {matchesWithResults.map(match => {
-              const { team1, team2 } = parseMatch(match.match);
+              const def = parseMatch(match.match);
+              const { home: team1, away: team2 } = getTeamNames(match.id, def.team1, def.team2);
               const result = results[match.id];
               const isEditing = editingMatch === match.id;
 

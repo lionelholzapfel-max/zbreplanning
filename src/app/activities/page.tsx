@@ -211,7 +211,15 @@ export default function ActivitiesPage() {
                       </div>
                     </div>
 
-                    <div className="shrink-0 self-start flex flex-col items-end gap-2">
+                    <div className="shrink-0 self-start flex items-center gap-3">
+                      {(activity.created_by === currentUser.id || myStatus) && (
+                        <button
+                          onClick={() => openEditActivity(activity)}
+                          className="text-[13px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+                        >
+                          Modifier
+                        </button>
+                      )}
                       <div className="inline-flex rounded-[8px] bg-[var(--surface-2)] p-0.5">
                         {([['yes', 'Je viens'], ['maybe', 'Peut-être'], ['no', 'Non']] as const).map(([k, label]) => (
                           <button
@@ -226,14 +234,6 @@ export default function ActivitiesPage() {
                           </button>
                         ))}
                       </div>
-                      {(activity.created_by === currentUser.id || myStatus) && (
-                        <button
-                          onClick={() => openEditActivity(activity)}
-                          className="text-[12px] text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors"
-                        >
-                          Modifier
-                        </button>
-                      )}
                     </div>
                   </div>
 
@@ -278,70 +278,72 @@ export default function ActivitiesPage() {
       </section>
 
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="glass rounded-3xl p-8 w-full max-w-lg border border-white/10 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--canvas)]/90 backdrop-blur-sm">
+          <div className="bg-[var(--surface-3)] top-light rounded-[16px] p-6 w-full max-w-lg shadow-2xl">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold">{editingActivityId ? 'Modifier l’activité' : 'Nouvelle activité'}</h2>
-              <button onClick={() => { setShowCreateModal(false); setSelectedType(null); }} className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/20 transition-all">✕</button>
+              <h2 className="display text-[20px] text-[var(--text-primary)]">{editingActivityId ? 'Modifier l’activité' : 'Nouvelle activité'}</h2>
+              <button onClick={() => { setShowCreateModal(false); setSelectedType(null); setEditingActivityId(null); }} className="w-8 h-8 rounded-[8px] bg-[var(--surface-2)] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">✕</button>
             </div>
 
             {!selectedType && !editingActivityId ? (
               <div className="space-y-4">
-                <p className="text-gray-400 mb-4">Quel type d&apos;activité ?</p>
-                <div className="grid grid-cols-2 gap-3">
+                <p className="text-[13px] text-[var(--text-secondary)] mb-3">Quel type d&apos;activité ?</p>
+                <div className="grid grid-cols-2 gap-2">
                   {ACTIVITY_TYPES.map(type => (
-                    <button key={type.id} onClick={() => setSelectedType(type.id)} className="p-4 rounded-2xl border border-white/10 bg-[#1e1e2e] hover:bg-[#2a2a3a] hover:border-white/20 transition-all text-left group">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-3xl group-hover:scale-110 transition-transform">{type.icon}</span>
-                        <span className="font-bold text-white">{type.label}</span>
+                    <button key={type.id} onClick={() => setSelectedType(type.id)} className="p-3 rounded-[10px] bg-[var(--surface-2)] hover:bg-[var(--surface-1)] transition-colors text-left">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xl">{type.icon}</span>
+                        <span className="text-[14px] font-medium text-[var(--text-primary)]">{type.label}</span>
                       </div>
-                      <p className="text-sm text-gray-500">{type.description}</p>
+                      <p className="text-[12px] text-[var(--text-tertiary)]">{type.description}</p>
                     </button>
                   ))}
                 </div>
               </div>
             ) : (
               <form onSubmit={handleSubmitActivity} className="space-y-4">
-                <div className="flex items-center gap-3 p-4 bg-[#6366f1]/20 rounded-2xl border border-[#6366f1]/30 mb-4">
-                  <span className="text-3xl">{ACTIVITY_TYPES.find(t => t.id === selectedType)?.icon}</span>
-                  <div>
-                    <p className="font-bold text-white">{ACTIVITY_TYPES.find(t => t.id === selectedType)?.label}</p>
-                    <button type="button" onClick={() => setSelectedType(null)} className="text-sm text-[#6366f1] hover:underline">Changer</button>
+                {selectedType && (
+                  <div className="flex items-center gap-3 p-3 rounded-[8px] bg-[var(--surface-2)] mb-2">
+                    <span className="text-xl">{ACTIVITY_TYPES.find(t => t.id === selectedType)?.icon}</span>
+                    <div>
+                      <p className="text-[14px] font-medium text-[var(--text-primary)]">{ACTIVITY_TYPES.find(t => t.id === selectedType)?.label}</p>
+                      <button type="button" onClick={() => setSelectedType(null)} className="text-[12px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors">Changer</button>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Titre</label>
+                  <label className="block text-[13px] text-[var(--text-secondary)] mb-1.5">Titre</label>
                   <input type="text" value={newActivity.title} onChange={(e) => setNewActivity({ ...newActivity, title: e.target.value })}
                     placeholder={`Ex: ${ACTIVITY_TYPES.find(t => t.id === selectedType)?.icon} ${ACTIVITY_TYPES.find(t => t.id === selectedType)?.label} chez Kevin`}
-                    className="w-full px-4 py-3 bg-[#1e1e2e] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#6366f1] transition-colors" />
+                    className="w-full px-4 py-3 bg-[var(--surface-2)] border border-[var(--hairline)] rounded-[8px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)] focus:border-[var(--accent)] transition-colors" />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Description (optionnel)</label>
+                  <label className="block text-[13px] text-[var(--text-secondary)] mb-1.5">Description (optionnel)</label>
                   <textarea value={newActivity.description} onChange={(e) => setNewActivity({ ...newActivity, description: e.target.value })}
                     placeholder="Plus de détails..." rows={3}
-                    className="w-full px-4 py-3 bg-[#1e1e2e] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#6366f1] resize-none transition-colors" />
+                    className="w-full px-4 py-3 bg-[var(--surface-2)] border border-[var(--hairline)] rounded-[8px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)] focus:border-[var(--accent)] resize-none transition-colors" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">📅 Date</label>
+                    <label className="block text-[13px] text-[var(--text-secondary)] mb-1.5">Date</label>
                     <input type="date" value={newActivity.date} onChange={(e) => setNewActivity({ ...newActivity, date: e.target.value })}
-                      className="w-full px-4 py-3 bg-[#1e1e2e] border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#6366f1] transition-colors" />
+                      className="w-full px-4 py-3 bg-[var(--surface-2)] border border-[var(--hairline)] rounded-[8px] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)] focus:border-[var(--accent)] transition-colors" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">⏰ Heure</label>
+                    <label className="block text-[13px] text-[var(--text-secondary)] mb-1.5">Heure</label>
                     <input type="time" value={newActivity.time} onChange={(e) => setNewActivity({ ...newActivity, time: e.target.value })}
-                      className="w-full px-4 py-3 bg-[#1e1e2e] border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#6366f1] transition-colors" />
+                      className="w-full px-4 py-3 bg-[var(--surface-2)] border border-[var(--hairline)] rounded-[8px] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)] focus:border-[var(--accent)] transition-colors" />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">📍 Lieu</label>
+                  <label className="block text-[13px] text-[var(--text-secondary)] mb-1.5">Lieu</label>
                   <input type="text" value={newActivity.location} onChange={(e) => setNewActivity({ ...newActivity, location: e.target.value })}
                     placeholder="Ex: Chez Kevin, Bar XYZ..."
-                    className="w-full px-4 py-3 bg-[#1e1e2e] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#6366f1] transition-colors" />
+                    className="w-full px-4 py-3 bg-[var(--surface-2)] border border-[var(--hairline)] rounded-[8px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)] focus:border-[var(--accent)] transition-colors" />
                 </div>
 
                 <div className="flex gap-3 pt-4">
