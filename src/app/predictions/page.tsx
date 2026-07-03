@@ -7,6 +7,8 @@ import Navbar from '@/components/Navbar';
 import { MEMBERS } from '@/data/members';
 import { useSupabase, PredictionType, Prediction } from '@/hooks/useSupabase';
 import { toast } from 'sonner';
+import { PageHeader, Badge, Avatar } from '@/components/ui';
+import { Trophy, Target, Shield, Star, Sparkles, Rocket, Lock, type LucideIcon } from 'lucide-react';
 
 // World Cup 2026 Teams - 48 équipes (qualifiées + probables)
 const TEAMS = [
@@ -222,13 +224,13 @@ const YOUNG_PLAYERS = [
   'Castello Lukeba',
 ];
 
-const PREDICTION_CATEGORIES: { type: PredictionType; title: string; emoji: string; description: string }[] = [
-  { type: 'winner', title: 'Vainqueur', emoji: '🏆', description: 'Qui va soulever la coupe ?' },
-  { type: 'top_scorer', title: 'Meilleur buteur', emoji: '⚽', description: 'Qui va marquer le plus ?' },
-  { type: 'best_goalkeeper', title: 'Meilleur gardien', emoji: '🧤', description: 'Le mur du tournoi' },
-  { type: 'best_player', title: 'Meilleur joueur', emoji: '⭐', description: 'MVP du tournoi' },
-  { type: 'best_young', title: 'Meilleur jeune', emoji: '🌟', description: 'Révélation U23' },
-  { type: 'surprise_team', title: 'Équipe surprise', emoji: '🎯', description: 'Dark horse du tournoi' },
+const PREDICTION_CATEGORIES: { type: PredictionType; title: string; icon: LucideIcon; description: string }[] = [
+  { type: 'winner', title: 'Vainqueur', icon: Trophy, description: 'Qui va soulever la coupe ?' },
+  { type: 'top_scorer', title: 'Meilleur buteur', icon: Target, description: 'Qui va marquer le plus ?' },
+  { type: 'best_goalkeeper', title: 'Meilleur gardien', icon: Shield, description: 'Le mur du tournoi' },
+  { type: 'best_player', title: 'Meilleur joueur', icon: Star, description: 'MVP du tournoi' },
+  { type: 'best_young', title: 'Meilleur jeune', icon: Sparkles, description: 'Révélation U23' },
+  { type: 'surprise_team', title: 'Équipe surprise', icon: Rocket, description: 'Dark horse du tournoi' },
 ];
 
 // Community Stats Component
@@ -253,7 +255,6 @@ function CommunityStats({ predictions }: { predictions: Prediction[] }) {
 
     return {
       type: cat.type,
-      emoji: cat.emoji,
       title: cat.title,
       topValue,
       topCount,
@@ -274,23 +275,18 @@ function CommunityStats({ predictions }: { predictions: Prediction[] }) {
     <section className="max-w-7xl mx-auto px-4 py-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {stats.map(stat => stat && (
-          <div
-            key={stat.type}
-            className="p-4 rounded-xl bg-gradient-to-br from-[#1a472a]/30 to-[#12121a] border border-[#fbbf24]/20"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-2xl">{stat.emoji}</span>
-              <span className="text-xs text-gray-400">{stat.title}</span>
-            </div>
-            <div className="flex items-center gap-2">
+          <div key={stat.type} className="rounded-[10px] bg-[var(--surface-1)] top-light p-4">
+            <p className="eyebrow">{stat.title}</p>
+            <div className="mt-2 flex items-center gap-1.5 min-w-0">
               {(stat.type === 'winner' || stat.type === 'surprise_team') && (
-                <span className="text-xl">{getFlag(stat.topValue)}</span>
+                <span className="shrink-0">{getFlag(stat.topValue)}</span>
               )}
-              <span className="font-bold text-white truncate">{stat.topValue}</span>
+              <span className="text-[15px] font-medium text-[var(--text-primary)] truncate">{stat.topValue}</span>
             </div>
-            <div className="text-xs text-[#fbbf24] mt-1">
-              {stat.topCount}/{MEMBERS.length} ({stat.percentage}%)
-            </div>
+            <p className="mt-2">
+              <span className="score text-[20px] text-[var(--text-primary)]">{stat.topCount}</span>
+              <span className="ml-1 text-[12px] text-[var(--text-tertiary)]">/{MEMBERS.length} · {stat.percentage}%</span>
+            </p>
           </div>
         ))}
       </div>
@@ -423,11 +419,8 @@ export default function PredictionsPage() {
   // Show loading spinner while validating session
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-[#6366f1] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Chargement...</p>
-        </div>
+      <div className="min-h-screen bg-[var(--canvas)] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -438,41 +431,18 @@ export default function PredictionsPage() {
     <div className="min-h-screen bg-[#0a0a0f]">
       <Navbar />
 
-      {/* Hero */}
-      <section className="relative py-6 sm:py-12 px-4 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#fbbf24]/20 via-[#1a472a]/20 to-transparent" />
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#fbbf24]/10 rounded-full blur-3xl hidden sm:block" />
-
-        <div className={`max-w-7xl mx-auto relative transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-          <div className="text-center mb-4 sm:mb-8">
-            <div className="inline-flex items-center gap-2 sm:gap-3 mb-2 sm:mb-4">
-              <span className="text-3xl sm:text-5xl">🎰</span>
-              <h1 className="text-2xl sm:text-4xl md:text-5xl font-black">
-                <span className="text-white">Mes </span>
-                <span className="bg-gradient-to-r from-[#fbbf24] to-[#f59e0b] bg-clip-text text-transparent">Pronostics</span>
-              </h1>
-              <span className="text-3xl sm:text-5xl">🔮</span>
-            </div>
-            <p className="text-gray-400 text-sm sm:text-lg">Qui va briller à la Coupe du Monde 2026 ?</p>
-            <p className="text-xs sm:text-sm text-[#fbbf24] mt-1 sm:mt-2">💰 Chaque prono correct = +20 points</p>
-
-            {/* Lock status banner */}
-            {isLocked ? (
-              <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-gray-500/20 rounded-full border border-gray-500/30">
-                <span>🔒</span>
-                <span className="text-gray-400">Pronos verrouillés depuis le premier match</span>
-              </div>
-            ) : timeUntilLock > 0 && timeUntilLock < 24 * 60 * 60 * 1000 && (
-              <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-orange-500/20 rounded-full border border-orange-500/30 animate-pulse">
-                <span>⚠️</span>
-                <span className="text-orange-400">
-                  Verrouillage dans {Math.floor(timeUntilLock / (60 * 60 * 1000))}h{' '}
-                  {Math.floor((timeUntilLock % (60 * 60 * 1000)) / (60 * 1000))}m
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
+      {/* Header */}
+      <section className="max-w-7xl mx-auto px-4 pt-8">
+        <PageHeader
+          title="Pronostics"
+          subtitle="Vainqueur, buteur, révélation — verrouillés depuis le premier match"
+          action={<Badge variant="accent">+20 pts / prono correct</Badge>}
+        />
+        {!isLocked && timeUntilLock > 0 && timeUntilLock < 24 * 60 * 60 * 1000 && (
+          <p className="-mt-2 mb-6 text-[12px] text-[var(--text-tertiary)]">
+            Verrouillage dans {Math.floor(timeUntilLock / (60 * 60 * 1000))}h {Math.floor((timeUntilLock % (60 * 60 * 1000)) / (60 * 1000))}m
+          </p>
+        )}
       </section>
 
       {/* My Predictions */}
@@ -485,19 +455,17 @@ export default function PredictionsPage() {
             return (
               <div
                 key={cat.type}
-                className={`relative overflow-hidden rounded-3xl border border-[#fbbf24]/20 bg-gradient-to-br from-[#1a472a]/30 to-[#12121a] transition-all duration-300 ${
+                className={`rounded-[10px] bg-[var(--surface-1)] top-light transition-all duration-300 ${
                   mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
                 }`}
-                style={{ transitionDelay: `${index * 100}ms` }}
+                style={{ transitionDelay: `${index * 60}ms` }}
               >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-[#fbbf24]/5 rounded-full blur-2xl" />
-
-                <div className="relative p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <span className="text-4xl">{cat.emoji}</span>
+                <div className="p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <cat.icon className="w-4 h-4 text-[var(--text-tertiary)]" strokeWidth={1.75} />
                     <div>
-                      <h3 className="text-xl font-bold text-white">{cat.title}</h3>
-                      <p className="text-sm text-gray-400">{cat.description}</p>
+                      <p className="eyebrow">{cat.title}</p>
+                      <p className="mt-0.5 text-[12px] text-[var(--text-tertiary)]">{cat.description}</p>
                     </div>
                   </div>
 
@@ -505,32 +473,30 @@ export default function PredictionsPage() {
                   <div className="mb-4">
                     {isLocked ? (
                       /* Locked state - show prediction or "pas de prono" */
-                      <div className="flex items-center justify-between p-4 bg-gray-500/20 rounded-xl border border-gray-500/30">
-                        <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-between p-3 rounded-[8px] bg-[var(--surface-2)]">
+                        <div className="flex items-center gap-2 min-w-0">
                           {(cat.type === 'winner' || cat.type === 'surprise_team') && myPrediction && (
-                            <span className="text-3xl">{getTeamFlag(myPrediction)}</span>
+                            <span className="text-lg shrink-0">{getTeamFlag(myPrediction)}</span>
                           )}
-                          <div>
-                            <p className="text-xs text-gray-400">Mon choix</p>
-                            <p className="text-lg font-bold text-gray-300">
-                              {myPrediction || 'Pas de pronostic'}
-                            </p>
+                          <div className="min-w-0">
+                            <p className="eyebrow">Mon choix</p>
+                            <p className="text-[16px] font-medium text-[var(--text-secondary)] truncate">{myPrediction || 'Pas de pronostic'}</p>
                           </div>
                         </div>
-                        <span className="text-gray-500">🔒</span>
+                        <Lock className="w-3 h-3 text-[var(--text-tertiary)] shrink-0" strokeWidth={1.75} />
                       </div>
                     ) : editingType === cat.type ? (
                       <div className="space-y-3">
                         {customMode ? (
                           /* Custom input mode */
                           <div className="space-y-3">
-                            <p className="text-sm text-gray-400">Saisir un choix personnalisé :</p>
+                            <p className="text-[13px] text-[var(--text-secondary)]">Saisir un choix personnalisé</p>
                             <input
                               type="text"
-                              placeholder={cat.type.includes('player') || cat.type.includes('young') ? "Nom du joueur..." : "Nom de l'équipe..."}
+                              placeholder={cat.type.includes('player') || cat.type.includes('young') ? "Nom du joueur…" : "Nom de l'équipe…"}
                               value={customValue}
                               onChange={(e) => setCustomValue(e.target.value)}
-                              className="w-full px-4 py-2 bg-[#1e1e2e] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#fbbf24]"
+                              className="w-full h-9 px-3 rounded-[8px] bg-[var(--surface-2)] border border-[var(--hairline)] text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)] focus:border-[var(--accent)]"
                               autoFocus
                             />
                             <div className="flex gap-2">
@@ -543,13 +509,13 @@ export default function PredictionsPage() {
                                   }
                                 }}
                                 disabled={saving || !customValue.trim()}
-                                className="flex-1 px-4 py-2 bg-[#fbbf24] hover:bg-[#f59e0b] text-black font-medium rounded-xl transition-colors disabled:opacity-50"
+                                className="flex-1 h-9 rounded-[8px] bg-[var(--accent)] text-[#0A0C0B] text-[13px] font-medium transition-opacity hover:opacity-90 disabled:opacity-40"
                               >
                                 Valider
                               </button>
                               <button
                                 onClick={() => { setCustomMode(false); setCustomValue(''); }}
-                                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors"
+                                className="h-9 px-3 rounded-[8px] bg-[var(--surface-2)] text-[13px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                               >
                                 Retour
                               </button>
@@ -560,10 +526,10 @@ export default function PredictionsPage() {
                           <>
                             <input
                               type="text"
-                              placeholder="Rechercher..."
+                              placeholder="Rechercher…"
                               value={searchValue}
                               onChange={(e) => setSearchValue(e.target.value)}
-                              className="w-full px-4 py-2 bg-[#1e1e2e] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#fbbf24]"
+                              className="w-full h-9 px-3 rounded-[8px] bg-[var(--surface-2)] border border-[var(--hairline)] text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)] focus:border-[var(--accent)]"
                               autoFocus
                             />
                             <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
@@ -574,26 +540,24 @@ export default function PredictionsPage() {
                                     key={opt}
                                     onClick={() => handleSelectPrediction(cat.type, opt)}
                                     disabled={saving}
-                                    className="px-3 py-2 bg-[#1e1e2e] hover:bg-[#fbbf24]/20 border border-white/10 hover:border-[#fbbf24]/50 rounded-xl text-sm text-left transition-all flex items-center gap-2"
+                                    className="px-3 py-2 rounded-[8px] bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[13px] text-left transition-colors flex items-center gap-2"
                                   >
                                     {(cat.type === 'winner' || cat.type === 'surprise_team') && (
                                       <span>{getTeamFlag(opt)}</span>
                                     )}
-                                    <span className="text-white truncate">{opt}</span>
+                                    <span className="text-[var(--text-primary)] truncate">{opt}</span>
                                   </button>
                                 ))}
-                              {/* Autre option */}
                               <button
                                 onClick={() => setCustomMode(true)}
-                                className="px-3 py-2 bg-[#6366f1]/20 hover:bg-[#6366f1]/30 border border-[#6366f1]/50 hover:border-[#6366f1] rounded-xl text-sm text-left transition-all flex items-center gap-2"
+                                className="px-3 py-2 rounded-[8px] bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[13px] text-left font-medium text-[var(--accent)] transition-colors"
                               >
-                                <span>✏️</span>
-                                <span className="text-[#6366f1] font-medium">Autre...</span>
+                                Autre…
                               </button>
                             </div>
                             <button
                               onClick={() => { setEditingType(null); setSearchValue(''); }}
-                              className="text-sm text-gray-400 hover:text-white"
+                              className="text-[13px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                             >
                               Annuler
                             </button>
@@ -601,19 +565,19 @@ export default function PredictionsPage() {
                         )}
                       </div>
                     ) : myPrediction ? (
-                      <div className="flex items-center justify-between p-4 bg-[#fbbf24]/20 rounded-xl border border-[#fbbf24]/30">
-                        <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-between p-3 rounded-[8px] bg-[var(--surface-2)]">
+                        <div className="flex items-center gap-2 min-w-0">
                           {(cat.type === 'winner' || cat.type === 'surprise_team') && (
-                            <span className="text-3xl">{getTeamFlag(myPrediction)}</span>
+                            <span className="text-lg shrink-0">{getTeamFlag(myPrediction)}</span>
                           )}
-                          <div>
-                            <p className="text-xs text-[#fbbf24]">Mon choix</p>
-                            <p className="text-lg font-bold text-white">{myPrediction}</p>
+                          <div className="min-w-0">
+                            <p className="eyebrow">Mon choix</p>
+                            <p className="text-[16px] font-medium text-[var(--text-primary)] truncate">{myPrediction}</p>
                           </div>
                         </div>
                         <button
                           onClick={() => setEditingType(cat.type)}
-                          className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm text-white transition-colors"
+                          className="shrink-0 text-[13px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
                         >
                           Modifier
                         </button>
@@ -621,35 +585,29 @@ export default function PredictionsPage() {
                     ) : (
                       <button
                         onClick={() => setEditingType(cat.type)}
-                        className="w-full p-4 border-2 border-dashed border-[#fbbf24]/30 hover:border-[#fbbf24] rounded-xl text-[#fbbf24] hover:bg-[#fbbf24]/10 transition-all"
+                        className="w-full py-3 rounded-[8px] bg-[var(--surface-2)] text-[13px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
                       >
-                        + Faire mon pronostic
+                        Faire mon pronostic
                       </button>
                     )}
                   </div>
 
                   {/* Other predictions - always visible (fun > anti-cheat) */}
                   {otherPredictions.length > 0 && (
-                    <div className="pt-4 border-t border-white/10">
-                      <p className="text-xs text-gray-500 mb-3">Choix de la team ({otherPredictions.length})</p>
+                    <div className="pt-4 border-t border-[var(--hairline)]">
+                      <p className="eyebrow mb-3">Choix de la team · {otherPredictions.length}</p>
                       <div className="flex flex-wrap gap-2">
                         {otherPredictions.map((pred, idx) => (
                           <div
                             key={pred.user_id ?? pred.user?.member_slug ?? idx}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-[#1e1e2e] rounded-xl"
+                            className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[var(--surface-2)]"
                           >
-                            <div className="w-6 h-6 rounded-full overflow-hidden relative">
-                              <Image
-                                src={`/members/${pred.user?.member_slug || 'default'}.png`}
-                                alt=""
-                                fill
-                                className="object-cover"
-                              />
+                            <div className="relative w-4 h-4 rounded-full overflow-hidden">
+                              <Image src={`/members/${pred.user?.member_slug || 'default'}.png`} alt="" fill sizes="16px" className="object-cover object-top" />
                             </div>
-                            <span className="text-xs text-gray-300">{pred.user?.member_name?.split(' ')[0]}</span>
-                            <span className="text-xs text-white font-medium">
-                              {(cat.type === 'winner' || cat.type === 'surprise_team') && getTeamFlag(pred.prediction_value)}
-                              {pred.prediction_value}
+                            <span className="text-[12px] text-[var(--text-tertiary)]">{pred.user?.member_name?.split(' ')[0]}</span>
+                            <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+                              {(cat.type === 'winner' || cat.type === 'surprise_team') && getTeamFlag(pred.prediction_value)} {pred.prediction_value}
                             </span>
                           </div>
                         ))}
@@ -670,20 +628,17 @@ export default function PredictionsPage() {
 
       {/* All predictions summary - ALWAYS visible (14 members × 4 categories) */}
       <section className="max-w-7xl mx-auto px-4 py-8">
-        <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-          <span>📊</span>
-          Les pronos du groupe
-        </h2>
+        <h2 className="display text-[22px] text-[var(--text-primary)] mb-4">Les pronos du groupe</h2>
 
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-white/10">
-                <th className="text-left py-3 px-4 text-gray-400 font-medium">Membre</th>
+              <tr className="border-b border-[var(--hairline)]">
+                <th className="text-left py-2.5 px-3"><span className="eyebrow">Membre</span></th>
                 {PREDICTION_CATEGORIES.map(cat => (
-                  <th key={cat.type} className="text-left py-3 px-4 text-gray-400 font-medium">
-                    <span className="mr-1">{cat.emoji}</span>
-                    <span className="hidden sm:inline">{cat.title}</span>
+                  <th key={cat.type} className="text-left py-2.5 px-3">
+                    <span className="eyebrow hidden sm:inline">{cat.title}</span>
+                    <span className="eyebrow sm:hidden">{cat.title.split(' ').pop()}</span>
                   </th>
                 ))}
               </tr>
@@ -692,15 +647,14 @@ export default function PredictionsPage() {
               {MEMBERS.map(member => {
                 const memberPredictions = allPredictions.filter(p => p.user_id === member.id);
                 const getPred = (type: PredictionType) => memberPredictions.find(p => p.prediction_type === type)?.prediction_value;
+                const isMe = member.id === currentUser.id;
 
                 return (
-                  <tr key={member.id} className="border-b border-white/5 hover:bg-white/5">
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full overflow-hidden relative">
-                          <Image src={member.photo} alt={member.name} fill className="object-cover" />
-                        </div>
-                        <span className={`font-medium ${member.id === currentUser.id ? 'text-[#fbbf24]' : 'text-white'}`}>
+                  <tr key={member.id} className={`border-b border-[var(--hairline)] last:border-b-0 transition-colors ${isMe ? 'bg-[var(--surface-1)]' : 'hover:bg-[var(--surface-1)]'}`}>
+                    <td className="py-2.5 px-3">
+                      <div className="flex items-center gap-2.5">
+                        <Avatar slug={member.slug} name={member.name} size={28} />
+                        <span className={`text-[14px] font-medium ${isMe ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}>
                           {member.name.split(' ')[0]}
                         </span>
                       </div>
@@ -708,16 +662,16 @@ export default function PredictionsPage() {
                     {PREDICTION_CATEGORIES.map(cat => {
                       const pred = getPred(cat.type);
                       return (
-                        <td key={cat.type} className="py-3 px-4">
+                        <td key={cat.type} className="py-2.5 px-3">
                           {pred ? (
-                            <span className="text-sm text-white">
+                            <span className="text-[13px] text-[var(--text-secondary)]">
                               {(cat.type === 'winner' || cat.type === 'surprise_team') && (
                                 <span className="mr-1">{getTeamFlag(pred)}</span>
                               )}
                               {pred}
                             </span>
                           ) : (
-                            <span className="text-gray-600 text-sm">—</span>
+                            <span className="text-[13px] text-[var(--text-tertiary)]">—</span>
                           )}
                         </td>
                       );
