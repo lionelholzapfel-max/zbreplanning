@@ -132,7 +132,7 @@ export default function CalendarPage() {
             <button
               key={m.label}
               onClick={() => setCurrentMonth(m.date)}
-              className="h-8 px-3 rounded-full bg-[var(--surface-2)] text-[12px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              className="h-10 sm:h-8 px-3 rounded-full bg-[var(--surface-2)] text-[12px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
             >
               {m.label}
             </button>
@@ -140,16 +140,16 @@ export default function CalendarPage() {
         </div>
       </section>
 
-      <section className="max-w-7xl mx-auto px-4 pb-12">
+      <section className="max-w-7xl mx-auto px-4 pb-24">
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Calendar Grid */}
           <div className="lg:col-span-2">
-            <div className="rounded-[10px] bg-[var(--surface-1)] top-light p-5">
+            <div className="rounded-[10px] bg-[var(--surface-1)] top-light p-3 sm:p-5">
               {/* Month navigation */}
               <div className="flex items-center justify-between mb-5">
                 <button
                   onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-                  className="w-9 h-9 rounded-[8px] bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors flex items-center justify-center"
+                  className="w-11 h-11 sm:w-9 sm:h-9 rounded-[8px] bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors flex items-center justify-center"
                 >
                   ←
                 </button>
@@ -158,21 +158,21 @@ export default function CalendarPage() {
                 </h2>
                 <button
                   onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-                  className="w-9 h-9 rounded-[8px] bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors flex items-center justify-center"
+                  className="w-11 h-11 sm:w-9 sm:h-9 rounded-[8px] bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors flex items-center justify-center"
                 >
                   →
                 </button>
               </div>
 
               {/* Weekday headers */}
-              <div className="grid grid-cols-7 gap-2 mb-3">
+              <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-3">
                 {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(day => (
                   <div key={day} className="text-center eyebrow py-1">{day}</div>
                 ))}
               </div>
 
               {/* Calendar days */}
-              <div className="grid grid-cols-7 gap-2">
+              <div className="grid grid-cols-7 gap-1 sm:gap-2">
                 {/* Empty cells for days before month start */}
                 {emptyDays.map((_, i) => (
                   <div key={`empty-${i}`} className="aspect-square" />

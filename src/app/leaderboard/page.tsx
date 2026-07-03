@@ -434,7 +434,7 @@ export default function LeaderboardPage() {
                   key={v}
                   onClick={() => !disabled && setView(v)}
                   disabled={disabled}
-                  className={`px-3 py-1.5 rounded-[6px] text-[13px] transition-colors ${
+                  className={`px-3 py-2.5 sm:py-1.5 rounded-[6px] text-[13px] transition-colors ${
                     active
                       ? 'bg-[var(--surface-3)] top-light text-[var(--text-primary)]'
                       : disabled

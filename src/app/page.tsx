@@ -247,13 +247,13 @@ export default function HomePage() {
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <Link
                 href="/world-cup"
-                className="inline-flex h-9 items-center justify-center rounded-[6px] px-4 text-sm font-medium bg-[var(--accent)] text-[#0A0A0B] transition-opacity duration-150 ease-out hover:opacity-90"
+                className="inline-flex h-11 sm:h-9 items-center justify-center rounded-[6px] px-4 text-sm font-medium bg-[var(--accent)] text-[#0A0A0B] transition-opacity duration-150 ease-out hover:opacity-90"
               >
                 Coupe du Monde
               </Link>
               <Link
                 href="/activities"
-                className="inline-flex h-9 items-center justify-center rounded-[6px] px-4 text-sm font-medium bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--hairline-strong)] transition-colors duration-150 ease-out hover:bg-[var(--surface-raised)]"
+                className="inline-flex h-11 sm:h-9 items-center justify-center rounded-[6px] px-4 text-sm font-medium bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--hairline-strong)] transition-colors duration-150 ease-out hover:bg-[var(--surface-raised)]"
               >
                 Activités
               </Link>

@@ -783,7 +783,7 @@ export default function WorldCupPage() {
 
   // Filter-bar chip style.
   const chip = (active: boolean) =>
-    `shrink-0 inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[12px] transition-colors ${
+    `shrink-0 inline-flex items-center gap-1.5 h-10 sm:h-8 px-3 rounded-full text-[12px] transition-colors ${
       active
         ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
         : 'bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -823,7 +823,7 @@ export default function WorldCupPage() {
                   setSelectedPhase(phase.id);
                   if (phase.id !== 'PHASE DE GROUPES') setSelectedGroup(null);
                 }}
-                className={`px-3 py-1.5 rounded-[6px] text-[13px] whitespace-nowrap transition-colors ${
+                className={`px-3 py-2.5 sm:py-1.5 rounded-[6px] text-[13px] whitespace-nowrap transition-colors ${
                   selectedPhase === phase.id
                     ? 'bg-[var(--surface-3)] top-light text-[var(--text-primary)]'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -839,7 +839,7 @@ export default function WorldCupPage() {
           <div className="flex flex-wrap justify-center gap-1.5 mt-3">
             <button
               onClick={() => setSelectedGroup(null)}
-              className={`h-9 px-3 rounded-[6px] text-[13px] transition-colors ${
+              className={`h-11 sm:h-9 px-3 rounded-[6px] text-[13px] transition-colors ${
                 !selectedGroup ? 'bg-[var(--surface-3)] top-light text-[var(--text-primary)]' : 'bg-[var(--surface-2)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
               }`}
             >
@@ -849,7 +849,7 @@ export default function WorldCupPage() {
               <button
                 key={group}
                 onClick={() => setSelectedGroup(group)}
-                className={`w-9 h-9 rounded-[6px] text-[13px] transition-colors ${
+                className={`w-11 h-11 sm:w-9 sm:h-9 rounded-[6px] text-[13px] transition-colors ${
                   selectedGroup === group ? 'bg-[var(--surface-3)] top-light text-[var(--text-primary)]' : 'bg-[var(--surface-2)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
                 }`}
               >
@@ -1011,7 +1011,7 @@ export default function WorldCupPage() {
                         <button
                           onClick={(e) => { e.stopPropagation(); toggleFavorite(team1); }}
                           disabled={loadingFavorite === team1}
-                          className={`shrink-0 transition-colors ${favorites.includes(team1) ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}
+                          className={`shrink-0 p-2.5 -m-1 transition-colors ${favorites.includes(team1) ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}
                           aria-label="Favori"
                         >
                           <Star className="w-3.5 h-3.5" strokeWidth={1.75} fill={favorites.includes(team1) ? 'currentColor' : 'none'} />
@@ -1030,7 +1030,7 @@ export default function WorldCupPage() {
                         <button
                           onClick={(e) => { e.stopPropagation(); toggleFavorite(team2); }}
                           disabled={loadingFavorite === team2}
-                          className={`shrink-0 transition-colors ${favorites.includes(team2) ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}
+                          className={`shrink-0 p-2.5 -m-1 transition-colors ${favorites.includes(team2) ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}
                           aria-label="Favori"
                         >
                           <Star className="w-3.5 h-3.5" strokeWidth={1.75} fill={favorites.includes(team2) ? 'currentColor' : 'none'} />
@@ -1162,7 +1162,7 @@ export default function WorldCupPage() {
                               key={k}
                               onClick={() => handleParticipation(match.id, k)}
                               disabled={isLoading}
-                              className={`px-3 py-1.5 rounded-[6px] text-[13px] transition-colors ${
+                              className={`px-3 py-2.5 sm:py-1.5 rounded-[6px] text-[13px] transition-colors ${
                                 myStatus === k
                                   ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
                                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -1197,7 +1197,7 @@ export default function WorldCupPage() {
                       </div>
                       <button
                         onClick={() => setExpandedMatch(isExpanded ? null : match.id)}
-                        className="text-[13px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+                        className="py-2.5 -my-1 text-[13px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
                       >
                         {isExpanded ? 'Moins' : 'Détails'}
                       </button>

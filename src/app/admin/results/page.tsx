@@ -212,7 +212,7 @@ export default function AdminResultsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--canvas)]">
+    <div className="min-h-screen bg-[var(--canvas)] pb-24">
       <Navbar />
 
       {/* Header */}
@@ -232,14 +232,14 @@ export default function AdminResultsPage() {
 
               return (
                 <div key={match.id} className="px-4 py-3 border-b border-[var(--hairline)] last:border-b-0">
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <span className="text-lg shrink-0">{getFlag(team1)}</span>
                       <span className="text-[14px] font-medium text-[var(--text-primary)] truncate">{team1}</span>
                     </div>
 
                     {isEditing ? (
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-2 shrink-0 order-last w-full sm:w-auto sm:order-none">
                         <input
                           type="text"
                           inputMode="numeric"
@@ -262,7 +262,7 @@ export default function AdminResultsPage() {
                         <button onClick={handleCancel} className="h-9 px-3 rounded-[8px] bg-[var(--surface-2)] text-[13px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Annuler</button>
                       </div>
                     ) : (
-                      <button onClick={() => handleEditMatch(match.id)} className="shrink-0 h-8 px-3 rounded-[8px] text-[13px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors">Entrer score</button>
+                      <button onClick={() => handleEditMatch(match.id)} className="shrink-0 h-10 sm:h-8 px-3 rounded-[8px] text-[13px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors">Entrer score</button>
                     )}
 
                     <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
@@ -295,18 +295,18 @@ export default function AdminResultsPage() {
               const isEditing = editingMatch === match.id;
 
               return (
-                <div key={match.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-[var(--hairline)] last:border-b-0">
+                <div key={match.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5 border-b border-[var(--hairline)] last:border-b-0">
                   <span className="text-base shrink-0">{getFlag(team1)}</span>
                   <span className="text-[14px] text-[var(--text-primary)] flex-1 min-w-0 truncate">{team1}</span>
 
                   {isEditing ? (
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 order-last w-full sm:w-auto sm:order-none">
                       <input
                         type="text"
                         inputMode="numeric"
                         value={homeScore}
                         onChange={(e) => setHomeScore(e.target.value.replace(/\D/g, '').slice(0, 2))}
-                        className="w-10 h-10 text-center score text-[18px] rounded-[8px] bg-[var(--surface-2)] border border-[var(--hairline)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)] focus:border-[var(--accent)]"
+                        className="w-12 h-12 sm:w-10 sm:h-10 text-center score text-[18px] rounded-[8px] bg-[var(--surface-2)] border border-[var(--hairline)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)] focus:border-[var(--accent)]"
                       />
                       <span className="score text-[var(--text-tertiary)]">:</span>
                       <input
@@ -314,13 +314,13 @@ export default function AdminResultsPage() {
                         inputMode="numeric"
                         value={awayScore}
                         onChange={(e) => setAwayScore(e.target.value.replace(/\D/g, '').slice(0, 2))}
-                        className="w-10 h-10 text-center score text-[18px] rounded-[8px] bg-[var(--surface-2)] border border-[var(--hairline)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)] focus:border-[var(--accent)]"
+                        className="w-12 h-12 sm:w-10 sm:h-10 text-center score text-[18px] rounded-[8px] bg-[var(--surface-2)] border border-[var(--hairline)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)] focus:border-[var(--accent)]"
                       />
-                      <button onClick={handleSaveResult} disabled={saving} className="h-8 px-3 rounded-[8px] bg-[var(--accent)] text-[#0A0C0B] text-[13px] font-medium hover:opacity-90 disabled:opacity-50">{saving ? '…' : 'OK'}</button>
-                      <button onClick={handleCancel} className="h-8 px-3 rounded-[8px] bg-[var(--surface-2)] text-[13px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Annuler</button>
+                      <button onClick={handleSaveResult} disabled={saving} className="h-10 sm:h-8 px-3 rounded-[8px] bg-[var(--accent)] text-[#0A0C0B] text-[13px] font-medium hover:opacity-90 disabled:opacity-50">{saving ? '…' : 'OK'}</button>
+                      <button onClick={handleCancel} className="h-10 sm:h-8 px-3 rounded-[8px] bg-[var(--surface-2)] text-[13px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Annuler</button>
                     </div>
                   ) : (
-                    <button onClick={() => handleEditMatch(match.id)} className="shrink-0 inline-flex items-center gap-1.5 h-8 px-3 rounded-[8px] bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-colors">
+                    <button onClick={() => handleEditMatch(match.id)} className="shrink-0 inline-flex items-center gap-1.5 h-10 sm:h-8 px-3 rounded-[8px] bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-colors">
                       <span className="score text-[15px] text-[var(--text-primary)]">{result?.home_score}</span>
                       <span className="text-[var(--text-tertiary)]">:</span>
                       <span className="score text-[15px] text-[var(--text-primary)]">{result?.away_score}</span>
@@ -466,7 +466,7 @@ function TournamentResultsSection() {
                   <button onClick={() => { setEditing(cat.type); setInputValue(value); }} className="text-[13px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors">Modifier</button>
                 </div>
               ) : (
-                <button onClick={() => setEditing(cat.type)} className="shrink-0 h-8 px-3 rounded-[8px] text-[13px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors">Entrer</button>
+                <button onClick={() => setEditing(cat.type)} className="shrink-0 h-10 sm:h-8 px-3 rounded-[8px] text-[13px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors">Entrer</button>
               )}
             </div>
           );

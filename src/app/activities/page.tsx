@@ -160,7 +160,7 @@ export default function ActivitiesPage() {
             <button
               key={type.id}
               onClick={() => { setSelectedType(type.id); setShowCreateModal(true); }}
-              className="h-8 px-3 rounded-full bg-[var(--surface-2)] text-[12px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              className="h-10 sm:h-8 px-3 rounded-full bg-[var(--surface-2)] text-[12px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
             >
               {type.label}
             </button>
@@ -168,7 +168,7 @@ export default function ActivitiesPage() {
         </div>
       </section>
 
-      <section className="max-w-7xl mx-auto px-4 pb-12">
+      <section className="max-w-7xl mx-auto px-4 pb-24">
         <div className="space-y-4">
           {activities.map((activity, index) => {
             const myStatus = getMyStatus(activity.id);
@@ -215,7 +215,7 @@ export default function ActivitiesPage() {
                       {(activity.created_by === currentUser.id || myStatus) && (
                         <button
                           onClick={() => openEditActivity(activity)}
-                          className="text-[13px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+                          className="px-3 py-2.5 -my-1 text-[13px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
                         >
                           Modifier
                         </button>
@@ -226,7 +226,7 @@ export default function ActivitiesPage() {
                             key={k}
                             onClick={() => handleParticipation(activity.id, k, activity.title, activity.created_by)}
                             disabled={isLoading}
-                            className={`px-3 py-1.5 rounded-[6px] text-[13px] transition-colors ${
+                            className={`px-3 py-2.5 sm:py-1.5 rounded-[6px] text-[13px] transition-colors ${
                               myStatus === k ? 'bg-[var(--accent-muted)] text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                             } ${isLoading ? 'opacity-50' : ''}`}
                           >
@@ -282,7 +282,7 @@ export default function ActivitiesPage() {
           <div className="bg-[var(--surface-3)] top-light rounded-[16px] p-6 w-full max-w-lg shadow-2xl">
             <div className="flex items-center justify-between mb-6">
               <h2 className="display text-[20px] text-[var(--text-primary)]">{editingActivityId ? 'Modifier l’activité' : 'Nouvelle activité'}</h2>
-              <button onClick={() => { setShowCreateModal(false); setSelectedType(null); setEditingActivityId(null); }} className="w-8 h-8 rounded-[8px] bg-[var(--surface-2)] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">✕</button>
+              <button onClick={() => { setShowCreateModal(false); setSelectedType(null); setEditingActivityId(null); }} className="w-10 h-10 sm:w-8 sm:h-8 rounded-[8px] bg-[var(--surface-2)] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">✕</button>
             </div>
 
             {!selectedType && !editingActivityId ? (

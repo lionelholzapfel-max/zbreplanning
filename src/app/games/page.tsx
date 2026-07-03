@@ -338,14 +338,14 @@ export default function GamesPage() {
           <div className="flex gap-2">
             <button
               onClick={() => setShowCreateGame(true)}
-              className="flex items-center gap-1 h-9 px-3 rounded-[8px] text-[13px] font-medium bg-[var(--accent)] text-[#0A0C0B] hover:opacity-90 transition-opacity"
+              className="flex items-center gap-1 h-11 sm:h-9 px-3 rounded-[8px] text-[13px] font-medium bg-[var(--accent)] text-[#0A0C0B] hover:opacity-90 transition-opacity"
             >
               <Plus className="w-4 h-4" />
               Jeu
             </button>
             <button
               onClick={() => setShowCreateSession(true)}
-              className="flex items-center gap-1 h-9 px-3 rounded-[8px] text-[13px] font-medium bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              className="flex items-center gap-1 h-11 sm:h-9 px-3 rounded-[8px] text-[13px] font-medium bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
             >
               <Plus className="w-4 h-4" />
               Partie
@@ -361,7 +361,7 @@ export default function GamesPage() {
               <button
                 key={period}
                 onClick={() => setPeriodFilter(period)}
-                className={`px-3 py-1.5 rounded-[6px] text-[13px] transition-colors ${
+                className={`px-3 py-2.5 sm:py-1.5 rounded-[6px] text-[13px] transition-colors ${
                   periodFilter === period
                     ? 'bg-[var(--surface-3)] top-light text-[var(--text-primary)]'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -797,7 +797,7 @@ export default function GamesPage() {
                       key={user.id}
                       type="button"
                       onClick={() => toggleParticipant(user.id)}
-                      className={`px-2 py-1 text-sm rounded-lg transition-colors ${
+                      className={`px-2 py-2 sm:py-1 text-sm rounded-lg transition-colors ${
                         newSession.participant_ids.includes(user.id)
                           ? 'bg-[#6366f1] text-white'
                           : 'bg-white/10 text-gray-400 hover:bg-white/20'
@@ -940,7 +940,7 @@ export default function GamesPage() {
                       key={user.id}
                       type="button"
                       onClick={() => toggleEditParticipant(user.id)}
-                      className={`px-2 py-1 text-sm rounded-lg transition-colors ${
+                      className={`px-2 py-2 sm:py-1 text-sm rounded-lg transition-colors ${
                         editSession.participant_ids.includes(user.id)
                           ? 'bg-[#6366f1] text-white'
                           : 'bg-white/10 text-gray-400 hover:bg-white/20'

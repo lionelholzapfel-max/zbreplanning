@@ -101,7 +101,7 @@ export default function AdminMembersPage() {
   if (!currentUser?.is_admin) return null;
 
   return (
-    <div className="min-h-screen bg-[var(--canvas)]">
+    <div className="min-h-screen bg-[var(--canvas)] pb-24">
       <Navbar />
 
       {/* Header */}
@@ -151,7 +151,7 @@ export default function AdminMembersPage() {
                   <button
                     onClick={() => handleResetPin(member.id, member.name)}
                     disabled={resetting === member.id}
-                    className="shrink-0 h-8 px-3 rounded-[8px] border border-[var(--danger)]/40 text-[13px] text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors disabled:opacity-50"
+                    className="shrink-0 h-10 sm:h-8 px-3 rounded-[8px] border border-[var(--danger)]/40 text-[13px] text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors disabled:opacity-50"
                   >
                     {resetting === member.id ? 'Reset…' : 'Reset PIN'}
                   </button>
