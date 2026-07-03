@@ -4,7 +4,7 @@ import { Fragment, useEffect, useState, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Users, PenLine, CalendarDays, Trophy, CalendarRange, ArrowRight, MapPin } from 'lucide-react';
+import { Trophy, CalendarRange, ArrowRight, MapPin } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import { MEMBERS } from '@/data/members';
 import matches from '@/data/matches.json';
@@ -12,7 +12,7 @@ import { useSupabase, Activity, ActivityParticipation } from '@/hooks/useSupabas
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { FunFactCard } from '@/components/FunFactCard';
-import { Card, Badge, ListRow, Avatar, Spinner } from '@/components/ui';
+import { Badge, ListRow, Avatar, Spinner } from '@/components/ui';
 import { CountUp } from '@/components/CountUp';
 
 interface UpcomingActivity extends Activity {
@@ -188,10 +188,10 @@ export default function HomePage() {
   if (!currentUser) return null;
 
   const statCards = [
-    { icon: Users, value: MEMBERS.length, label: 'Membres', href: undefined as string | undefined, accent: false },
-    { icon: PenLine, value: toPredictCount, label: 'À pronostiquer', href: '/world-cup', accent: true },
-    { icon: CalendarDays, value: matches.length, label: 'Matchs', href: '/world-cup', accent: false },
-    { icon: Trophy, value: 48, label: 'Équipes', href: undefined, accent: false },
+    { value: MEMBERS.length, label: 'Membres', accent: false },
+    { value: toPredictCount, label: 'À pronostiquer', accent: true },
+    { value: matches.length, label: 'Matchs', accent: false },
+    { value: 48, label: 'Équipes', accent: false },
   ];
 
   const countdownUnits = [
@@ -230,7 +230,7 @@ export default function HomePage() {
               {MEMBERS.length} membres · En ligne
             </div>
 
-            <h1 className="text-[40px] sm:text-5xl font-semibold tracking-[-0.02em] text-[var(--text-primary)] leading-[1.05]">
+            <h1 className="display text-[44px] sm:text-[52px] text-[var(--text-primary)] leading-[1.05]">
               La Zbre Team
             </h1>
 
@@ -252,27 +252,17 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Stat cards — start after the hero, on --bg, no overlap */}
-      <section className="max-w-5xl mx-auto px-4 pt-16">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {statCards.map(({ icon: Icon, value, label, href, accent }) => {
-            const inner = (
-              <Card className="p-4 h-full transition-colors duration-150 ease-out hover:bg-[var(--surface-raised)]">
-                <div className="flex items-center gap-1.5 text-[var(--text-tertiary)]">
-                  <Icon className="w-4 h-4" strokeWidth={1.75} />
-                  <span className="eyebrow">{label}</span>
-                </div>
-                <div className={`stat text-[28px] mt-2 ${accent ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}>
-                  {value}
-                </div>
-              </Card>
-            );
-            return href ? (
-              <Link key={label} href={href} className="block">{inner}</Link>
-            ) : (
-              <div key={label}>{inner}</div>
-            );
-          })}
+      {/* Stats nues — directement sur --canvas, le chiffre EST l'icône (§3) */}
+      <section data-shot="stats" className="max-w-5xl mx-auto px-4 pt-16">
+        <div className="flex flex-wrap items-start gap-x-14 gap-y-8">
+          {statCards.map(({ value, label, accent }) => (
+            <div key={label} className="flex flex-col">
+              <span className={`score text-[40px] ${accent ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}>
+                {value}
+              </span>
+              <span className="eyebrow mt-2">{label}</span>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -308,7 +298,7 @@ export default function HomePage() {
                         <span className="mt-2.5 text-[11px] uppercase tracking-[0.08em] text-[var(--text-tertiary)]">{u.label}</span>
                       </div>
                       {i < countdownUnits.length - 1 && (
-                        <span className="score text-[56px] text-[var(--text-tertiary)] relative z-10">:</span>
+                        <span className="score text-[40px] text-[var(--text-tertiary)] relative z-10 self-start mt-[6px]">:</span>
                       )}
                     </Fragment>
                   ))}
@@ -324,7 +314,7 @@ export default function HomePage() {
         <section className="max-w-5xl mx-auto px-4 pt-12">
           <div className="flex items-center justify-between gap-4 mb-4">
             <div className="flex items-center gap-3">
-              <h2 className="text-[20px] font-semibold tracking-[-0.01em] text-[var(--text-primary)]">Prochains matchs</h2>
+              <h2 className="display text-[22px] text-[var(--text-primary)]">Prochains matchs</h2>
               {toPredictCount > 0 && (
                 <span className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[11px] uppercase tracking-[0.04em] bg-[var(--surface-raised)] border border-[var(--hairline)]">
                   <span className="stat text-[var(--accent)]">{toPredictCount}</span>
@@ -337,7 +327,7 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <Card>
+          <div data-shot="matches">
             {nextMatches.map((match) => {
               const { team1, team2 } = parseMatch(match.match);
               const hasPrediction = myPredictions.has(match.id);
@@ -346,7 +336,7 @@ export default function HomePage() {
                   <ListRow interactive>
                     <div className="flex flex-col w-16 shrink-0 pr-3">
                       <span className="text-xs text-[var(--text-tertiary)] tabular-nums">{match.dateDisplay}</span>
-                      <span className="stat text-sm text-[var(--text-secondary)]">{match.time}</span>
+                      <span className="score text-[15px] text-[var(--text-secondary)]">{match.time}</span>
                     </div>
                     <div className="flex-1 min-w-0 text-[var(--text-primary)] font-medium truncate">
                       {team1} <span className="text-[var(--text-tertiary)]">—</span> {team2}
@@ -354,7 +344,7 @@ export default function HomePage() {
                     {hasPrediction ? (
                       <Badge variant="accent">Enregistré</Badge>
                     ) : (
-                      <span className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors shrink-0">
+                      <span className="text-sm text-[var(--accent)] hover:opacity-80 transition-opacity shrink-0">
                         Pronostiquer →
                       </span>
                     )}
@@ -362,18 +352,18 @@ export default function HomePage() {
                 </Link>
               );
             })}
-          </Card>
+          </div>
         </section>
       )}
 
       {/* My upcoming events */}
       {(myUpcomingMatches.length > 0 || upcomingActivities.length > 0) && (
         <section className="max-w-5xl mx-auto px-4 pt-12">
-          <h2 className="text-[20px] font-semibold tracking-[-0.01em] text-[var(--text-primary)] mb-4">
+          <h2 className="display text-[22px] text-[var(--text-primary)] mb-4">
             Mes prochains rendez-vous
           </h2>
 
-          <Card>
+          <div className="rounded-[10px] bg-[var(--surface-1)] top-light overflow-hidden">
             {myUpcomingMatches.slice(0, 3).map((um) => {
               const matchData = getMatchData(um.matchId);
               if (!matchData) return null;
@@ -439,7 +429,7 @@ export default function HomePage() {
                 </Link>
               );
             })}
-          </Card>
+          </div>
         </section>
       )}
 
@@ -447,7 +437,7 @@ export default function HomePage() {
       <section className="max-w-5xl mx-auto px-4 pt-12">
         <div className="grid md:grid-cols-2 gap-3">
           <Link href="/world-cup" className="block group">
-            <Card className="p-6 h-full transition-colors duration-150 ease-out hover:bg-[var(--surface-raised)]">
+            <div className="rounded-[10px] bg-[var(--surface-1)] top-light p-6 h-full transition-colors duration-150 ease-out hover:bg-[var(--surface-2)]">
               <div className="flex items-center gap-2.5">
                 <Trophy className="w-[18px] h-[18px] text-[var(--text-secondary)]" strokeWidth={1.75} />
                 <h2 className="text-base font-semibold text-[var(--text-primary)]">Coupe du Monde 2026</h2>
@@ -458,11 +448,11 @@ export default function HomePage() {
               <span className="mt-4 inline-flex items-center gap-1 text-sm text-[var(--accent)]">
                 Voir les matchs <ArrowRight className="w-4 h-4" strokeWidth={1.75} />
               </span>
-            </Card>
+            </div>
           </Link>
 
           <Link href="/activities" className="block group">
-            <Card className="p-6 h-full transition-colors duration-150 ease-out hover:bg-[var(--surface-raised)]">
+            <div className="rounded-[10px] bg-[var(--surface-1)] top-light p-6 h-full transition-colors duration-150 ease-out hover:bg-[var(--surface-2)]">
               <div className="flex items-center gap-2.5">
                 <CalendarRange className="w-[18px] h-[18px] text-[var(--text-secondary)]" strokeWidth={1.75} />
                 <h2 className="text-base font-semibold text-[var(--text-primary)]">Activités</h2>
@@ -473,14 +463,14 @@ export default function HomePage() {
               <span className="mt-4 inline-flex items-center gap-1 text-sm text-[var(--accent)]">
                 Voir les activités <ArrowRight className="w-4 h-4" strokeWidth={1.75} />
               </span>
-            </Card>
+            </div>
           </Link>
         </div>
       </section>
 
       {/* Team */}
       <section className="max-w-5xl mx-auto px-4 pt-12">
-        <h2 className="text-[20px] font-semibold tracking-[-0.01em] text-[var(--text-primary)] mb-4">La team</h2>
+        <h2 className="display text-[22px] text-[var(--text-primary)] mb-4">La team</h2>
         <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-4">
           {MEMBERS.map((member) => {
             const isMe = currentUser.member_slug === member.slug;
@@ -500,7 +490,7 @@ export default function HomePage() {
 
       {/* Personal stats */}
       <section className="max-w-5xl mx-auto px-4 pt-12">
-        <Card className="p-5">
+        <div className="rounded-[10px] bg-[var(--surface-1)] top-light p-5">
           <div className="flex items-center justify-between gap-6 flex-wrap">
             <div className="flex items-center gap-3">
               <Avatar slug={currentUser.member_slug} name={currentUser.member_name} size={40} />
@@ -511,20 +501,20 @@ export default function HomePage() {
             </div>
             <div className="flex items-center gap-8">
               <div>
-                <p className="stat text-xl text-[var(--text-primary)]">{myPredictions.size}</p>
+                <p className="score text-2xl text-[var(--text-primary)]">{myPredictions.size}</p>
                 <p className="eyebrow mt-1">Pronos</p>
               </div>
               <div>
-                <p className="stat text-xl text-[var(--text-primary)]">{stats.matchesJoined}</p>
+                <p className="score text-2xl text-[var(--text-primary)]">{stats.matchesJoined}</p>
                 <p className="eyebrow mt-1">Matchs</p>
               </div>
               <div>
-                <p className="stat text-xl text-[var(--text-primary)]">{stats.activitiesCreated}</p>
+                <p className="score text-2xl text-[var(--text-primary)]">{stats.activitiesCreated}</p>
                 <p className="eyebrow mt-1">Activités</p>
               </div>
             </div>
           </div>
-        </Card>
+        </div>
       </section>
 
       {/* Footer */}

@@ -62,7 +62,7 @@ export default function Navbar() {
               <div className="relative w-7 h-7 rounded-full overflow-hidden ring-1 ring-[var(--hairline-strong)]">
                 <Image src="/team/group.png" alt="Zbre Team" fill sizes="28px" className="object-cover" />
               </div>
-              <span className="font-semibold text-[var(--text-primary)]">ZbrePlanning</span>
+              <span className="display text-[17px] text-[var(--text-primary)]">ZbrePlanning</span>
             </Link>
 
             {/* Desktop nav */}

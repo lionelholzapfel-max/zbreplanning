@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { TEAM_FACTS } from '@/data/team-facts';
 import { TeamFactsSheet } from './TeamFactsSheet';
 import matches from '@/data/matches.json';
-import { Card, Badge } from '@/components/ui';
+import { Badge } from '@/components/ui';
 
 // Flag mapping
 const FLAGS: Record<string, string> = {
@@ -102,10 +102,10 @@ export function FunFactCard() {
   // Don't render until we have a fact (avoids hydration mismatch)
   if (!randomFact) {
     return (
-      <Card className="p-6 animate-pulse">
+      <div className="rounded-[10px] bg-[var(--surface-1)] top-light p-6 animate-pulse">
         <div className="h-4 w-24 bg-white/5 rounded mb-4" />
         <div className="h-16 bg-white/5 rounded" />
-      </Card>
+      </div>
     );
   }
 
@@ -115,9 +115,9 @@ export function FunFactCard() {
 
   return (
     <>
-      <Card
+      <div
         onClick={() => setIsSheetOpen(true)}
-        className="p-6 cursor-pointer transition-colors duration-150 ease-out hover:bg-[var(--surface-raised)]"
+        className="rounded-[10px] bg-[var(--surface-1)] top-light p-6 cursor-pointer transition-colors duration-150 ease-out hover:bg-[var(--surface-2)]"
       >
         <div className="flex items-center justify-between mb-3">
           <p className="eyebrow">Fun fact</p>
@@ -136,7 +136,7 @@ export function FunFactCard() {
         <div className="mt-4 inline-flex items-center gap-1 text-sm text-[var(--accent)]">
           Voir les 3 facts →
         </div>
-      </Card>
+      </div>
 
       {/* Full sheet when tapped */}
       <TeamFactsSheet

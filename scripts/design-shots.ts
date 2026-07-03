@@ -38,8 +38,10 @@ interface Shot {
 
 const SHOTS: Shot[] = [
   { page: '/', name: 'home-full' },
-  { page: '/', name: 'home-next-match', selector: '[data-shot="next-match"]' },
   { page: '/', name: 'home-hero', selector: '[data-shot="hero"]' },
+  { page: '/', name: 'home-stats', selector: '[data-shot="stats"]' },
+  { page: '/', name: 'home-next-match', selector: '[data-shot="next-match"]' },
+  { page: '/', name: 'home-matches', selector: '[data-shot="matches"]' },
   // Add more here, e.g.:
   // { page: '/leaderboard', name: 'leaderboard-full' },
   // { page: '/login', name: 'login-select' },
