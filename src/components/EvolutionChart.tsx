@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   LineChart,
   Line,
@@ -32,12 +32,18 @@ export function EvolutionChart() {
   const [loading, setLoading] = useState(true);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [hovered, setHovered] = useState<string | null>(null);
-  // On touch, recharts' tooltip sticks and its active dots / cursor linger with no
-  // way to dismiss. Make the chart view-only on touch devices (lines + legend);
-  // full interactivity on real pointer devices (desktop).
-  const [canHover, setCanHover] = useState(false);
+  // Tap-to-show works, but recharts leaves the tooltip stuck on touch (no
+  // hover-out). Dismiss it when the user taps anywhere outside the chart by
+  // firing a mouseleave on recharts' wrapper.
+  const chartWrapRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    setCanHover(window.matchMedia('(hover: hover) and (pointer: fine)').matches);
+    const dismiss = (e: Event) => {
+      const el = chartWrapRef.current;
+      if (!el || (e.target instanceof Node && el.contains(e.target))) return;
+      el.querySelector('.recharts-wrapper')?.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+    };
+    document.addEventListener('pointerdown', dismiss);
+    return () => document.removeEventListener('pointerdown', dismiss);
   }, []);
 
   useEffect(() => {
@@ -137,13 +143,13 @@ export function EvolutionChart() {
 
   return (
     <div className="rounded-[10px] bg-[var(--surface-1)] top-light p-4 sm:p-6">
-      <div className="h-64 sm:h-80" style={canHover ? undefined : { pointerEvents: 'none' }}>
+      <div ref={chartWrapRef} className="h-64 sm:h-80">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={history} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
             <CartesianGrid {...chartGridProps} />
             <XAxis dataKey="date" tickFormatter={formatDate} {...chartAxisProps} interval="preserveStartEnd" />
             <YAxis {...chartAxisProps} />
-            {canHover && <Tooltip content={<CustomTooltip />} cursor={chartTooltipStyle.cursor} />}
+            <Tooltip content={<CustomTooltip />} cursor={chartTooltipStyle.cursor} />
             {members.map((member) => {
               if (hidden.has(member.id)) return null;
               const highlighted = member.id === currentUserId || member.id === leaderId;
