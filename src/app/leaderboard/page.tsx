@@ -334,13 +334,19 @@ export default function LeaderboardPage() {
               </div>
             </div>
 
-            {/* Discours du Drère - tous les Drères peuvent enregistrer */}
+            {/* Discours du Drère - un slot par Drère (plusieurs Drères = plusieurs discours) */}
             {dreresToday.length > 0 && drereDisplayDate && (
-              <DrereSpeech
-                date={drereDisplayDate}
-                isDrere={dreresToday.some(d => d.user_id === currentUserId)}
-                drereName={dreresToday.find(d => d.user_id === currentUserId)?.member_name.split(' ')[0] || dreresToday[0].member_name.split(' ')[0]}
-              />
+              <div className="space-y-2">
+                {dreresToday.map((d) => (
+                  <DrereSpeech
+                    key={d.user_id}
+                    date={drereDisplayDate}
+                    drereUserId={d.user_id}
+                    drereName={d.member_name.split(' ')[0]}
+                    isMe={d.user_id === currentUserId}
+                  />
+                ))}
+              </div>
             )}
           </div>
         )}
