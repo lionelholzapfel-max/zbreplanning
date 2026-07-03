@@ -32,18 +32,20 @@ export function EvolutionChart() {
   const [loading, setLoading] = useState(true);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [hovered, setHovered] = useState<string | null>(null);
-  // Tap-to-show works, but recharts leaves the tooltip stuck on touch (no
-  // hover-out). Dismiss it when the user taps anywhere outside the chart by
-  // firing a mouseleave on recharts' wrapper.
+  // On touch there's no hover-out, so recharts leaves the tooltip stuck. Control
+  // its visibility directly: tap inside the chart → show, tap anywhere outside →
+  // hide. Touch only — on fine pointers (desktop) we leave native hover alone.
   const chartWrapRef = useRef<HTMLDivElement>(null);
+  const [tipActive, setTipActive] = useState<boolean | undefined>(undefined);
   useEffect(() => {
-    const dismiss = (e: Event) => {
+    if (!window.matchMedia('(pointer: coarse)').matches) return;
+    const onDown = (e: Event) => {
       const el = chartWrapRef.current;
-      if (!el || (e.target instanceof Node && el.contains(e.target))) return;
-      el.querySelector('.recharts-wrapper')?.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+      if (!el) return;
+      setTipActive(e.target instanceof Node && el.contains(e.target));
     };
-    document.addEventListener('pointerdown', dismiss);
-    return () => document.removeEventListener('pointerdown', dismiss);
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
   }, []);
 
   useEffect(() => {
@@ -149,7 +151,7 @@ export function EvolutionChart() {
             <CartesianGrid {...chartGridProps} />
             <XAxis dataKey="date" tickFormatter={formatDate} {...chartAxisProps} interval="preserveStartEnd" />
             <YAxis {...chartAxisProps} />
-            <Tooltip content={<CustomTooltip />} cursor={chartTooltipStyle.cursor} />
+            <Tooltip active={tipActive} content={<CustomTooltip />} cursor={chartTooltipStyle.cursor} />
             {members.map((member) => {
               if (hidden.has(member.id)) return null;
               const highlighted = member.id === currentUserId || member.id === leaderId;
