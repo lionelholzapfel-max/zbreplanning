@@ -95,11 +95,12 @@ async function forgeSessionCookie(): Promise<string> {
     .sign(secret);
 }
 
-async function newCtx(browser: Awaited<ReturnType<typeof chromium.launch>>, authed: boolean, token: string): Promise<BrowserContext> {
+async function newCtx(browser: Awaited<ReturnType<typeof chromium.launch>>, authed: boolean, token: string, mobile = false): Promise<BrowserContext> {
   const ctx = await browser.newContext({
-    viewport: { width: 1440, height: 900 },
-    deviceScaleFactor: 2,
+    viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 900 },
+    deviceScaleFactor: mobile ? 3 : 2,
     colorScheme: 'dark',
+    ...(mobile ? { isMobile: true, hasTouch: true } : {}),
   });
   if (authed) {
     await ctx.addCookies([
@@ -114,51 +115,66 @@ async function main() {
   const token = await forgeSessionCookie();
 
   const browser = await chromium.launch();
-  const authedCtx = await newCtx(browser, true, token);
-  const anonCtx = await newCtx(browser, false, token);
 
-  // Fail fast if the dev server isn't up.
-  const probe = await authedCtx.newPage();
-  try {
-    await probe.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 8000 });
-  } catch {
-    console.error(`\n✗ Dev app introuvable sur ${BASE_URL}.\n  Lance-le d'abord :  npm run dev -- -p 3001\n`);
-    await browser.close();
-    process.exit(1);
-  }
-  await probe.close();
+  // Profile via CLI arg: `mobile` → 390px m-*, `all` → both, default → desktop.
+  const arg = process.argv[2];
+  const profiles =
+    arg === 'mobile' ? [{ prefix: 'm-', mobile: true }]
+    : arg === 'all' ? [{ prefix: '', mobile: false }, { prefix: 'm-', mobile: true }]
+    : [{ prefix: '', mobile: false }];
 
-  for (const shot of SHOTS) {
-    const ctx = shot.auth === false ? anonCtx : authedCtx;
-    const page = await ctx.newPage();
+  for (const prof of profiles) {
+    console.log(`\n▸ ${prof.mobile ? 'Mobile 390×844 @3x (isMobile+touch)' : 'Desktop 1440×900 @2x'}`);
+    const authedCtx = await newCtx(browser, true, token, prof.mobile);
+    const anonCtx = await newCtx(browser, false, token, prof.mobile);
+
+    // Fail fast if the dev server isn't up.
+    const probe = await authedCtx.newPage();
     try {
-      await page.goto(`${BASE_URL}${shot.page}`, { waitUntil: 'domcontentloaded', timeout: 20000 });
-      await page.waitForLoadState('networkidle').catch(() => {});
-      await page.waitForTimeout(SETTLE_MS);
-      // Run UI actions AFTER the page is interactive (segmented/tabs exist post-hydration).
-      if (shot.actions) {
-        await shot.actions(page);
-        await page.waitForTimeout(500);
-      }
-
-      const out = `${OUT_DIR}/${shot.name}.png`;
-      if (shot.selector) {
-        const el = page.locator(shot.selector).first();
-        await el.waitFor({ state: 'visible', timeout: 5000 });
-        await el.screenshot({ path: out });
-      } else {
-        // Neutralize the sticky navbar so it doesn't re-paint mid-page in fullPage shots.
-        await page.evaluate(() => window.scrollTo(0, 0));
-        await page.addStyleTag({ content: 'nav { position: static !important; }' });
-        await page.waitForTimeout(300);
-        await page.screenshot({ path: out, fullPage: true });
-      }
-      console.log(`  ✓ ${out}`);
-    } catch (e) {
-      console.log(`  ✗ ${shot.name} (${shot.page}) — ${(e as Error).message.split('\n')[0]}`);
-    } finally {
-      await page.close();
+      await probe.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 8000 });
+    } catch {
+      console.error(`\n✗ Dev app introuvable sur ${BASE_URL}.\n  Lance-le d'abord :  npm run dev -- -p 3001\n`);
+      await browser.close();
+      process.exit(1);
     }
+    await probe.close();
+
+    for (const shot of SHOTS) {
+      const ctx = shot.auth === false ? anonCtx : authedCtx;
+      const page = await ctx.newPage();
+      try {
+        await page.goto(`${BASE_URL}${shot.page}`, { waitUntil: 'domcontentloaded', timeout: 20000 });
+        await page.waitForLoadState('networkidle').catch(() => {});
+        await page.waitForTimeout(SETTLE_MS);
+        // Run UI actions AFTER the page is interactive (segmented/tabs exist post-hydration).
+        if (shot.actions) {
+          await shot.actions(page);
+          await page.waitForTimeout(500);
+        }
+
+        const out = `${OUT_DIR}/${prof.prefix}${shot.name}.png`;
+        if (shot.selector) {
+          const el = page.locator(shot.selector).first();
+          await el.waitFor({ state: 'visible', timeout: 5000 });
+          await el.screenshot({ path: out });
+        } else {
+          // Neutralize only the STICKY top navbar so it doesn't re-paint mid-page in
+          // fullPage shots. Do NOT touch the fixed mobile bottom tab bar (it must stay fixed).
+          await page.evaluate(() => window.scrollTo(0, 0));
+          await page.addStyleTag({ content: 'nav[class*="sticky"] { position: static !important; }' });
+          await page.waitForTimeout(300);
+          await page.screenshot({ path: out, fullPage: true });
+        }
+        console.log(`  ✓ ${out}`);
+      } catch (e) {
+        console.log(`  ✗ ${prof.prefix}${shot.name} (${shot.page}) — ${(e as Error).message.split('\n')[0]}`);
+      } finally {
+        await page.close();
+      }
+    }
+
+    await authedCtx.close();
+    await anonCtx.close();
   }
 
   await browser.close();
