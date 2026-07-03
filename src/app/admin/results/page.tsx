@@ -66,6 +66,8 @@ export default function AdminResultsPage() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const { getTeamNames } = useTeamOverrides();
+  const [showAllHistory, setShowAllHistory] = useState(false);
+  const HISTORY_LIMIT = 20;
 
   // Get matches that are past their start time
   const pastMatches = useMemo(() => {
@@ -203,6 +205,10 @@ export default function AdminResultsPage() {
     setAwayScore('');
   };
 
+  // Recent results first; the rest sits behind "Voir tout l'historique".
+  const visibleWithResults = showAllHistory ? matchesWithResults : matchesWithResults.slice(0, HISTORY_LIMIT);
+  const hiddenResultsCount = matchesWithResults.length - visibleWithResults.length;
+
   if (!isAdmin || loading) {
     return (
       <div className="min-h-screen bg-[var(--canvas)] flex items-center justify-center">
@@ -286,9 +292,9 @@ export default function AdminResultsPage() {
       {/* Matches with results */}
       {matchesWithResults.length > 0 && (
         <section className="max-w-4xl mx-auto px-4 pb-12">
-          <p className="eyebrow mb-3">Matchs avec résultat · {matchesWithResults.length}</p>
+          <p className="eyebrow mb-3">{showAllHistory ? `Tous les résultats · ${matchesWithResults.length}` : `Derniers résultats · ${visibleWithResults.length}`}</p>
           <div className="rounded-[10px] bg-[var(--surface-1)] top-light overflow-hidden">
-            {matchesWithResults.map(match => {
+            {visibleWithResults.map(match => {
               const def = parseMatch(match.match);
               const { home: team1, away: team2 } = getTeamNames(match.id, def.team1, def.team2);
               const result = results[match.id];
@@ -333,6 +339,22 @@ export default function AdminResultsPage() {
               );
             })}
           </div>
+          {hiddenResultsCount > 0 && (
+            <button
+              onClick={() => setShowAllHistory(true)}
+              className="mt-3 w-full h-11 sm:h-10 rounded-[8px] bg-[var(--surface-2)] text-[13px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            >
+              Voir tout l&apos;historique · {hiddenResultsCount} de plus
+            </button>
+          )}
+          {showAllHistory && matchesWithResults.length > HISTORY_LIMIT && (
+            <button
+              onClick={() => setShowAllHistory(false)}
+              className="mt-3 w-full h-11 sm:h-10 rounded-[8px] text-[13px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+            >
+              Réduire
+            </button>
+          )}
         </section>
       )}
 
