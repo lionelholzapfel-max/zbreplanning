@@ -223,7 +223,7 @@ export default function HomePage() {
           }`}
         >
           <div className="max-w-5xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-[var(--surface)]/80 backdrop-blur-sm border border-[var(--hairline)] text-xs text-[var(--text-secondary)] mb-4">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-[var(--surface)]/80 backdrop-blur-sm border border-[var(--hairline)] text-xs text-[var(--text-secondary)] mb-3">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
               {MEMBERS.length} membres · En ligne
             </div>
@@ -250,8 +250,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Stat cards */}
-      <section className="max-w-5xl mx-auto px-4 -mt-6 relative z-10">
+      {/* Stat cards — start after the hero, on --bg, no overlap */}
+      <section className="max-w-5xl mx-auto px-4 pt-16">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {statCards.map(({ icon: Icon, value, label, href, accent }) => {
             const inner = (

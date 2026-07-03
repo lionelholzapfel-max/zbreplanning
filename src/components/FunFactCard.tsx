@@ -85,12 +85,6 @@ function getRandomTeamAndFact(): { team: string; factType: FactType; fact: strin
   };
 }
 
-const FACT_TYPE_LABELS: Record<FactType, string> = {
-  funny: 'Marrante',
-  smart: 'Intelligente',
-  football: 'Footballistique',
-};
-
 export function FunFactCard() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
@@ -115,8 +109,7 @@ export function FunFactCard() {
     );
   }
 
-  const { team, factType, fact } = randomFact;
-  const label = FACT_TYPE_LABELS[factType];
+  const { team, fact } = randomFact;
   const teamsToday = getTeamsPlayingToday();
   const isPlayingToday = teamsToday.includes(team);
 
@@ -134,7 +127,6 @@ export function FunFactCard() {
         <div className="flex items-center gap-2 mb-2">
           <span className="text-lg">{getFlag(team)}</span>
           <span className="font-medium text-[var(--text-primary)]">{team}</span>
-          <span className="text-xs text-[var(--text-tertiary)] ml-auto uppercase tracking-[0.04em]">{label}</span>
         </div>
 
         <p className="text-sm text-[var(--text-secondary)] leading-relaxed line-clamp-3">
