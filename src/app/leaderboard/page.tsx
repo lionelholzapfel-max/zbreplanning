@@ -14,6 +14,8 @@ const EvolutionChart = dynamic(
 import { WallOfShame } from '@/components/WallOfShame';
 import { DrereSpeech } from '@/components/DrereSpeech';
 import { DrereWeekSong } from '@/components/DrereWeekSong';
+import { CountUp } from '@/components/CountUp';
+import { PageHeader, Avatar } from '@/components/ui';
 
 interface LeaderboardEntry {
   rank: number;
@@ -149,6 +151,7 @@ export default function LeaderboardPage() {
   const [longestWithoutMziRecord, setLongestWithoutMziRecord] = useState<StreakRecordWithHolders | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [view, setView] = useState<'general' | 'semaine' | 'live'>('general');
 
   useEffect(() => {
     async function loadData() {
@@ -218,17 +221,10 @@ export default function LeaderboardPage() {
     return () => clearInterval(liveInterval);
   }, [router]);
 
-  const getRankEmoji = (rank: number) => {
-    if (rank === 1) return '🥇';
-    if (rank === 2) return '🥈';
-    if (rank === 3) return '🥉';
-    return `#${rank}`;
-  };
-
   const getRankChange = (change: number) => {
-    if (change > 0) return <span className="text-green-400 text-sm">↑{change}</span>;
-    if (change < 0) return <span className="text-red-400 text-sm">↓{Math.abs(change)}</span>;
-    return <span className="text-gray-500 text-sm">—</span>;
+    if (change > 0) return <span className="text-[11px] text-[var(--accent)]">▲{change}</span>;
+    if (change < 0) return <span className="text-[11px] text-[var(--danger)]">▼{Math.abs(change)}</span>;
+    return null;
   };
 
   if (loading) {
@@ -271,564 +267,260 @@ export default function LeaderboardPage() {
   const mzisToday = leaderboard.filter(e => e.is_mzi_today);
   const dreresWeek = leaderboard.filter(e => e.is_drere_week);
 
-  const currentUserEntry = leaderboard.find(e => e.user_id === currentUserId);
+  // ---- Unified table rows (Général / Semaine / Live) ----
+  const liveAvailable = !!liveRanking && (liveRanking.matchesToday > 0 || !!liveRanking.isPreviousDay);
+  const isLiveActive = !!liveRanking?.isLive;
+  const activeView = view === 'live' && !liveAvailable ? 'general' : view;
+
+  type UnifiedRow = {
+    key: string; rank: number; slug: string; name: string;
+    isMe: boolean; isDrere: boolean; isMzi: boolean;
+    points: number; pronos?: string; exacts?: number; visionnaires?: number;
+    rankChange?: number; delta?: number; inactive?: boolean;
+  };
+
+  const generalRows: UnifiedRow[] = [
+    ...activePlayers.map((e): UnifiedRow => ({
+      key: e.user_id, rank: e.rank, slug: e.member_slug, name: e.member_name.split(' ')[0],
+      isMe: e.user_id === currentUserId, isDrere: e.is_drere_today, isMzi: e.is_mzi_today,
+      points: e.total_points, pronos: `${e.matches_predicted}/${totalMatchesWithResults}`,
+      exacts: e.exact_scores, visionnaires: e.visionary_count, rankChange: e.rank_change,
+    })),
+    ...inactivePlayers.map((e, i): UnifiedRow => ({
+      key: e.user_id, rank: activePlayers.length + i + 1, slug: e.member_slug, name: e.member_name.split(' ')[0],
+      isMe: e.user_id === currentUserId, isDrere: false, isMzi: false,
+      points: e.total_points, inactive: true,
+    })),
+  ];
+
+  const semaineRows: UnifiedRow[] = weekRace.map((e): UnifiedRow => ({
+    key: e.user_id, rank: e.rank, slug: e.member_slug, name: e.member_name.split(' ')[0],
+    isMe: e.user_id === currentUserId, isDrere: false, isMzi: false, points: e.week_points,
+  }));
+
+  const liveRows: UnifiedRow[] = (liveRanking?.ranking ?? []).map((e, i): UnifiedRow => ({
+    key: e.user_id, rank: i + 1, slug: e.member_slug, name: e.member_name.split(' ')[0],
+    isMe: e.user_id === currentUserId, isDrere: false, isMzi: false,
+    points: e.day_points, delta: e.day_points,
+  }));
+
+  const rows: UnifiedRow[] = activeView === 'semaine' ? semaineRows : activeView === 'live' ? liveRows : generalRows;
 
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
       <Navbar />
 
-      {/* Hero */}
-      <section className="relative py-6 sm:py-12 px-4 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#fbbf24]/20 via-[#6366f1]/10 to-transparent" />
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#fbbf24]/10 rounded-full blur-3xl" />
-
-        <div className={`max-w-4xl mx-auto relative transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-          <div className="text-center mb-4 sm:mb-8">
-            <div className="inline-flex items-center gap-2 sm:gap-3 mb-2 sm:mb-4">
-              <span className="text-3xl sm:text-5xl">🏆</span>
-              <h1 className="text-2xl sm:text-4xl md:text-5xl font-black">
-                <span className="text-white">Leader</span>
-                <span className="bg-gradient-to-r from-[#fbbf24] to-[#f59e0b] bg-clip-text text-transparent">board</span>
-              </h1>
-              <span className="text-3xl sm:text-5xl">🏆</span>
-            </div>
-            <p className="text-gray-400 text-sm sm:text-lg">Classement des pronostics CDM 2026</p>
-          </div>
-        </div>
+      {/* Header */}
+      <section className="max-w-4xl mx-auto px-4 pt-8">
+        <PageHeader title="Classement" subtitle="Pronostics CDM 2026" />
       </section>
 
-      {/* Drère du jour & Type mzi du jour */}
-      <section className="max-w-4xl mx-auto px-4 pb-8 grid md:grid-cols-2 gap-4">
-        {/* Drère(s) du jour */}
-        {dreresToday.length > 0 && (
-          <div className="relative overflow-hidden rounded-3xl border-2 border-[#fbbf24] bg-gradient-to-br from-[#fbbf24]/20 to-[#f59e0b]/10 p-6">
-            <div className="absolute top-0 right-0 w-40 h-40 bg-[#fbbf24]/20 rounded-full blur-3xl" />
-            <div className="absolute -top-2 -left-2 text-5xl">👑</div>
-
-            <div className="relative flex items-center gap-4 pl-10">
-              {/* Stacked avatars for ties */}
-              <div className="flex -space-x-3">
-                {dreresToday.map((drere, idx) => (
-                  <div
-                    key={drere.user_id}
-                    className="relative w-14 h-14 rounded-full overflow-hidden ring-4 ring-[#fbbf24] bg-[#0a0a0f]"
-                    style={{ zIndex: dreresToday.length - idx }}
-                  >
-                    <Image
-                      src={`/members/${drere.member_slug}.png`}
-                      alt={drere.member_name}
-                      fill
-                      className="object-cover object-top"
+      {/* Drère / Type mzi du jour */}
+      {(dreresToday.length > 0 || mzisToday.length > 0) && (
+        <section className="max-w-4xl mx-auto px-4 pb-6 grid md:grid-cols-2 gap-4">
+          {dreresToday.length > 0 && (
+            <div className="rounded-[10px] bg-[var(--surface-1)] top-light p-5">
+              <div className="flex items-center gap-4">
+                <div className="flex -space-x-3">
+                  {dreresToday.map((d) => (
+                    <Avatar key={d.user_id} slug={d.member_slug} name={d.member_name} size={48} ring="gold" />
+                  ))}
+                </div>
+                <div className="min-w-0">
+                  <p className="eyebrow">{dreresToday.length > 1 ? 'Drères du jour' : 'Drère du jour'}</p>
+                  <p className="mt-1 text-[15px] font-medium text-[var(--text-primary)] truncate">
+                    {dreresToday.map((d) => d.member_name.split(' ')[0]).join(' & ')}
+                  </p>
+                  <p className="mt-1">
+                    <span className="score text-[24px] text-[var(--gold)]">{drereDayPoints}</span>
+                    <span className="ml-1 text-[13px] text-[var(--text-tertiary)]">pts</span>
+                  </p>
+                </div>
+              </div>
+              {drereDisplayDate && (
+                <div className="mt-3 space-y-2">
+                  {dreresToday.map((d) => (
+                    <DrereSpeech
+                      key={d.user_id}
+                      date={drereDisplayDate}
+                      drereUserId={d.user_id}
+                      drereName={d.member_name.split(' ')[0]}
+                      isMe={d.user_id === currentUserId}
                     />
-                  </div>
-                ))}
-              </div>
-              <div className="flex-1">
-                <p className="text-[#fbbf24] text-xs font-bold uppercase tracking-wide">
-                  {dreresToday.length > 1 ? 'Drères du jour' : 'Drère du jour'}
-                </p>
-                <h2 className="text-xl font-black text-white">
-                  {dreresToday.map(d => d.member_name).join(' & ')}
-                </h2>
-                <p className="text-[#fbbf24] font-bold">{drereDayPoints} pts</p>
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
+          )}
 
-            {/* Discours du Drère - un slot par Drère (plusieurs Drères = plusieurs discours) */}
-            {dreresToday.length > 0 && drereDisplayDate && (
-              <div className="space-y-2">
-                {dreresToday.map((d) => (
-                  <DrereSpeech
-                    key={d.user_id}
-                    date={drereDisplayDate}
-                    drereUserId={d.user_id}
-                    drereName={d.member_name.split(' ')[0]}
-                    isMe={d.user_id === currentUserId}
-                  />
-                ))}
+          {mzisToday.length > 0 && (
+            <div className="rounded-[10px] bg-[var(--surface-1)] top-light p-5">
+              <div className="flex items-center gap-4">
+                <div className="flex -space-x-3">
+                  {mzisToday.map((m) => (
+                    <Avatar key={m.user_id} slug={m.member_slug} name={m.member_name} size={48} ring="muted" />
+                  ))}
+                </div>
+                <div className="min-w-0">
+                  <p className="eyebrow">{mzisToday.length > 1 ? 'Types mzi du jour' : 'Type mzi du jour'}</p>
+                  <p className="mt-1 text-[15px] font-medium text-[var(--text-primary)] truncate">
+                    {mzisToday.map((m) => m.member_name.split(' ')[0]).join(' & ')}
+                  </p>
+                  <p className="mt-1">
+                    <span className="score text-[24px] text-[var(--text-secondary)]">{mziDayPoints ?? 0}</span>
+                    <span className="ml-1 text-[13px] text-[var(--text-tertiary)]">pts</span>
+                  </p>
+                </div>
               </div>
-            )}
-          </div>
-        )}
-
-        {/* Type(s) mzi du jour */}
-        {mzisToday.length > 0 && (
-          <div className="relative overflow-hidden rounded-3xl border-2 border-[#ef4444]/50 bg-gradient-to-br from-[#ef4444]/10 to-[#0a0a0f] p-6">
-            <div className="absolute top-0 right-0 w-40 h-40 bg-[#ef4444]/10 rounded-full blur-3xl" />
-            <div className="absolute -top-2 -left-2 text-5xl">💀</div>
-
-            <div className="relative flex items-center gap-4 pl-10">
-              {/* Stacked avatars for ties */}
-              <div className="flex -space-x-3">
-                {mzisToday.map((mzi, idx) => (
-                  <div
-                    key={mzi.user_id}
-                    className="relative w-14 h-14 rounded-full overflow-hidden ring-4 ring-[#ef4444]/50 bg-[#0a0a0f] grayscale"
-                    style={{ zIndex: mzisToday.length - idx }}
-                  >
-                    <Image
-                      src={`/members/${mzi.member_slug}.png`}
-                      alt={mzi.member_name}
-                      fill
-                      className="object-cover object-top"
-                    />
-                  </div>
-                ))}
-              </div>
-              <div className="flex-1">
-                <p className="text-[#ef4444] text-xs font-bold uppercase tracking-wide">
-                  {mzisToday.length > 1 ? 'Types mzi du jour' : 'Type mzi du jour'}
-                </p>
-                <h2 className="text-xl font-black text-white">
-                  {mzisToday.map(m => m.member_name).join(' & ')}
-                </h2>
-                <p className="text-[#ef4444] font-bold">{mziDayPoints ?? 0} pts</p>
-              </div>
+              <p className="mt-3 text-[13px] italic text-[var(--text-secondary)]">
+                « Honnêtement mec, tu pues la défaite. »
+              </p>
             </div>
-            {/* Citation de honte */}
-            <p className="relative mt-3 text-xs text-gray-500 italic pl-10">
-              &quot;Honnêtement mec, tu pues la défaite.&quot;
-            </p>
-          </div>
-        )}
-      </section>
+          )}
+        </section>
+      )}
 
       {/* Drère of the Week */}
       {dreresWeek.length > 0 && (
         <section className="max-w-4xl mx-auto px-4 pb-6">
-          <div className="relative overflow-hidden rounded-3xl border-2 border-[#FFD700] bg-gradient-to-br from-[#FFD700]/20 via-[#FFA500]/10 to-[#0a0a0f] p-6">
-            <div className="absolute top-0 right-0 w-60 h-60 bg-[#FFD700]/20 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-40 h-40 bg-[#FFA500]/10 rounded-full blur-2xl pointer-events-none" />
-            <div className="absolute -top-2 -left-2 text-5xl pointer-events-none">🏆</div>
-
-            <div className="relative flex items-center gap-6 pl-12">
-              {/* Stacked avatars for ties */}
+          <div className="rounded-[10px] bg-[var(--surface-1)] top-light p-5">
+            <div className="flex items-center gap-4">
               <div className="flex -space-x-4">
-                {dreresWeek.map((drere, idx) => (
-                  <div
-                    key={drere.user_id}
-                    className="relative w-20 h-20 rounded-full overflow-hidden ring-4 ring-[#FFD700] bg-[#0a0a0f]"
-                    style={{ zIndex: dreresWeek.length - idx }}
-                  >
-                    <Image
-                      src={`/members/${drere.member_slug}.png`}
-                      alt={drere.member_name}
-                      fill
-                      className="object-cover object-top"
-                    />
-                  </div>
+                {dreresWeek.map((d) => (
+                  <Avatar key={d.user_id} slug={d.member_slug} name={d.member_name} size={56} ring="gold" />
                 ))}
               </div>
-              <div className="flex-1">
-                <p className="text-[#FFD700] text-xs font-bold uppercase tracking-wide">
-                  {dreresWeek.length > 1 ? 'Drères of the Week' : 'Drère of the Week'}
+              <div className="min-w-0">
+                <p className="eyebrow">{dreresWeek.length > 1 ? 'Drères of the Week' : 'Drère of the Week'}</p>
+                <p className="mt-1 display text-[18px] text-[var(--text-primary)] truncate">
+                  {dreresWeek.map((d) => d.member_name.split(' ')[0]).join(' & ')}
                 </p>
-                <h2 className="text-2xl font-black text-white">
-                  {dreresWeek.map(d => d.member_name).join(' & ')}
-                </h2>
-                <p className="text-[#FFD700] font-bold text-lg">{drereWeekPoints} pts cette semaine</p>
+                <p className="mt-1">
+                  <span className="score text-[20px] text-[var(--gold)]">{drereWeekPoints}</span>
+                  <span className="ml-1.5 text-[13px] text-[var(--text-tertiary)]">pts cette semaine</span>
+                </p>
               </div>
             </div>
-
-            {/* Hymne du Champion */}
             <DrereWeekSong drereName={dreresWeek[0]?.member_name.split(' ')[0] || ''} />
           </div>
         </section>
       )}
 
-      {/* Podium top 3 */}
+      {/* Podium — the signature moment */}
       {activePlayers.length >= 3 && (
-        <section className="max-w-4xl mx-auto px-4 pt-4 pb-2">
-          <div className="flex items-end justify-center gap-2 sm:gap-6">
+        <section data-shot="podium" className="max-w-4xl mx-auto px-4 pt-2 pb-10">
+          <div className="flex items-end justify-center gap-8 sm:gap-16">
             {[
-              { entry: activePlayers[1], place: 2, ring: 'ring-gray-300', step: 'h-16 sm:h-20', bg: 'from-gray-400/30 to-gray-500/5', medal: '🥈' },
-              { entry: activePlayers[0], place: 1, ring: 'ring-[#fbbf24]', step: 'h-24 sm:h-28', bg: 'from-[#fbbf24]/40 to-[#fbbf24]/5', medal: '🥇' },
-              { entry: activePlayers[2], place: 3, ring: 'ring-[#cd7f32]', step: 'h-12 sm:h-16', bg: 'from-[#cd7f32]/30 to-[#cd7f32]/5', medal: '🥉' },
-            ].map(({ entry, place, ring, step, bg, medal }) => (
-              <div key={entry.user_id} className="flex flex-col items-center flex-1 max-w-[120px]">
-                <div className="text-2xl mb-1">{medal}</div>
-                <div className={`relative rounded-full overflow-hidden ring-4 ${ring} ${place === 1 ? 'w-20 h-20 sm:w-24 sm:h-24' : 'w-14 h-14 sm:w-16 sm:h-16'}`}>
-                  <Image
-                    src={`/members/${entry.member_slug}.png`}
-                    alt={entry.member_name}
-                    fill
-                    sizes="96px"
-                    className="object-cover object-top"
-                  />
+              { entry: activePlayers[1], place: 2 },
+              { entry: activePlayers[0], place: 1 },
+              { entry: activePlayers[2], place: 3 },
+            ].map(({ entry, place }) => {
+              const first = place === 1;
+              return (
+                <div key={entry.user_id} className={`flex flex-col items-center ${first ? '-translate-y-5' : ''}`}>
+                  <Avatar slug={entry.member_slug} name={entry.member_name} size={first ? 80 : 64} ring={first ? 'gold' : 'none'} />
+                  {first ? (
+                    <div className="halo relative mt-3">
+                      <CountUp value={entry.total_points} className="score text-[56px] text-[var(--gold)] relative z-10" />
+                    </div>
+                  ) : (
+                    <span className="score text-[36px] text-[var(--text-primary)] mt-3">{entry.total_points}</span>
+                  )}
+                  <p className={`mt-1 ${first ? 'text-[15px]' : 'text-[14px]'} text-[var(--text-primary)]`}>
+                    {entry.member_name.split(' ')[0]}
+                  </p>
+                  <p className="eyebrow mt-1">{place === 1 ? '1ER' : `${place}E`}</p>
                 </div>
-                <p className="mt-2 font-bold text-white text-sm truncate max-w-full">{entry.member_name.split(' ')[0]}</p>
-                <p className={`font-black ${place === 1 ? 'text-[#fbbf24] text-lg' : 'text-gray-300'}`}>{entry.total_points}</p>
-                <div className={`mt-1 w-full rounded-t-xl bg-gradient-to-b ${bg} border-t border-white/10 ${step} flex items-start justify-center pt-1`}>
-                  <span className="text-lg font-black text-white/40">{place}</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
 
-      {/* Main Leaderboard */}
-      <section className="max-w-4xl mx-auto px-4 pb-8">
-        <div className="bg-[#12121a] rounded-3xl border border-white/10 overflow-hidden">
-          <div className="grid grid-cols-12 gap-2 px-6 py-4 bg-[#1e1e2e] text-sm text-gray-400 font-medium">
-            <div className="col-span-1">#</div>
-            <div className="col-span-6 sm:col-span-4">Membre</div>
-            <div className="col-span-3 sm:col-span-2 text-center">Points</div>
-            <div className="col-span-2 text-center hidden sm:block">Pronos</div>
-            <div className="col-span-2 text-center hidden sm:block">Exacts</div>
-            <div className="col-span-2 sm:col-span-1 text-center">👑</div>
+      {/* Unified table — Général / Semaine / Live (absorbs live + week race + inactive) */}
+      <section data-shot="table" className="max-w-4xl mx-auto px-4 pb-8">
+        <div className="flex items-center justify-between gap-4 mb-4">
+          {isLiveActive ? (
+            <span className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.08em] text-[var(--live)]">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-live absolute inline-flex h-full w-full rounded-full bg-[var(--live)]" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[var(--live)]" />
+              </span>
+              Live
+            </span>
+          ) : (
+            <span />
+          )}
+          <div className="inline-flex rounded-[8px] bg-[var(--surface-2)] p-0.5">
+            {(['general', 'semaine', 'live'] as const).map((v) => {
+              const label = v === 'general' ? 'Général' : v === 'semaine' ? 'Semaine' : 'Live';
+              const disabled = v === 'live' && !liveAvailable;
+              const active = activeView === v;
+              return (
+                <button
+                  key={v}
+                  onClick={() => !disabled && setView(v)}
+                  disabled={disabled}
+                  className={`px-3 py-1.5 rounded-[6px] text-[13px] transition-colors ${
+                    active
+                      ? 'bg-[var(--surface-3)] top-light text-[var(--text-primary)]'
+                      : disabled
+                        ? 'text-[var(--text-tertiary)] opacity-50 cursor-not-allowed'
+                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
+        </div>
 
-          {activePlayers.map((entry, index) => {
-            const isMe = entry.user_id === currentUserId;
+        {activeView === 'semaine' && weekRaceEnd && (() => {
+          const diffH = Math.max(0, Math.floor((new Date(weekRaceEnd).getTime() - Date.now()) / 3600000));
+          return <p className="mb-3 text-[12px] text-[var(--text-tertiary)]">Reset lundi 6h · verdict dans {diffH}h</p>;
+        })()}
 
-            const pronosRatio = totalMatchesWithResults > 0
-              ? Math.round((entry.matches_predicted / totalMatchesWithResults) * 100)
-              : 0;
-            const isFainéant = totalMatchesWithResults > 0 && entry.matches_predicted < totalMatchesWithResults * 0.5;
-
-            return (
-              <div
-                key={entry.user_id}
-                className={`grid grid-cols-12 gap-2 px-6 py-4 items-center border-t border-white/5 transition-all ${
-                  mounted ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'
-                } ${isMe ? 'bg-[#6366f1]/10' : ''}`}
-                style={{ transitionDelay: `${index * 50}ms` }}
-              >
-                {/* Rank */}
-                <div className="col-span-1 flex items-center gap-2">
-                  <span className={`text-lg ${entry.rank <= 3 ? 'font-bold' : ''}`}>
-                    {getRankEmoji(entry.rank)}
-                  </span>
-                  {getRankChange(entry.rank_change)}
-                </div>
-
-                {/* Member */}
-                <div className="col-span-6 sm:col-span-4 flex items-center gap-3">
-                  <div className="relative">
-                    <div className={`w-10 h-10 rounded-full overflow-hidden relative ${
-                      entry.is_drere_today ? 'ring-2 ring-[#fbbf24]' : ''
-                    } ${entry.is_mzi_today ? 'ring-2 ring-[#ef4444] grayscale' : ''}`}>
-                      <Image
-                        src={`/members/${entry.member_slug}.png`}
-                        alt={entry.member_name}
-                        fill
-                        className="object-cover object-top"
-                      />
-                    </div>
-                    {entry.is_drere_today && (
-                      <span className="absolute -top-1 -right-1 text-sm">👑</span>
-                    )}
-                    {entry.is_mzi_today && (
-                      <span className="absolute -top-1 -right-1 text-sm">💀</span>
-                    )}
-                  </div>
-                  <div>
-                    <p className={`font-medium ${isMe ? 'text-[#6366f1]' : 'text-white'}`}>
-                      {entry.member_name.split(' ')[0]}
-                    </p>
-                    {/* K/D ratio style: Drère vs MZI */}
-                    {(entry.crown_count > 0 || entry.mzi_count > 0) && (
-                      <p className="text-xs">
-                        <span className="text-[#fbbf24]">👑 {entry.crown_count}</span>
-                        <span className="text-gray-500 mx-1">/</span>
-                        <span className="text-[#ef4444]">{entry.mzi_count} 💀</span>
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Points */}
-                <div className="col-span-3 sm:col-span-2 text-center">
-                  <span className={`text-xl font-bold ${
-                    entry.rank === 1 ? 'text-[#fbbf24]' :
-                    entry.rank === 2 ? 'text-gray-300' :
-                    entry.rank === 3 ? 'text-[#cd7f32]' :
-                    'text-white'
-                  }`}>
-                    {entry.total_points}
-                  </span>
-                  {entry.global_points > 0 && (
-                    <p className="text-xs text-[#22c55e]">+{entry.global_points} bonus</p>
-                  )}
-                </div>
-
-                {/* Pronos faits */}
-                <div className="col-span-2 text-center hidden sm:block">
-                  {totalMatchesWithResults > 0 ? (
-                    <span className={`text-sm ${isFainéant ? 'text-red-400' : 'text-gray-400'}`}>
-                      {entry.matches_predicted}/{totalMatchesWithResults}
-                      {isFainéant && <span className="ml-1">😴</span>}
-                    </span>
-                  ) : (
-                    <span className="text-gray-500">-</span>
-                  )}
-                </div>
-
-                {/* Exact scores */}
-                <div className="col-span-2 text-center hidden sm:block">
-                  {entry.exact_scores > 0 ? (
-                    <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded-lg text-sm font-medium">
-                      🎯 {entry.exact_scores}
-                    </span>
-                  ) : (
-                    <span className="text-gray-500">-</span>
-                  )}
-                </div>
-
-                {/* Crowns */}
-                <div className="col-span-2 sm:col-span-1 text-center">
-                  {entry.crown_count > 0 ? (
-                    <span className="text-[#fbbf24] font-bold">{entry.crown_count}</span>
-                  ) : (
-                    <span className="text-gray-500">-</span>
-                  )}
-                </div>
+        <div>
+          {rows.map((r, i) => (
+            <div
+              key={r.key}
+              className={`flex items-center gap-3 min-h-[56px] px-3 border-b border-[var(--hairline)] last:border-b-0 transition-all duration-300 ${
+                r.isMe ? 'bg-[var(--surface-1)] top-light' : 'hover:bg-[var(--surface-1)]'
+              } ${mounted ? `translate-x-0 ${r.inactive ? 'opacity-45' : 'opacity-100'}` : 'opacity-0 -translate-x-3'}`}
+              style={{ transitionDelay: `${Math.min(i, 16) * 30}ms` }}
+            >
+              <span className="score text-[15px] text-[var(--text-tertiary)] w-7 text-right tabular-nums">{r.rank}</span>
+              {activeView === 'general' && (
+                <span className="w-5">{r.rankChange !== undefined && getRankChange(r.rankChange)}</span>
+              )}
+              <Avatar slug={r.slug} name={r.name} size={32} ring={r.isDrere ? 'gold' : r.isMzi ? 'muted' : 'none'} />
+              <div className="flex-1 min-w-0">
+                <span className={`text-[14px] font-medium truncate ${r.isMe ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}>
+                  {r.name}
+                </span>
+                {r.inactive && <span className="block text-[12px] text-[var(--text-tertiary)]">aucun prono</span>}
               </div>
-            );
-          })}
+
+              {activeView === 'general' && !r.inactive && (
+                <div className="hidden sm:flex items-center gap-6 text-[var(--text-tertiary)]">
+                  <span className="score text-[13px] w-12 text-right tabular-nums">{r.pronos}</span>
+                  <span className="score text-[13px] w-8 text-right tabular-nums">{r.exacts}</span>
+                  <span className="score text-[13px] w-8 text-right tabular-nums">{r.visionnaires}</span>
+                </div>
+              )}
+
+              {activeView === 'live' && (
+                <span className={`score text-[13px] tabular-nums ${r.delta && r.delta > 0 ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)]'}`}>
+                  {r.delta && r.delta > 0 ? `+${r.delta}` : '·'}
+                </span>
+              )}
+
+              <span className="score text-[20px] text-[var(--text-primary)] w-12 text-right tabular-nums">{r.points}</span>
+            </div>
+          ))}
         </div>
       </section>
-
-
-      {/* Inactive Players */}
-      {inactivePlayers.length > 0 && (
-        <section className="max-w-4xl mx-auto px-4 pb-8">
-          <div className="bg-[#12121a]/50 rounded-2xl border border-white/5 p-6">
-            <h3 className="text-lg font-bold mb-4 text-gray-500 flex items-center gap-2">
-              <span>😴</span>
-              Joueurs inactifs
-              <span className="text-sm font-normal">({inactivePlayers.length})</span>
-            </h3>
-            <div className="flex flex-wrap gap-3">
-              {inactivePlayers.map(player => (
-                <div key={player.user_id} className="flex items-center gap-2 bg-white/5 rounded-full px-3 py-2">
-                  <div className="relative w-8 h-8 rounded-full overflow-hidden grayscale opacity-50">
-                    <Image
-                      src={`/members/${player.member_slug}.png`}
-                      alt={player.member_name}
-                      fill
-                      className="object-cover object-top"
-                    />
-                  </div>
-                  <span className="text-gray-500 text-sm">{player.member_name.split(' ')[0]}</span>
-                </div>
-              ))}
-            </div>
-            <p className="text-gray-600 text-xs mt-3 italic">Ces joueurs n&apos;ont pas encore fait de pronostics</p>
-          </div>
-        </section>
-      )}
-
-      {/* Live Ranking - Current Day or Previous Day's Drère du jour */}
-      {liveRanking && (liveRanking.matchesToday > 0 || liveRanking.isPreviousDay) && (
-        <section className="max-w-4xl mx-auto px-4 pb-6">
-          <div className={`relative overflow-hidden rounded-3xl border p-5 ${
-            liveRanking.isPreviousDay
-              ? 'border-[#fbbf24]/50 bg-gradient-to-br from-[#fbbf24]/10 via-[#0a0a0f] to-[#0a0a0f]'
-              : 'border-[#6366f1]/50 bg-gradient-to-br from-[#6366f1]/10 via-[#0a0a0f] to-[#0a0a0f]'
-          }`}>
-            <div className={`absolute top-0 right-0 w-48 h-48 rounded-full blur-3xl ${
-              liveRanking.isPreviousDay ? 'bg-[#fbbf24]/10' : 'bg-[#6366f1]/10'
-            }`} />
-
-            {/* Header */}
-            <div className="relative flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <span className="text-2xl">{liveRanking.isPreviousDay ? '🏅' : '📊'}</span>
-                  {liveRanking.isLive && (
-                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <h3 className="text-white font-bold">
-                    {liveRanking.isPreviousDay ? 'Points du Drère du jour' : 'Classement Live'}
-                  </h3>
-                  <p className="text-gray-500 text-xs">
-                    {liveRanking.isPreviousDay ? (
-                      <>Session terminée • {liveRanking.matchesCompleted} matchs</>
-                    ) : (
-                      <>{liveRanking.matchesCompleted}/{liveRanking.matchesToday} matchs joués aujourd&apos;hui</>
-                    )}
-                  </p>
-                </div>
-              </div>
-              {liveRanking.currentLeader && (
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${
-                  liveRanking.isPreviousDay ? 'bg-[#fbbf24]/20' : 'bg-[#6366f1]/20'
-                }`}>
-                  <span className="text-sm">{liveRanking.isPreviousDay ? '👑' : '🔥'}</span>
-                  <span className={`text-sm font-bold ${
-                    liveRanking.isPreviousDay ? 'text-[#fbbf24]' : 'text-[#6366f1]'
-                  }`}>{liveRanking.currentLeader.member_name.split(' ')[0]}</span>
-                  <span className="text-white text-sm font-bold">{liveRanking.currentLeader.day_points} pts</span>
-                </div>
-              )}
-            </div>
-
-            {/* Ranking List */}
-            {liveRanking.ranking.length > 0 ? (
-              <div className="relative grid gap-1.5 max-h-[300px] overflow-y-auto">
-                {liveRanking.ranking.map((entry, index) => {
-                  const isLeader = index === 0;
-                  const isCurrentUser = entry.user_id === currentUserId;
-                  const accentColor = liveRanking.isPreviousDay ? '#fbbf24' : '#6366f1';
-
-                  return (
-                    <div
-                      key={entry.user_id}
-                      className={`flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl transition-all ${
-                        isLeader
-                          ? liveRanking.isPreviousDay
-                            ? 'bg-[#fbbf24]/20 border border-[#fbbf24]/30'
-                            : 'bg-[#6366f1]/20 border border-[#6366f1]/30'
-                          : isCurrentUser ? 'bg-white/5' : ''
-                      }`}
-                    >
-                      <span className={`w-5 sm:w-6 text-center font-bold text-sm`} style={{
-                        color: isLeader ? accentColor : '#6b7280'
-                      }}>
-                        {index + 1}
-                      </span>
-                      <div className="relative w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden ring-2 ring-white/10 flex-shrink-0">
-                        <Image
-                          src={`/members/${entry.member_slug}.png`}
-                          alt={entry.member_name}
-                          fill
-                          className="object-cover object-top"
-                        />
-                      </div>
-                      <span className={`flex-1 text-xs sm:text-sm font-medium truncate ${
-                        isLeader ? 'text-white' : 'text-gray-400'
-                      }`}>
-                        {entry.member_name.split(' ')[0]}
-                      </span>
-                      <div className="text-right flex-shrink-0">
-                        <span className="font-bold text-sm" style={{
-                          color: isLeader ? accentColor : 'white'
-                        }}>
-                          {entry.day_points}
-                        </span>
-                        <span className="text-gray-500 text-xs ml-0.5">pts</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-4">
-                <p className="text-gray-500 text-sm">En attente des premiers résultats...</p>
-                <p className="text-gray-600 text-xs mt-1">{liveRanking.matchesToday} matchs prévus aujourd&apos;hui</p>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* Points du Drère of the Week */}
-      {weekRace.length > 0 && (
-        <section className="max-w-4xl mx-auto px-4 pb-6">
-          <div className="relative overflow-hidden rounded-3xl border border-[#f97316]/50 bg-gradient-to-br from-[#f97316]/10 via-[#0a0a0f] to-[#0a0a0f] p-5">
-            <div className="absolute top-0 right-0 w-48 h-48 bg-[#f97316]/10 rounded-full blur-3xl" />
-
-            {/* Header */}
-            <div className="relative flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <span className="text-2xl">🏆</span>
-                </div>
-                <div>
-                  <h3 className="text-white font-bold">Points du Drère of the Week</h3>
-                  <p className="text-gray-500 text-xs">
-                    Points cette semaine • Reset lundi 8h
-                  </p>
-                </div>
-              </div>
-              {weekRace[0] && (
-                <div className="flex items-center gap-2 bg-[#f97316]/20 px-3 py-1.5 rounded-full">
-                  <span className="text-sm">🔥</span>
-                  <span className="text-[#f97316] text-sm font-bold">{weekRace[0].member_name.split(' ')[0]}</span>
-                  <span className="text-white text-sm font-bold">
-                    {weekRace[0].week_points} pts
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Countdown to Monday */}
-            {weekRaceEnd && (() => {
-              const endDate = new Date(weekRaceEnd);
-              const now = new Date();
-              const diffMs = endDate.getTime() - now.getTime();
-              const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-              const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-
-              return diffMs > 0 ? (
-                <div className="relative mb-3 text-center">
-                  <span className="text-gray-500 text-xs">
-                    ⏱️ {diffDays > 0 ? `${diffDays}j ` : ''}{diffHours}h avant le verdict
-                  </span>
-                </div>
-              ) : null;
-            })()}
-
-            {/* Ranking List */}
-            <div className="relative grid gap-1.5 max-h-[250px] overflow-y-auto">
-              {weekRace.map((entry, index) => {
-                const isLeader = index === 0;
-                const isCurrentUser = entry.user_id === currentUserId;
-                const pointsBehind = isLeader ? 0 : weekRace[0].week_points - entry.week_points;
-
-                return (
-                  <div
-                    key={entry.user_id}
-                    className={`flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl transition-all ${
-                      isLeader ? 'bg-[#f97316]/20 border border-[#f97316]/30' :
-                      isCurrentUser ? 'bg-white/5' : ''
-                    }`}
-                  >
-                    <span className={`w-5 sm:w-6 text-center font-bold text-sm ${
-                      isLeader ? 'text-[#f97316]' : 'text-gray-500'
-                    }`}>
-                      {entry.rank}
-                    </span>
-                    <div className="relative w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden ring-2 ring-white/10 flex-shrink-0">
-                      <Image
-                        src={`/members/${entry.member_slug}.png`}
-                        alt={entry.member_name}
-                        fill
-                        className="object-cover object-top"
-                      />
-                    </div>
-                    <span className={`flex-1 text-xs sm:text-sm font-medium truncate ${
-                      isLeader ? 'text-white' : 'text-gray-400'
-                    }`}>
-                      {entry.member_name.split(' ')[0]}
-                    </span>
-                    {!isLeader && pointsBehind > 0 && (
-                      <span className="text-gray-500 text-xs">
-                        -{pointsBehind}
-                      </span>
-                    )}
-                    <div className="text-right flex-shrink-0 min-w-[50px]">
-                      <span className={`font-bold text-sm ${
-                        isLeader ? 'text-[#f97316]' : 'text-white'
-                      }`}>
-                        {entry.week_points}
-                      </span>
-                      <span className="text-gray-500 text-xs ml-1">pts</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* K/D Ratio Leaderboard - Call of Duty style */}
       {(() => {

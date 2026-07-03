@@ -58,7 +58,9 @@ const SHOTS: Shot[] = [
   { page: '/world-cup', name: '04-worldcup-groups', actions: (p) => clickButton(p, /groupes/i) },
   { page: '/world-cup', name: '05-worldcup-knockout', actions: (p) => clickButton(p, /16es/i) },
   { page: '/predictions', name: '06-predictions' },
-  { page: '/leaderboard', name: '07-leaderboard' },
+  { page: '/leaderboard', name: '07-leaderboard-general' },
+  { page: '/leaderboard', name: '07-leaderboard-semaine', actions: (p) => clickButton(p, /^semaine$/i) },
+  { page: '/leaderboard', name: '07-leaderboard-live', actions: (p) => clickButton(p, /^live$/i) },
   { page: '/games', name: '08-games' },
   { page: '/activities', name: '09-activities' },
   { page: '/calendar', name: '10-calendar' },
@@ -126,9 +128,13 @@ async function main() {
     const page = await ctx.newPage();
     try {
       await page.goto(`${BASE_URL}${shot.page}`, { waitUntil: 'domcontentloaded', timeout: 20000 });
-      if (shot.actions) await shot.actions(page);
       await page.waitForLoadState('networkidle').catch(() => {});
       await page.waitForTimeout(SETTLE_MS);
+      // Run UI actions AFTER the page is interactive (segmented/tabs exist post-hydration).
+      if (shot.actions) {
+        await shot.actions(page);
+        await page.waitForTimeout(500);
+      }
 
       const out = `${OUT_DIR}/${shot.name}.png`;
       if (shot.selector) {
