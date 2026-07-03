@@ -1,51 +1,54 @@
 @import "tailwindcss";
 
 /* ============================================================================
-   ZbrePlanning — Dark Premium design system (Linear/Vercel-like)
-   ONE accent (green). Gold is RESERVED for Drère & 1st place only.
+   ZbrePlanning — "Tableau d'affichage" v2
+   Le noir est vert. La lumière (élévation + liseré) sculpte les surfaces.
+   Le CHIFFRE (Space Grotesk) est la signature. Voir DESIGN_DIRECTION.md.
    ============================================================================ */
 
 :root {
-  /* Surfaces */
-  --bg: #0A0A0B;
-  --surface: #131316;
-  --surface-raised: #1A1A1E;
+  /* Elevation scale — the hierarchy comes from THIS, not from borders */
+  --canvas: #0A0C0B;
+  --surface-1: #101312;
+  --surface-2: #161A18;
+  --surface-3: #1D2220;
+  --surface-4: #242A27;
 
-  /* Hairlines */
-  --hairline: rgba(255, 255, 255, 0.08);
-  --hairline-strong: rgba(255, 255, 255, 0.14);
+  /* Text — greens-tinted grays, never pure neutral */
+  --text-primary: #F2F4F3;
+  --text-secondary: #9CA6A1;
+  --text-tertiary: #5F6963;
 
-  /* Text */
-  --text-primary: #FAFAFA;
-  --text-secondary: #A1A1AA;
-  --text-tertiary: #71717A;
-
-  /* Accent — green pitch. The ONLY accent color. */
+  /* Accent + feedback */
   --accent: #34D399;
+  --accent-glow: rgba(52, 211, 153, 0.25);
   --accent-muted: rgba(52, 211, 153, 0.12);
-
-  /* Gold — RESERVED for the Drère and 1st place. No other usage. */
-  --gold: #EAB308;
-
-  /* Feedback */
+  --gold: #E8B93E; /* Drère / 1ère place ONLY */
+  --live: #FF4D4D;
   --danger: #F87171;
-  --live: #EF4444;
 
-  /* Radius */
-  --radius-card: 8px;
-  --radius-control: 6px;
+  /* Light — top edge liseré on raised panels */
+  --top-light: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 
-  /* Motion */
-  --transition: 150ms ease-out;
+  /* Radius / motion */
+  --radius-card: 10px;
+  --radius-control: 8px;
+  --ease: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --transition: 150ms var(--ease);
 
-  /* --- Backward-compat aliases so not-yet-refactored pages stay coherent --- */
-  --background: var(--bg);
+  /* --- Backward-compat aliases (existing components migrate progressively) --- */
+  --bg: var(--canvas);
+  --background: var(--canvas);
   --foreground: var(--text-primary);
+  --surface: var(--surface-1);
+  --surface-raised: var(--surface-2);
+  --hairline: rgba(255, 255, 255, 0.06);
+  --hairline-strong: rgba(255, 255, 255, 0.12);
   --primary: var(--accent);
   --primary-hover: var(--accent);
-  --secondary: var(--surface);
-  --card: var(--surface);
-  --card-hover: var(--surface-raised);
+  --secondary: var(--surface-1);
+  --card: var(--surface-1);
+  --card-hover: var(--surface-2);
   --border: var(--hairline-strong);
   --muted: var(--text-tertiary);
   --success: var(--accent);
@@ -53,38 +56,42 @@
 }
 
 @theme inline {
-  --color-bg: var(--bg);
-  --color-surface: var(--surface);
-  --color-surface-raised: var(--surface-raised);
-  --color-hairline: var(--hairline);
-  --color-hairline-strong: var(--hairline-strong);
+  --color-canvas: var(--canvas);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-surface-4: var(--surface-4);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-tertiary: var(--text-tertiary);
   --color-accent: var(--accent);
-  --color-accent-muted: var(--accent-muted);
   --color-gold: var(--gold);
-  --color-danger: var(--danger);
   --color-live: var(--live);
+  --color-danger: var(--danger);
 
-  /* Legacy color tokens repointed onto the new palette */
-  --color-background: var(--bg);
+  /* legacy color tokens repointed onto the v2 palette */
+  --color-bg: var(--canvas);
+  --color-surface: var(--surface-1);
+  --color-surface-raised: var(--surface-2);
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+  --color-accent-muted: var(--accent-muted);
+  --color-background: var(--canvas);
   --color-foreground: var(--text-primary);
   --color-primary: var(--accent);
-  --color-secondary: var(--surface);
-  --color-card: var(--surface);
+  --color-card: var(--surface-1);
   --color-border: var(--hairline-strong);
   --color-muted: var(--text-tertiary);
 
   --font-sans: var(--font-inter);
+  --font-display: var(--font-space-grotesk);
   --breakpoint-xs: 30rem;
-
-  --radius-lg: 8px;
-  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-md: 8px;
 }
 
 body {
-  background: var(--bg);
+  background: var(--canvas);
   color: var(--text-primary);
   font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   min-height: 100vh;
@@ -92,30 +99,69 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Clear the fixed mobile bottom tab bar so content isn't hidden behind it */
+/* Clear the fixed mobile bottom tab bar */
 @media (max-width: 767px) {
-  body {
-    padding-bottom: calc(4rem + env(safe-area-inset-bottom));
-  }
+  body { padding-bottom: calc(4rem + env(safe-area-inset-bottom)); }
 }
 
-/* Numbers — tabular + semibold. Use .stat on ALL figures (scores, points, ELO, ranks). */
+/* ===== Typography — the number is the brand ===== */
+/* Hero/display numbers: scores, points, ELO, countdown, podium ranks */
+.score {
+  font-family: var(--font-space-grotesk), var(--font-inter), sans-serif;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+/* Page titles + wordmark */
+.display {
+  font-family: var(--font-space-grotesk), var(--font-inter), sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+/* Inline stats (Inter, tabular) — small figures */
 .stat {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
 }
-
-/* Meta / eyebrow labels: 12px uppercase, wide tracking, tertiary. */
+/* Eyebrow labels */
 .eyebrow {
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   color: var(--text-tertiary);
 }
 
-/* Scrollbar */
+/* ===== Light ===== */
+/* Top-edge light on raised panels — the "chiseled pixel" look */
+.top-light { box-shadow: var(--top-light); }
+
+/* Very subtle green radial halo behind ONE hero element per page */
+.halo::before {
+  content: '';
+  position: absolute;
+  inset: -40% -25%;
+  background: radial-gradient(closest-side, rgba(52, 211, 153, 0.16), transparent 72%);
+  opacity: 0.32;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Film grain overlay (archive treatment) — put on a positioned overlay div */
+.grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+}
+
+/* ===== Scrollbar ===== */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--hairline-strong); border-radius: 4px; }
@@ -123,30 +169,23 @@ body {
 .scrollbar-hide { scrollbar-width: none; -ms-overflow-style: none; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 
-/* LIVE indicator dot pulse (subtle) */
-@keyframes live-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
-}
-.animate-live { animation: live-pulse 1.6s ease-in-out infinite; }
+/* ===== LIVE indicator ===== */
+@keyframes live-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+.animate-live { animation: live-pulse 2s ease-in-out infinite; }
 
-/* Short shake for invalid input (e.g. wrong PIN) */
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  20%, 60% { transform: translateX(-4px); }
-  40%, 80% { transform: translateX(4px); }
-}
+/* ===== Short shake (invalid PIN) ===== */
+@keyframes shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
 .animate-shake { animation: shake 0.2s ease-in-out; }
 
-/* Glass — legacy surface, kept for not-yet-refactored chrome (repointed to new tokens) */
+/* ===== Glass (legacy) ===== */
 .glass {
-  background: rgba(19, 19, 22, 0.72);
+  background: rgba(16, 19, 18, 0.72);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--hairline);
 }
 
-/* ---- Preserved content animations (DrereCelebration + TeamFactsSheet folklore) ---- */
+/* ===== Preserved content animations (DrereCelebration + TeamFactsSheet) ===== */
 @keyframes slide-up { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes pop-in { from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
@@ -155,3 +194,13 @@ body {
 .animate-fade-in { animation: fade-in 0.2s ease-out forwards; }
 .animate-pop-in { animation: pop-in 0.2s ease-out forwards; }
 .animate-bounce-in { animation: bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards; }
+
+/* ===== Reduced motion ===== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

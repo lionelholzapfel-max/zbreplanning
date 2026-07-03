@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { FunFactCard } from '@/components/FunFactCard';
 import { Card, Badge, ListRow, Avatar, Spinner } from '@/components/ui';
+import { CountUp } from '@/components/CountUp';
 
 interface UpcomingActivity extends Activity {
   participations: ActivityParticipation[];
@@ -42,7 +43,6 @@ interface Match {
   group: string;
 }
 
-const pad = (n: number) => String(n).padStart(2, '0');
 
 export default function HomePage() {
   const [mounted, setMounted] = useState(false);
@@ -195,10 +195,10 @@ export default function HomePage() {
   ];
 
   const countdownUnits = [
-    { value: String(countdown.days), label: 'jours' },
-    { value: pad(countdown.hours), label: 'heures' },
-    { value: pad(countdown.minutes), label: 'min' },
-    { value: pad(countdown.seconds), label: 'sec' },
+    { value: countdown.days, label: 'jours', pad: 0 },
+    { value: countdown.hours, label: 'heures', pad: 2 },
+    { value: countdown.minutes, label: 'min', pad: 2 },
+    { value: countdown.seconds, label: 'sec', pad: 2 },
   ];
 
   return (
@@ -211,11 +211,13 @@ export default function HomePage() {
           src="/team/group.png"
           alt="Zbre Team"
           fill
-          className="object-cover object-top"
+          className="object-cover object-top grayscale contrast-[1.05]"
           priority
         />
-        {/* Only allowed gradient in the app: hero scrim */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg)] via-[var(--bg)]/60 to-transparent" />
+        {/* Archive treatment: canvas tint 25% + grain + bottom scrim toward --canvas */}
+        <div className="absolute inset-0 bg-[var(--canvas)]/25" />
+        <div className="grain absolute inset-0 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[var(--canvas)] via-[var(--canvas)]/60 to-transparent" />
 
         <div
           className={`absolute inset-x-0 bottom-0 px-4 pb-10 transition-all duration-500 ${
@@ -279,15 +281,15 @@ export default function HomePage() {
         <FunFactCard />
       </section>
 
-      {/* Next match + countdown */}
+      {/* Next match — PILOTE "Tableau d'affichage" (surface-1, liseré, halo, .score count-up) */}
       {nextMatch && (
         <section className="max-w-5xl mx-auto px-4 pt-8">
           <Link href="/world-cup" className="block">
-            <Card className="p-6 transition-colors duration-150 ease-out hover:bg-[var(--surface-raised)]">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div className="relative overflow-hidden rounded-[10px] bg-[var(--surface-1)] top-light p-6 transition-colors duration-150 hover:bg-[var(--surface-2)]">
+              <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-8">
                 <div className="min-w-0">
                   <p className="eyebrow">Prochain match</p>
-                  <h3 className="mt-2 text-lg font-semibold text-[var(--text-primary)] truncate">
+                  <h3 className="mt-3 text-[18px] font-medium text-[var(--text-primary)] truncate">
                     {(() => {
                       const { team1, team2 } = parseMatch(nextMatch.match);
                       return `${team1} — ${team2}`;
@@ -298,21 +300,21 @@ export default function HomePage() {
                   </p>
                 </div>
 
-                <div className="flex items-start gap-2 sm:gap-3 shrink-0">
+                <div className="halo relative flex items-start gap-3 sm:gap-4 shrink-0">
                   {countdownUnits.map((u, i) => (
                     <Fragment key={u.label}>
-                      <div className="flex flex-col items-center min-w-[2.5ch]">
-                        <span className="stat text-2xl text-[var(--text-primary)]">{u.value}</span>
-                        <span className="text-[11px] text-[var(--text-tertiary)] mt-1.5">{u.label}</span>
+                      <div className="relative z-10 flex flex-col items-center">
+                        <CountUp value={u.value} pad={u.pad} className="score text-[56px] text-[var(--text-primary)]" />
+                        <span className="mt-2.5 text-[11px] uppercase tracking-[0.08em] text-[var(--text-tertiary)]">{u.label}</span>
                       </div>
                       {i < countdownUnits.length - 1 && (
-                        <span className="stat text-2xl text-[var(--text-tertiary)] leading-none">:</span>
+                        <span className="score text-[56px] text-[var(--text-tertiary)] relative z-10">:</span>
                       )}
                     </Fragment>
                   ))}
                 </div>
               </div>
-            </Card>
+            </div>
           </Link>
         </section>
       )}
