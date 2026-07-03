@@ -908,7 +908,7 @@ export default function WorldCupPage() {
 
       {/* Matches */}
       <section className="max-w-7xl mx-auto px-4 pb-12">
-        <div className="space-y-4">
+        <div className="space-y-3">
           {filteredMatches.map((match, index) => {
             // Day separator logic
             const prevMatch = index > 0 ? filteredMatches[index - 1] : null;

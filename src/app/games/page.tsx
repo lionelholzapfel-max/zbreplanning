@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useSupabase } from '@/hooks/useSupabase';
 import { toast } from 'sonner';
-import { Star, Trophy, Users, Plus, ChevronRight, Pencil, Trash2, TrendingUp, Activity, Calendar } from 'lucide-react';
+import { Star, Trophy, Users, Plus, ChevronRight, Pencil, Trash2, TrendingUp, Activity } from 'lucide-react';
 import { EmptyState } from '@/components/ui';
 
 type PeriodFilter = '7d' | 'month' | 'all';
@@ -334,21 +334,18 @@ export default function GamesPage() {
 
       <main className="max-w-4xl mx-auto px-4 py-6 pb-24">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Star className="w-7 h-7 text-yellow-400 fill-yellow-400" />
-            Zbrétoile
-          </h1>
+          <h1 className="display text-[22px] text-[var(--text-primary)]">Zbrétoile</h1>
           <div className="flex gap-2">
             <button
               onClick={() => setShowCreateGame(true)}
-              className="flex items-center gap-1 px-3 py-2 bg-[#6366f1] hover:bg-[#4f46e5] rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center gap-1 h-9 px-3 rounded-[8px] text-[13px] font-medium bg-[var(--accent)] text-[#0A0C0B] hover:opacity-90 transition-opacity"
             >
               <Plus className="w-4 h-4" />
               Jeu
             </button>
             <button
               onClick={() => setShowCreateSession(true)}
-              className="flex items-center gap-1 px-3 py-2 bg-[#22c55e] hover:bg-[#16a34a] rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center gap-1 h-9 px-3 rounded-[8px] text-[13px] font-medium bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
             >
               <Plus className="w-4 h-4" />
               Partie
@@ -356,26 +353,23 @@ export default function GamesPage() {
           </div>
         </div>
 
-        {/* Period Filter */}
-        <div className="mb-6">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-gray-400" />
-            <span className="text-sm text-gray-400">Période :</span>
-            <div className="flex gap-1">
-              {(['7d', 'month', 'all'] as PeriodFilter[]).map(period => (
-                <button
-                  key={period}
-                  onClick={() => setPeriodFilter(period)}
-                  className={`px-3 py-1 text-sm rounded-lg transition-colors ${
-                    periodFilter === period
-                      ? 'bg-[#6366f1] text-white'
-                      : 'bg-white/10 text-gray-400 hover:bg-white/20'
-                  }`}
-                >
-                  {getPeriodLabel(period)}
-                </button>
-              ))}
-            </div>
+        {/* Period Filter — segmented v2 */}
+        <div className="mb-6 flex items-center gap-3">
+          <span className="eyebrow">Période</span>
+          <div className="inline-flex rounded-[8px] bg-[var(--surface-2)] p-0.5">
+            {(['7d', 'month', 'all'] as PeriodFilter[]).map(period => (
+              <button
+                key={period}
+                onClick={() => setPeriodFilter(period)}
+                className={`px-3 py-1.5 rounded-[6px] text-[13px] transition-colors ${
+                  periodFilter === period
+                    ? 'bg-[var(--surface-3)] top-light text-[var(--text-primary)]'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                {getPeriodLabel(period)}
+              </button>
+            ))}
           </div>
         </div>
 
