@@ -428,7 +428,7 @@ export default function PredictionsPage() {
   if (!currentUser) return null;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f]">
+    <div className="min-h-screen bg-[var(--canvas)]">
       <Navbar />
 
       {/* Header */}

@@ -110,14 +110,68 @@ async function newCtx(browser: Awaited<ReturnType<typeof chromium.launch>>, auth
   return ctx;
 }
 
+// ── States mode: force loading / error / empty by intercepting data calls ──
+// Auth (/api/auth/*) is never intercepted so the page still authenticates; only
+// data endpoints (Supabase REST + data /api routes) are forced.
+const STATE_PAGES = [
+  { name: 'home', page: '/' },
+  { name: 'leaderboard', page: '/leaderboard' },
+  { name: 'worldcup', page: '/world-cup' },
+  { name: 'activities', page: '/activities' },
+];
+const DATA_ROUTE = /\/(rest\/v1|api\/(leaderboard|results|knockout|games|activities|participations|predictions))/;
+
+async function captureStates(browser: Awaited<ReturnType<typeof chromium.launch>>, token: string) {
+  const states: Array<'loading' | 'error' | 'empty'> = ['loading', 'error', 'empty'];
+  const ctx = await newCtx(browser, true, token);
+  for (const state of states) {
+    console.log(`\n▸ État: ${state}`);
+    for (const target of STATE_PAGES) {
+      const page = await ctx.newPage();
+      await page.route('**/*', async (route) => {
+        const url = route.request().url();
+        if (DATA_ROUTE.test(url)) {
+          if (state === 'loading') return; // never resolve → loading UI stays
+          if (state === 'error') return route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"forced"}' });
+          return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }); // empty
+        }
+        return route.continue();
+      });
+      try {
+        await page.goto(`${BASE_URL}${target.page}`, { waitUntil: 'domcontentloaded', timeout: 20000 });
+        await page.waitForTimeout(state === 'loading' ? 2500 : 3500);
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.addStyleTag({ content: 'nav[class*="sticky"] { position: static !important; }' });
+        await page.waitForTimeout(200);
+        const out = `${OUT_DIR}/states-${state}-${target.name}.png`;
+        await page.screenshot({ path: out, fullPage: state !== 'loading' });
+        console.log(`  ✓ ${out}`);
+      } catch (e) {
+        console.log(`  ✗ states-${state}-${target.name} — ${(e as Error).message.split('\n')[0]}`);
+      } finally {
+        await page.close();
+      }
+    }
+  }
+  await ctx.close();
+}
+
 async function main() {
   mkdirSync(OUT_DIR, { recursive: true });
   const token = await forgeSessionCookie();
 
   const browser = await chromium.launch();
 
-  // Profile via CLI arg: `mobile` → 390px m-*, `all` → both, default → desktop.
+  // Profile via CLI arg: `mobile` → 390px m-*, `all` → both, `states` → forced
+  // loading/error/empty captures, default → desktop.
   const arg = process.argv[2];
+
+  if (arg === 'states') {
+    await captureStates(browser, token);
+    await browser.close();
+    console.log(`\nStates dans ${OUT_DIR}/`);
+    return;
+  }
   const profiles =
     arg === 'mobile' ? [{ prefix: 'm-', mobile: true }]
     : arg === 'all' ? [{ prefix: '', mobile: false }, { prefix: 'm-', mobile: true }]

@@ -7,7 +7,7 @@ import Navbar from '@/components/Navbar';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useSupabase, Activity, ActivityParticipation } from '@/hooks/useSupabase';
-import { PageHeader } from '@/components/ui';
+import { PageHeader, Spinner, EmptyState } from '@/components/ui';
 
 const ACTIVITY_TYPES = [
   { id: 'resto', label: 'Restaurant', icon: '🍕', description: 'Sortie resto entre potes' },
@@ -32,16 +32,23 @@ export default function ActivitiesPage() {
   const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [loadingActivity, setLoadingActivity] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   const loadData = useCallback(async () => {
-    const acts = await getActivities();
-    setActivitiesState(acts);
+    setLoadError(false);
+    try {
+      const acts = await getActivities();
+      setActivitiesState(acts);
 
-    const allParticipations: Record<string, ActivityParticipation[]> = {};
-    await Promise.all(acts.map(async (act) => {
-      allParticipations[act.id] = await getActivityParticipations(act.id);
-    }));
-    setParticipations(allParticipations);
+      const allParticipations: Record<string, ActivityParticipation[]> = {};
+      await Promise.all(acts.map(async (act) => {
+        allParticipations[act.id] = await getActivityParticipations(act.id);
+      }));
+      setParticipations(allParticipations);
+    } catch (err) {
+      console.error(err);
+      setLoadError(true);
+    }
   }, [getActivities, getActivityParticipations]);
 
   useEffect(() => {
@@ -131,7 +138,7 @@ export default function ActivitiesPage() {
   if (userLoading) {
     return (
       <div className="min-h-screen bg-[var(--canvas)] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+        <Spinner size={32} />
       </div>
     );
   }
@@ -139,7 +146,7 @@ export default function ActivitiesPage() {
   if (!currentUser) return null;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f]">
+    <div className="min-h-screen bg-[var(--canvas)]">
       <Navbar />
 
       <section className="max-w-7xl mx-auto px-4 pt-8">
@@ -166,6 +173,12 @@ export default function ActivitiesPage() {
             </button>
           ))}
         </div>
+        {loadError && (
+          <div className="flex items-center justify-between gap-3 rounded-[10px] bg-[var(--surface-2)] border border-[var(--danger)]/30 px-4 py-3 mb-4">
+            <p className="text-[13px] text-[var(--text-secondary)]">Impossible de charger les activités — vérifie ta connexion.</p>
+            <button onClick={() => loadData()} className="shrink-0 h-8 px-3 rounded-[8px] bg-[var(--surface-3)] text-[13px] text-[var(--text-primary)] hover:bg-[var(--surface-4)] transition-colors">Réessayer</button>
+          </div>
+        )}
       </section>
 
       <section className="max-w-7xl mx-auto px-4 pb-24">
@@ -263,16 +276,18 @@ export default function ActivitiesPage() {
           })}
 
           {activities.length === 0 && (
-            <div className="text-center py-16">
-              <p className="text-[var(--text-secondary)] font-medium">Aucune activité pour le moment</p>
-              <p className="mt-1 text-[13px] text-[var(--text-tertiary)]">Propose une sortie pour lancer le mouvement.</p>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="mt-4 h-9 px-4 rounded-[8px] bg-[var(--accent)] text-[#0A0C0B] text-[13px] font-medium hover:opacity-90 transition-opacity"
-              >
-                Créer une activité
-              </button>
-            </div>
+            <EmptyState
+              title="Aucune activité pour le moment"
+              description="Propose une sortie pour lancer le mouvement."
+              action={
+                <button
+                  onClick={() => { setEditingActivityId(null); setShowCreateModal(true); }}
+                  className="h-9 px-4 rounded-[8px] bg-[var(--accent)] text-[#0A0C0B] text-[13px] font-medium hover:opacity-90 transition-opacity"
+                >
+                  Créer une activité
+                </button>
+              }
+            />
           )}
         </div>
       </section>

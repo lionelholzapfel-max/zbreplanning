@@ -52,12 +52,19 @@ export default function CalendarPage() {
   const [mounted, setMounted] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [matchParticipations, setMatchParticipations] = useState<Record<number, MatchParticipation[]>>({});
+  const [loadError, setLoadError] = useState(false);
   const { getActivities, getMatchParticipations } = useSupabase();
   const { getTeamNames } = useTeamOverrides();
 
   const loadActivities = useCallback(async () => {
-    const data = await getActivities();
-    setActivities(data);
+    setLoadError(false);
+    try {
+      const data = await getActivities();
+      setActivities(data);
+    } catch (err) {
+      console.error(err);
+      setLoadError(true);
+    }
   }, [getActivities]);
 
   const loadMatchParticipations = useCallback(async (matchIds: number[]) => {
@@ -138,6 +145,12 @@ export default function CalendarPage() {
             </button>
           ))}
         </div>
+        {loadError && (
+          <div className="flex items-center justify-between gap-3 rounded-[10px] bg-[var(--surface-2)] border border-[var(--danger)]/30 px-4 py-3 mb-4">
+            <p className="text-[13px] text-[var(--text-secondary)]">Impossible de charger le calendrier — vérifie ta connexion.</p>
+            <button onClick={() => loadActivities()} className="shrink-0 h-8 px-3 rounded-[8px] bg-[var(--surface-3)] text-[13px] text-[var(--text-primary)] hover:bg-[var(--surface-4)] transition-colors">Réessayer</button>
+          </div>
+        )}
       </section>
 
       <section className="max-w-7xl mx-auto px-4 pb-24">

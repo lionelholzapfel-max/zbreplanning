@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -15,7 +15,7 @@ import { WallOfShame } from '@/components/WallOfShame';
 import { DrereSpeech } from '@/components/DrereSpeech';
 import { DrereWeekSong } from '@/components/DrereWeekSong';
 import { CountUp } from '@/components/CountUp';
-import { PageHeader, Avatar, RecordCard } from '@/components/ui';
+import { PageHeader, Avatar, RecordCard, EmptyState } from '@/components/ui';
 import { MEMBERS } from '@/data/members';
 
 interface LeaderboardEntry {
@@ -120,51 +120,54 @@ export default function LeaderboardPage() {
   const [mostExactScoresRecord, setMostExactScoresRecord] = useState<CountRecordWithHolders | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [view, setView] = useState<'general' | 'semaine' | 'live'>('general');
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const res = await fetch('/api/leaderboard');
-        if (!res.ok) {
-          if (res.status === 401) {
-            router.push('/login');
-            return;
-          }
-          throw new Error('Failed to load');
+  const loadData = useCallback(async () => {
+    try {
+      setLoadError(false);
+      const res = await fetch('/api/leaderboard');
+      if (!res.ok) {
+        if (res.status === 401) {
+          router.push('/login');
+          return;
         }
-
-        const data = await res.json();
-        setLeaderboard(data.leaderboard);
-        setStats(data.stats);
-        setCurrentUserId(data.current_user_id);
-        setTotalMatchesWithResults(data.total_matches_with_results || 0);
-        setDrereDayPoints(data.drere_day_points || 0);
-        setMziDayPoints(data.mzi_day_points ?? null);
-        setDrereWeekPoints(data.drere_week_points || 0);
-        setDrereDisplayDate(data.drere_display_date || '');
-        setDrereWeekLeaderboard(data.drere_week_leaderboard || []);
-        setWeekRace(data.week_race || []);
-        setWeekRaceEnd(data.week_race_end || '');
-        setDailyRecord(data.daily_record || null);
-        setWeeklyRecord(data.weekly_record || null);
-        setMostDrereRecord(data.most_drere_record || null);
-        setMostExactScoresRecord(data.most_exact_scores_record || null);
-
-        // Fetch live ranking
-        const liveRes = await fetch('/api/leaderboard/live');
-        if (liveRes.ok) {
-          const liveData = await liveRes.json();
-          setLiveRanking(liveData);
-        }
-      } catch (error) {
-        console.error('Error loading leaderboard:', error);
-      } finally {
-        setLoading(false);
-        setMounted(true);
+        throw new Error('Failed to load');
       }
-    }
 
+      const data = await res.json();
+      setLeaderboard(data.leaderboard);
+      setStats(data.stats);
+      setCurrentUserId(data.current_user_id);
+      setTotalMatchesWithResults(data.total_matches_with_results || 0);
+      setDrereDayPoints(data.drere_day_points || 0);
+      setMziDayPoints(data.mzi_day_points ?? null);
+      setDrereWeekPoints(data.drere_week_points || 0);
+      setDrereDisplayDate(data.drere_display_date || '');
+      setDrereWeekLeaderboard(data.drere_week_leaderboard || []);
+      setWeekRace(data.week_race || []);
+      setWeekRaceEnd(data.week_race_end || '');
+      setDailyRecord(data.daily_record || null);
+      setWeeklyRecord(data.weekly_record || null);
+      setMostDrereRecord(data.most_drere_record || null);
+      setMostExactScoresRecord(data.most_exact_scores_record || null);
+
+      // Fetch live ranking
+      const liveRes = await fetch('/api/leaderboard/live');
+      if (liveRes.ok) {
+        const liveData = await liveRes.json();
+        setLiveRanking(liveData);
+      }
+    } catch (error) {
+      console.error('Error loading leaderboard:', error);
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+      setMounted(true);
+    }
+  }, [router]);
+
+  useEffect(() => {
     loadData();
 
     // Refresh live ranking every 30 seconds
@@ -181,7 +184,7 @@ export default function LeaderboardPage() {
     }, 30000);
 
     return () => clearInterval(liveInterval);
-  }, [router]);
+  }, [loadData]);
 
   const getRankChange = (change: number) => {
     if (change > 0) return <span className="text-[11px] text-[var(--accent)]">▲{change}</span>;
@@ -191,27 +194,27 @@ export default function LeaderboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f]">
+      <div className="min-h-screen bg-[var(--canvas)]">
         <Navbar />
         <div className="max-w-4xl mx-auto px-4 pt-8 space-y-6">
           {/* Podium skeleton */}
           <div className="flex items-end justify-center gap-4">
             {[64, 96, 48].map((h, i) => (
               <div key={i} className="flex flex-col items-center flex-1 max-w-[120px]">
-                <div className={`rounded-full bg-white/5 animate-pulse ${i === 1 ? 'w-20 h-20' : 'w-14 h-14'}`} />
-                <div className="mt-2 h-3 w-12 rounded bg-white/5 animate-pulse" />
-                <div className="mt-2 w-full rounded-t-xl bg-white/5 animate-pulse" style={{ height: `${h}px` }} />
+                <div className={`rounded-full bg-[var(--surface-2)] animate-pulse ${i === 1 ? 'w-20 h-20' : 'w-14 h-14'}`} />
+                <div className="mt-2 h-3 w-12 rounded bg-[var(--surface-2)] animate-pulse" />
+                <div className="mt-2 w-full rounded-t-xl bg-[var(--surface-2)] animate-pulse" style={{ height: `${h}px` }} />
               </div>
             ))}
           </div>
           {/* Rows skeleton */}
-          <div className="bg-[#12121a] rounded-3xl border border-white/10 overflow-hidden divide-y divide-white/5">
+          <div className="bg-[var(--surface-1)] top-light rounded-[10px] overflow-hidden divide-y divide-[var(--hairline)]">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="flex items-center gap-3 px-6 py-4">
-                <div className="w-6 h-6 rounded bg-white/5 animate-pulse" />
-                <div className="w-10 h-10 rounded-full bg-white/5 animate-pulse" />
-                <div className="flex-1 h-4 rounded bg-white/5 animate-pulse max-w-[120px]" />
-                <div className="w-10 h-5 rounded bg-white/5 animate-pulse" />
+                <div className="w-6 h-6 rounded bg-[var(--surface-2)] animate-pulse" />
+                <div className="w-10 h-10 rounded-full bg-[var(--surface-2)] animate-pulse" />
+                <div className="flex-1 h-4 rounded bg-[var(--surface-2)] animate-pulse max-w-[120px]" />
+                <div className="w-10 h-5 rounded bg-[var(--surface-2)] animate-pulse" />
               </div>
             ))}
           </div>
@@ -280,13 +283,22 @@ export default function LeaderboardPage() {
   const fmtDate = (d: string) => new Date(d).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' });
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f]">
+    <div className="min-h-screen bg-[var(--canvas)]">
       <Navbar />
 
       {/* Header */}
       <section className="max-w-4xl mx-auto px-4 pt-8">
         <PageHeader title="Classement" subtitle="Pronostics CDM 2026" />
       </section>
+
+      {loadError && (
+        <section className="max-w-4xl mx-auto px-4 pt-4">
+          <div className="flex items-center justify-between gap-3 rounded-[10px] bg-[var(--surface-2)] border border-[var(--danger)]/30 px-4 py-3">
+            <p className="text-[13px] text-[var(--text-secondary)]">Impossible de charger — vérifie ta connexion.</p>
+            <button onClick={() => loadData()} className="shrink-0 h-8 px-3 rounded-[8px] bg-[var(--surface-3)] text-[13px] text-[var(--text-primary)] hover:bg-[var(--surface-4)] transition-colors">Réessayer</button>
+          </div>
+        </section>
+      )}
 
       {/* Drère / Type mzi du jour */}
       {(dreresToday.length > 0 || mzisToday.length > 0) && (
@@ -474,7 +486,12 @@ export default function LeaderboardPage() {
         </div>
 
         <div>
-          {rows.map((r, i) => (
+          {rows.length === 0 ? (
+            <EmptyState
+              title="Rien à afficher"
+              description={activeView === 'semaine' ? 'La course de la semaine démarrera avec les premiers pronos.' : activeView === 'live' ? 'Aucun match en direct pour le moment.' : 'Le classement se remplira dès les premiers pronos.'}
+            />
+          ) : rows.map((r, i) => (
             <div
               key={r.key}
               className={`flex items-center gap-3 min-h-[56px] px-3 border-b border-[var(--hairline)] last:border-b-0 transition-all duration-300 ${

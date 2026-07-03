@@ -9,7 +9,7 @@ import { fr } from 'date-fns/locale';
 import { useSupabase } from '@/hooks/useSupabase';
 import { toast } from 'sonner';
 import { Star, Trophy, Users, Plus, ChevronRight, Pencil, Trash2, TrendingUp, Activity } from 'lucide-react';
-import { EmptyState } from '@/components/ui';
+import { Spinner, EmptyState } from '@/components/ui';
 
 type PeriodFilter = '7d' | 'month' | 'all';
 
@@ -94,6 +94,7 @@ export default function GamesPage() {
   const [selectedPlayerForm, setSelectedPlayerForm] = useState<PlayerForm | null>(null);
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('all');
   const [mounted, setMounted] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [showCreateGame, setShowCreateGame] = useState(false);
   const [showCreateSession, setShowCreateSession] = useState(false);
   const [newGameName, setNewGameName] = useState('');
@@ -118,6 +119,7 @@ export default function GamesPage() {
   });
 
   const loadData = useCallback(async () => {
+    setLoadError(false);
     try {
       const [gamesRes, sessionsRes, statsRes, usersRes, activityRes] = await Promise.all([
         fetch('/api/games'),
@@ -137,6 +139,7 @@ export default function GamesPage() {
       }
     } catch (error) {
       console.error('Failed to load data:', error);
+      setLoadError(true);
     }
   }, [periodFilter]);
 
@@ -320,8 +323,8 @@ export default function GamesPage() {
 
   if (!mounted || userLoading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-[#6366f1] border-t-transparent rounded-full" />
+      <div className="min-h-screen bg-[var(--canvas)] flex items-center justify-center">
+        <Spinner size={32} />
       </div>
     );
   }
@@ -329,7 +332,7 @@ export default function GamesPage() {
   if (!currentUser) return null;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f]">
+    <div className="min-h-screen bg-[var(--canvas)]">
       <Navbar />
 
       <main className="max-w-4xl mx-auto px-4 py-6 pb-24">
@@ -352,6 +355,13 @@ export default function GamesPage() {
             </button>
           </div>
         </div>
+
+        {loadError && (
+          <div className="flex items-center justify-between gap-3 rounded-[10px] bg-[var(--surface-2)] border border-[var(--danger)]/30 px-4 py-3 mb-4">
+            <p className="text-[13px] text-[var(--text-secondary)]">Impossible de charger les jeux — vérifie ta connexion.</p>
+            <button onClick={() => loadData()} className="shrink-0 h-8 px-3 rounded-[8px] bg-[var(--surface-3)] text-[13px] text-[var(--text-primary)] hover:bg-[var(--surface-4)] transition-colors">Réessayer</button>
+          </div>
+        )}
 
         {/* Period Filter — segmented v2 */}
         <div className="mb-6 flex items-center gap-3">
@@ -637,7 +647,10 @@ export default function GamesPage() {
               Forme de {selectedPlayerForm.userName}
             </h2>
             {Object.keys(selectedPlayerForm.formByGame).length === 0 ? (
-              <p className="text-gray-400">Aucune partie individuelle jouée.</p>
+              <EmptyState
+                title="Aucune partie jouée"
+                description="Ce joueur n'a pas encore de partie individuelle enregistrée."
+              />
             ) : (
               <div className="space-y-4">
                 {Object.entries(selectedPlayerForm.formByGame).map(([gameId, form]) => (

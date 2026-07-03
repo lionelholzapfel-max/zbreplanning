@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import matches from '@/data/matches.json';
 import { toast } from 'sonner';
-import { PageHeader } from '@/components/ui';
+import { PageHeader, Spinner } from '@/components/ui';
 import { useTeamOverrides } from '@/hooks/useTeamOverrides';
 
 interface Match {
@@ -212,7 +212,7 @@ export default function AdminResultsPage() {
   if (!isAdmin || loading) {
     return (
       <div className="min-h-screen bg-[var(--canvas)] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+        <Spinner size={32} />
       </div>
     );
   }
@@ -445,7 +445,7 @@ function TournamentResultsSection() {
   if (loading) {
     return (
       <section className="max-w-4xl mx-auto px-4 py-8">
-        <div className="animate-pulse text-[13px] text-[var(--text-tertiary)]">Chargement…</div>
+        <div className="flex justify-center py-6"><Spinner size={20} /></div>
       </section>
     );
   }

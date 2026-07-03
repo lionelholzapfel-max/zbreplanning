@@ -7,7 +7,7 @@ import Navbar from '@/components/Navbar';
 import { MEMBERS } from '@/data/members';
 import { useSupabase } from '@/hooks/useSupabase';
 import { toast } from 'sonner';
-import { PageHeader, Avatar } from '@/components/ui';
+import { PageHeader, Avatar, Spinner } from '@/components/ui';
 
 interface UserStatus {
   id: string;
@@ -93,7 +93,7 @@ export default function AdminMembersPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[var(--canvas)] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+        <Spinner size={32} />
       </div>
     );
   }

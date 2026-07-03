@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useSupabase } from '@/hooks/useSupabase';
 import { Star, Trophy, Users, ArrowLeft, Crown, Calendar } from 'lucide-react';
+import { Spinner, EmptyState } from '@/components/ui';
 
 type PeriodFilter = '7d' | 'month' | 'all';
 
@@ -83,8 +84,8 @@ export default function GameDetailPage({ params }: { params: Promise<{ gameId: s
 
   if (!mounted || userLoading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-[#6366f1] border-t-transparent rounded-full" />
+      <div className="min-h-screen bg-[var(--canvas)] flex items-center justify-center">
+        <Spinner size={32} />
       </div>
     );
   }
@@ -92,7 +93,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ gameId: s
   if (!currentUser) return null;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f]">
+    <div className="min-h-screen bg-[var(--canvas)]">
       <Navbar />
 
       <main className="max-w-4xl mx-auto px-4 py-6 pb-24">
@@ -273,9 +274,10 @@ export default function GameDetailPage({ params }: { params: Promise<{ gameId: s
             ))}
 
             {sessions.length === 0 && (
-              <p className="text-center text-gray-500 py-8">
-                Aucune partie enregistrée pour ce jeu
-              </p>
+              <EmptyState
+                title="Aucune partie enregistrée"
+                description="Aucune partie n'a encore été jouée pour ce jeu."
+              />
             )}
           </div>
         </div>

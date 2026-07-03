@@ -50,7 +50,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen bg-[#0a0a0f] text-white antialiased">
+      <body className="min-h-screen bg-[var(--canvas)] text-[var(--text-primary)] antialiased">
         <noscript>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '20px', textAlign: 'center' }}>
             <h1 style={{ fontSize: '24px', marginBottom: '16px' }}>JavaScript requis</h1>

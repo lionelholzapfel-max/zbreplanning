@@ -11,7 +11,7 @@ import { MEMBERS } from '@/data/members';
 import { toast } from 'sonner';
 import { TeamInfoButton } from '@/components/TeamFactsSheet';
 import { PHASES, PHASE_DISPLAY, PHASE_ORDER, GROUPS, isKnockoutPhase, getPhaseBadge, Phase } from '@/lib/constants';
-import { PageHeader, EmptyState } from '@/components/ui';
+import { PageHeader, EmptyState, Spinner } from '@/components/ui';
 import { Lock, ExternalLink, Star } from 'lucide-react';
 
 // Filter types
@@ -142,6 +142,7 @@ export default function WorldCupPage() {
   const [newLocation, setNewLocation] = useState('');
   const [mounted, setMounted] = useState(false);
   const [loadingMatch, setLoadingMatch] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   // Score predictions state
   const [scorePredictions, setScorePredictions] = useState<Record<number, MatchPredictionState>>({});
@@ -602,7 +603,8 @@ export default function WorldCupPage() {
   const loadedMatchIdsRef = useRef<Set<number>>(new Set());
   const loadingMatchIdsRef = useRef<Set<number>>(new Set());
 
-  useEffect(() => {
+  // Load data + predictions for any visible matches not yet loaded.
+  const loadAll = useCallback(async () => {
     if (!currentUser || filteredMatches.length === 0) return;
 
     // Only load data for matches we haven't loaded yet AND aren't currently loading
@@ -615,26 +617,27 @@ export default function WorldCupPage() {
     // Mark as "loading" (not "loaded" yet)
     newMatchIds.forEach(id => loadingMatchIdsRef.current.add(id));
 
-    // Load data and mark as loaded on success
-    const loadAll = async () => {
-      try {
-        await Promise.all([
-          loadMatchData(newMatchIds),
-          loadScorePredictions(newMatchIds),
-        ]);
-        // Only mark as loaded AFTER successful fetch
-        newMatchIds.forEach(id => {
-          loadedMatchIdsRef.current.add(id);
-          loadingMatchIdsRef.current.delete(id);
-        });
-      } catch {
-        // On failure, remove from loading so they can be retried
-        newMatchIds.forEach(id => loadingMatchIdsRef.current.delete(id));
-      }
-    };
-
-    loadAll();
+    setLoadError(false);
+    try {
+      await Promise.all([
+        loadMatchData(newMatchIds),
+        loadScorePredictions(newMatchIds),
+      ]);
+      // Only mark as loaded AFTER successful fetch
+      newMatchIds.forEach(id => {
+        loadedMatchIdsRef.current.add(id);
+        loadingMatchIdsRef.current.delete(id);
+      });
+    } catch {
+      // On failure, remove from loading so they can be retried
+      newMatchIds.forEach(id => loadingMatchIdsRef.current.delete(id));
+      setLoadError(true);
+    }
   }, [currentUser, filteredMatches, loadMatchData, loadScorePredictions]);
+
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -770,7 +773,7 @@ export default function WorldCupPage() {
   if (userLoading) {
     return (
       <div className="min-h-screen bg-[var(--canvas)] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+        <Spinner size={32} />
       </div>
     );
   }
@@ -807,6 +810,13 @@ export default function WorldCupPage() {
             </div>
           ) : undefined}
         />
+
+        {loadError && (
+          <div className="flex items-center justify-between gap-3 rounded-[10px] bg-[var(--surface-2)] border border-[var(--danger)]/30 px-4 py-3 mb-4">
+            <p className="text-[13px] text-[var(--text-secondary)]">Impossible de charger les matchs — vérifie ta connexion.</p>
+            <button onClick={() => loadAll()} className="shrink-0 h-8 px-3 rounded-[8px] bg-[var(--surface-3)] text-[13px] text-[var(--text-primary)] hover:bg-[var(--surface-4)] transition-colors">Réessayer</button>
+          </div>
+        )}
       </section>
 
       {/* Phase filters — segmented */}

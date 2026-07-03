@@ -52,6 +52,7 @@ export default function HomePage() {
   const [myUpcomingMatches, setMyUpcomingMatches] = useState<UpcomingMatch[]>([]);
   const [myPredictions, setMyPredictions] = useState<Set<number>>(new Set());
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [loadError, setLoadError] = useState(false);
   const router = useRouter();
   const { currentUser, loading, getUserStats, getUpcomingActivities, getMyUpcomingMatches } = useSupabase();
   const { getTeamNames } = useTeamOverrides();
@@ -70,15 +71,21 @@ export default function HomePage() {
   }, []);
 
   const loadData = useCallback(async () => {
-    const [userStats, activities, myMatches] = await Promise.all([
-      getUserStats(),
-      getUpcomingActivities(),
-      getMyUpcomingMatches(),
-      loadPredictions(),
-    ]);
-    setStats(userStats);
-    setUpcomingActivities(activities);
-    setMyUpcomingMatches(myMatches);
+    try {
+      setLoadError(false);
+      const [userStats, activities, myMatches] = await Promise.all([
+        getUserStats(),
+        getUpcomingActivities(),
+        getMyUpcomingMatches(),
+        loadPredictions(),
+      ]);
+      setStats(userStats);
+      setUpcomingActivities(activities);
+      setMyUpcomingMatches(myMatches);
+    } catch (err) {
+      console.error('Error loading home data:', err);
+      setLoadError(true);
+    }
   }, [getUserStats, getUpcomingActivities, getMyUpcomingMatches, loadPredictions]);
 
   useEffect(() => {
@@ -190,7 +197,7 @@ export default function HomePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
-        <Spinner size={28} />
+        <Spinner size={32} />
       </div>
     );
   }
@@ -261,6 +268,15 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {loadError && (
+        <section className="max-w-5xl mx-auto px-4 pt-8">
+          <div className="flex items-center justify-between gap-3 rounded-[10px] bg-[var(--surface-2)] border border-[var(--danger)]/30 px-4 py-3">
+            <p className="text-[13px] text-[var(--text-secondary)]">Impossible de charger — vérifie ta connexion.</p>
+            <button onClick={() => loadData()} className="shrink-0 h-8 px-3 rounded-[8px] bg-[var(--surface-3)] text-[13px] text-[var(--text-primary)] hover:bg-[var(--surface-4)] transition-colors">Réessayer</button>
+          </div>
+        </section>
+      )}
 
       {/* Stats nues — directement sur --canvas, le chiffre EST l'icône (§3) */}
       <section data-shot="stats" className="max-w-5xl mx-auto px-4 pt-16">
