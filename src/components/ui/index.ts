@@ -6,3 +6,4 @@ export { Avatar } from './Avatar';
 export { Spinner } from './Spinner';
 export { PageHeader } from './PageHeader';
 export { EmptyState } from './EmptyState';
+export { RecordCard } from './RecordCard';
