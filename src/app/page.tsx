@@ -332,7 +332,7 @@ export default function HomePage() {
               const { team1, team2 } = parseMatch(match.match);
               const hasPrediction = myPredictions.has(match.id);
               return (
-                <Link key={`next-${match.id}`} href="/world-cup" className="block">
+                <Link key={`next-${match.id}`} href="/world-cup" className="block group">
                   <ListRow interactive>
                     <div className="flex flex-col w-16 shrink-0 pr-3">
                       <span className="text-xs text-[var(--text-tertiary)] tabular-nums">{match.dateDisplay}</span>
@@ -344,7 +344,7 @@ export default function HomePage() {
                     {hasPrediction ? (
                       <Badge variant="accent">Enregistré</Badge>
                     ) : (
-                      <span className="text-sm text-[var(--accent)] hover:opacity-80 transition-opacity shrink-0">
+                      <span className="text-sm text-[var(--text-secondary)] group-hover:text-[var(--accent)] transition-colors duration-150 shrink-0">
                         Pronostiquer →
                       </span>
                     )}
@@ -445,7 +445,7 @@ export default function HomePage() {
               <p className="mt-1.5 text-sm text-[var(--text-secondary)]">
                 USA · Mexique · Canada — 104 matchs. Pronostique et regarde-les avec la team.
               </p>
-              <span className="mt-4 inline-flex items-center gap-1 text-sm text-[var(--accent)]">
+              <span className="mt-4 inline-flex items-center gap-1 text-sm text-[var(--text-secondary)] group-hover:text-[var(--accent)] transition-colors duration-150">
                 Voir les matchs <ArrowRight className="w-4 h-4" strokeWidth={1.75} />
               </span>
             </div>
@@ -460,7 +460,7 @@ export default function HomePage() {
               <p className="mt-1.5 text-sm text-[var(--text-secondary)]">
                 Propose une soirée, un resto, une sortie.
               </p>
-              <span className="mt-4 inline-flex items-center gap-1 text-sm text-[var(--accent)]">
+              <span className="mt-4 inline-flex items-center gap-1 text-sm text-[var(--text-secondary)] group-hover:text-[var(--accent)] transition-colors duration-150">
                 Voir les activités <ArrowRight className="w-4 h-4" strokeWidth={1.75} />
               </span>
             </div>
