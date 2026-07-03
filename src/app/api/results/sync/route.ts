@@ -76,12 +76,17 @@ interface SyncResult {
   pointsCalculated: number;
 }
 
+interface CorrectedResult extends SyncResult {
+  previousScore: string;
+}
+
 interface SyncResponse {
   success: boolean;
   timestamp: string;
   apiConnected: boolean;
   matchesChecked: number;
   newResultsSynced: SyncResult[];
+  correctedResults: CorrectedResult[];
   alreadySynced: number;
   errors: string[];
 }
@@ -121,6 +126,7 @@ async function runSync() {
     apiConnected: false,
     matchesChecked: 0,
     newResultsSynced: [],
+    correctedResults: [],
     alreadySynced: 0,
     errors: [],
   };
@@ -149,12 +155,14 @@ async function runSync() {
       return NextResponse.json(response);
     }
 
-    // 2. Get existing results from our database
+    // 2. Get existing results (with scores + source) to detect corrections
     const { data: existingResults } = await supabase
       .from('match_results')
-      .select('match_id, source');
+      .select('match_id, source, home_score, away_score');
 
-    const existingMatchIds = new Set((existingResults || []).map(r => r.match_id));
+    const existingByMatch = new Map(
+      (existingResults || []).map(r => [r.match_id, r])
+    );
 
     // 3. Process each finished match from API
     for (const apiMatch of apiMatches) {
@@ -172,12 +180,6 @@ async function runSync() {
         continue;
       }
 
-      // Skip if already has result (admin or auto)
-      if (existingMatchIds.has(ourMatchId)) {
-        response.alreadySynced++;
-        continue;
-      }
-
       // Get final score (fullTime = includes extra time, NOT penalties)
       const score = getFinalScore(apiMatch);
       if (!score) {
@@ -185,7 +187,22 @@ async function runSync() {
         continue;
       }
 
-      // Record the result using the same logic as admin entry
+      const existing = existingByMatch.get(ourMatchId);
+      if (existing) {
+        // Never override a manual admin entry / correction.
+        if (existing.source !== 'auto') {
+          response.alreadySynced++;
+          continue;
+        }
+        // Auto result already recorded — only re-record if the API score CHANGED
+        // (e.g. a late goal disallowed by VAR after our first sync).
+        if (existing.home_score === score.home && existing.away_score === score.away) {
+          response.alreadySynced++;
+          continue;
+        }
+      }
+
+      // Record (or re-record on correction) using the same logic as admin entry
       try {
         const match = getMatchById(ourMatchId);
 
@@ -197,7 +214,7 @@ async function runSync() {
           'auto'
         );
 
-        response.newResultsSynced.push({
+        const synced: SyncResult = {
           matchId: ourMatchId,
           matchName: match?.match || `Match #${ourMatchId}`,
           homeScore: score.home,
@@ -205,7 +222,15 @@ async function runSync() {
           hadExtraTime: score.hadExtraTime,
           source: 'auto',
           pointsCalculated: MEMBERS.length,
-        });
+        };
+        if (existing) {
+          response.correctedResults.push({
+            ...synced,
+            previousScore: `${existing.home_score}-${existing.away_score}`,
+          });
+        } else {
+          response.newResultsSynced.push(synced);
+        }
       } catch (error) {
         const msg = error instanceof Error ? error.message : 'Unknown error';
         response.errors.push(`Match ${ourMatchId}: ${msg}`);
@@ -268,18 +293,19 @@ async function recordMatchResult(
 
   const teams = parseMatchTeams(match.match);
 
-  // Insert result with source tracking
+  // Upsert result with source tracking (upsert so a corrected score re-records
+  // cleanly instead of failing on the unique match_id constraint).
   // entered_by: null for auto-sync (no human user)
   const { error: insertError } = await supabase
     .from('match_results')
-    .insert({
+    .upsert({
       match_id: matchId,
       home_score: homeScore,
       away_score: awayScore,
       source,
       entered_by: null,
       entered_at: new Date().toISOString(),
-    });
+    }, { onConflict: 'match_id' });
 
   if (insertError) {
     throw new Error(`DB insert error: ${insertError.message}`);
