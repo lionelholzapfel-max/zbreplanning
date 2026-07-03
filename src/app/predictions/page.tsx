@@ -630,7 +630,8 @@ export default function PredictionsPage() {
       <section className="max-w-7xl mx-auto px-4 py-8">
         <h2 className="display text-[22px] text-[var(--text-primary)] mb-4">Les pronos du groupe</h2>
 
-        <div className="overflow-x-auto">
+        {/* Desktop: table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-[var(--hairline)]">
@@ -681,6 +682,46 @@ export default function PredictionsPage() {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile: cartes empilées par membre */}
+        <div className="md:hidden space-y-2">
+          {MEMBERS.map(member => {
+            const memberPredictions = allPredictions.filter(p => p.user_id === member.id);
+            const getPred = (type: PredictionType) => memberPredictions.find(p => p.prediction_type === type)?.prediction_value;
+            const isMe = member.id === currentUser.id;
+
+            return (
+              <div key={member.id} className="rounded-[10px] bg-[var(--surface-1)] top-light p-3">
+                <div className="flex items-center gap-2.5 mb-3">
+                  <Avatar slug={member.slug} name={member.name} size={28} />
+                  <span className={`text-[14px] font-medium ${isMe ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}>
+                    {member.name.split(' ')[0]}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+                  {PREDICTION_CATEGORIES.map(cat => {
+                    const pred = getPred(cat.type);
+                    return (
+                      <div key={cat.type}>
+                        <span className="eyebrow block">{cat.title.split(' ').pop()}</span>
+                        {pred ? (
+                          <span className="text-[13px] text-[var(--text-secondary)]">
+                            {(cat.type === 'winner' || cat.type === 'surprise_team') && (
+                              <span className="mr-1">{getTeamFlag(pred)}</span>
+                            )}
+                            {pred}
+                          </span>
+                        ) : (
+                          <span className="text-[13px] text-[var(--text-tertiary)]">—</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
     </div>

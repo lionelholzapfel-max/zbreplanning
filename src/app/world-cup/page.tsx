@@ -11,7 +11,7 @@ import { MEMBERS } from '@/data/members';
 import { toast } from 'sonner';
 import { TeamInfoButton } from '@/components/TeamFactsSheet';
 import { PHASES, PHASE_DISPLAY, PHASE_ORDER, GROUPS, isKnockoutPhase, getPhaseBadge, Phase } from '@/lib/constants';
-import { PageHeader } from '@/components/ui';
+import { PageHeader, EmptyState } from '@/components/ui';
 import { Lock, ExternalLink, Star } from 'lucide-react';
 
 // Filter types
@@ -769,11 +769,8 @@ export default function WorldCupPage() {
   // Show loading spinner while validating session
   if (userLoading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-[#6366f1] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Chargement...</p>
-        </div>
+      <div className="min-h-screen bg-[var(--canvas)] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -795,7 +792,7 @@ export default function WorldCupPage() {
   })?.id ?? null;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f]">
+    <div className="min-h-screen bg-[var(--canvas)]">
       <Navbar />
 
       {/* Header */}
@@ -936,14 +933,14 @@ export default function WorldCupPage() {
             const currentAway = editingThis ? editingScore.away : (myPrediction?.away_score?.toString() || '');
             const isSaving = savingScore === match.id;
 
-            // Lock countdown - show "🔒 dans Xh Ym" if less than 6h until lock
+            // Lock countdown - show "dans Xh Ym" (with Lock icon) if less than 6h until lock
             const timeUntilLock = predState?.timeUntilLock ?? -1;
             const sixHoursMs = 6 * 60 * 60 * 1000;
             const showLockCountdown = !isLocked && timeUntilLock > 0 && timeUntilLock < sixHoursMs;
             const lockCountdownText = showLockCountdown ? (() => {
               const hours = Math.floor(timeUntilLock / (60 * 60 * 1000));
               const minutes = Math.floor((timeUntilLock % (60 * 60 * 1000)) / (60 * 1000));
-              return hours > 0 ? `🔒 dans ${hours}h ${minutes}m` : `🔒 dans ${minutes}m`;
+              return hours > 0 ? `dans ${hours}h ${minutes}m` : `dans ${minutes}m`;
             })() : null;
 
             // Get my points if result exists
@@ -977,12 +974,12 @@ export default function WorldCupPage() {
                     <div className="flex items-center justify-between gap-3 mb-4">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="score text-[13px] text-[var(--text-tertiary)]">{match.time}</span>
-                        <span className="text-[12px] text-[var(--text-tertiary)] truncate">· {match.city}</span>
+                        <span className="hidden sm:inline text-[12px] text-[var(--text-tertiary)] truncate">· {match.city}</span>
                         {match.group ? (
-                          <span className="eyebrow">{match.group}</span>
+                          <span className="eyebrow hidden sm:inline">{match.group}</span>
                         ) : (() => {
                           const badge = getPhaseBadge(match.phase);
-                          return badge ? <span className="eyebrow">{badge.label}</span> : null;
+                          return badge ? <span className="eyebrow hidden sm:inline">{badge.label}</span> : null;
                         })()}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
@@ -997,7 +994,9 @@ export default function WorldCupPage() {
                         )}
                         {hasResult && <span className="text-[11px] uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Terminé</span>}
                         {showLockCountdown && !isLocked && !hasResult && (
-                          <span className="text-[11px] text-[var(--text-tertiary)]">{lockCountdownText?.replace('🔒 ', '')}</span>
+                          <span className="inline-flex items-center gap-1 text-[11px] text-[var(--text-tertiary)]">
+                            <Lock className="w-3.5 h-3.5" />{lockCountdownText}
+                          </span>
                         )}
                         {isLocked && !hasResult && <Lock className="w-3.5 h-3.5 text-[var(--text-tertiary)]" strokeWidth={1.75} />}
                       </div>
@@ -1007,7 +1006,7 @@ export default function WorldCupPage() {
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         <span className="text-[20px] shrink-0">{getFlag(team1)}</span>
-                        <span className="text-[15px] font-medium text-[var(--text-primary)] truncate">{team1}</span>
+                        <span className="text-[14px] sm:text-[15px] font-medium text-[var(--text-primary)] truncate">{team1}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); toggleFavorite(team1); }}
                           disabled={loadingFavorite === team1}
@@ -1035,7 +1034,7 @@ export default function WorldCupPage() {
                         >
                           <Star className="w-3.5 h-3.5" strokeWidth={1.75} fill={favorites.includes(team2) ? 'currentColor' : 'none'} />
                         </button>
-                        <span className="text-[15px] font-medium text-[var(--text-primary)] truncate text-right">{team2}</span>
+                        <span className="text-[14px] sm:text-[15px] font-medium text-[var(--text-primary)] truncate text-right">{team2}</span>
                         <span className="text-[20px] shrink-0">{getFlag(team2)}</span>
                       </div>
                     </div>
@@ -1221,25 +1220,26 @@ export default function WorldCupPage() {
         </div>
 
         {filteredMatches.length === 0 && (
-          <div className="text-center py-16">
-            <span className="text-6xl mb-4 block">🔍</span>
-            <p className="text-gray-500 text-lg">Aucun match trouvé</p>
-            {filters.time !== 'all' && mounted && (
-              <p className="text-gray-600 text-sm mt-2">
-                {filters.time === 'today'
+          <EmptyState
+            title="Aucun match trouvé"
+            description={
+              filters.time !== 'all' && mounted
+                ? filters.time === 'today'
                   ? `Pas de match le ${todayFormatted}`
-                  : `Pas de match du ${todayFormatted} au ${weekEndFormatted}`}
-              </p>
-            )}
-            {filters.time !== 'all' && (
-              <button
-                onClick={() => setFilters(f => ({ ...f, time: 'all' }))}
-                className="mt-4 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition-colors"
-              >
-                Voir tous les matchs
-              </button>
-            )}
-          </div>
+                  : `Pas de match du ${todayFormatted} au ${weekEndFormatted}`
+                : undefined
+            }
+            action={
+              filters.time !== 'all' ? (
+                <button
+                  onClick={() => setFilters(f => ({ ...f, time: 'all' }))}
+                  className="px-4 py-2 rounded-[8px] text-[13px] bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+                >
+                  Voir tous les matchs
+                </button>
+              ) : undefined
+            }
+          />
         )}
       </section>
     </div>

@@ -295,8 +295,8 @@ export default function AdminResultsPage() {
               const isEditing = editingMatch === match.id;
 
               return (
-                <div key={match.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5 border-b border-[var(--hairline)] last:border-b-0">
-                  <span className="text-base shrink-0">{getFlag(team1)}</span>
+                <div key={match.id} className="flex flex-wrap items-center gap-2 sm:gap-3 px-4 py-2.5 border-b border-[var(--hairline)] last:border-b-0">
+                  <span className="text-sm sm:text-base shrink-0">{getFlag(team1)}</span>
                   <span className="text-[14px] text-[var(--text-primary)] flex-1 min-w-0 truncate">{team1}</span>
 
                   {isEditing ? (
@@ -328,7 +328,7 @@ export default function AdminResultsPage() {
                   )}
 
                   <span className="text-[14px] text-[var(--text-primary)] flex-1 min-w-0 truncate text-right">{team2}</span>
-                  <span className="text-base shrink-0">{getFlag(team2)}</span>
+                  <span className="text-sm sm:text-base shrink-0">{getFlag(team2)}</span>
                 </div>
               );
             })}

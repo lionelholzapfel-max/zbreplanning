@@ -326,7 +326,7 @@ export default function CalendarPage() {
             { value: 48, label: 'Équipes' },
           ].map((s) => (
             <div key={s.label} className="flex flex-col">
-              <span className="score text-[40px] text-[var(--text-primary)]">{s.value}</span>
+              <span className="score text-[40px] leading-[1.1] text-[var(--text-primary)]">{s.value}</span>
               <span className="eyebrow mt-2">{s.label}</span>
             </div>
           ))}

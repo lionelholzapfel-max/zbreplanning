@@ -300,15 +300,15 @@ export default function HomePage() {
                   </p>
                 </div>
 
-                <div className="halo relative flex items-start gap-3 sm:gap-4 shrink-0">
+                <div className="halo relative flex items-start gap-2 sm:gap-4 shrink-0">
                   {countdownUnits.map((u, i) => (
                     <Fragment key={u.label}>
                       <div className="relative z-10 flex flex-col items-center">
-                        <CountUp value={u.value} pad={u.pad} className="score text-[56px] text-[var(--text-primary)]" />
+                        <CountUp value={u.value} pad={u.pad} className="score text-[40px] sm:text-[56px] text-[var(--text-primary)]" />
                         <span className="mt-2.5 text-[11px] uppercase tracking-[0.08em] text-[var(--text-tertiary)]">{u.label}</span>
                       </div>
                       {i < countdownUnits.length - 1 && (
-                        <span className="score text-[40px] text-[var(--text-tertiary)] relative z-10 self-start mt-[6px]">:</span>
+                        <span className="score text-[28px] sm:text-[40px] text-[var(--text-tertiary)] relative z-10 self-start mt-[6px]">:</span>
                       )}
                     </Fragment>
                   ))}
@@ -348,7 +348,7 @@ export default function HomePage() {
                       <span className="text-xs text-[var(--text-tertiary)] tabular-nums">{match.dateDisplay}</span>
                       <span className="score text-[15px] text-[var(--text-secondary)]">{match.time}</span>
                     </div>
-                    <div className="flex-1 min-w-0 text-[var(--text-primary)] font-medium truncate">
+                    <div className="flex-1 min-w-0 text-[14px] text-[var(--text-primary)] font-medium truncate">
                       {team1} <span className="text-[var(--text-tertiary)]">—</span> {team2}
                     </div>
                     {hasPrediction ? (

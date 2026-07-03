@@ -222,7 +222,7 @@ export default function LoginPage() {
         </div>
 
         {/* Card */}
-        <div className="rounded-lg border border-[var(--hairline)] bg-[var(--surface)] p-10">
+        <div className="rounded-lg border border-[var(--hairline)] bg-[var(--surface)] p-6 sm:p-10">
           {step === 'select' && (
             <div>
               <div className="text-center">

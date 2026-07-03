@@ -12,7 +12,13 @@ interface PageHeaderProps {
 /** Page title (.display 22px) + optional subtitle + right-aligned action, hairline underline. */
 export function PageHeader({ title, subtitle, action, children }: PageHeaderProps) {
   return (
-    <div className="flex items-end justify-between gap-4 pb-4 mb-6 border-b border-[var(--hairline)]">
+    <div
+      className={`flex pb-4 mb-6 border-b border-[var(--hairline)] ${
+        action
+          ? 'flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4'
+          : 'items-end justify-between gap-4'
+      }`}
+    >
       <div className="min-w-0">
         <div className="flex items-center gap-3 min-w-0">
           <h1 className="display text-[22px] text-[var(--text-primary)] truncate">{title}</h1>

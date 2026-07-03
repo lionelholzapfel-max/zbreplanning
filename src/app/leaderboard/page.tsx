@@ -469,7 +469,7 @@ export default function LeaderboardPage() {
               <span className="eyebrow w-8 text-right">Mzi</span>
             </div>
           )}
-          {activeView === 'live' && <span className="eyebrow">Δ</span>}
+          {activeView === 'live' && <span className="eyebrow w-10 text-right">Δ</span>}
           <span className="eyebrow w-12 text-right">Pts</span>
         </div>
 
@@ -505,7 +505,7 @@ export default function LeaderboardPage() {
               )}
 
               {activeView === 'live' && (
-                <span className={`score text-[13px] tabular-nums ${r.delta && r.delta > 0 ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)]'}`}>
+                <span className={`score text-[13px] w-10 text-right tabular-nums ${r.delta && r.delta > 0 ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)]'}`}>
                   {r.delta && r.delta > 0 ? `+${r.delta}` : '·'}
                 </span>
               )}

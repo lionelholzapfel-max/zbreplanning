@@ -415,12 +415,13 @@ export default function GamesPage() {
                 </span>
               )}
             </h2>
-            <div className="glass rounded-xl overflow-x-auto">
+            <div className="relative">
+              <div className="glass rounded-xl overflow-x-auto">
               <table className="w-full min-w-[600px]">
                 <thead>
                   <tr className="border-b border-white/10">
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">#</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Joueur</th>
+                    <th className="sticky left-0 z-10 bg-[var(--surface-1)] px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Joueur</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">ELO</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Étoiles</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Ratio</th>
@@ -444,7 +445,7 @@ export default function GamesPage() {
                           {entry.rank}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="sticky left-0 z-10 bg-[var(--surface-1)] px-4 py-3">
                         <div className="flex items-center gap-2.5">
                           <div className="relative w-8 h-8 rounded-full overflow-hidden ring-1 ring-white/10 shrink-0">
                             <Image
@@ -475,6 +476,8 @@ export default function GamesPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
+              <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[var(--surface-1)] to-transparent" />
             </div>
           </div>
         )}
