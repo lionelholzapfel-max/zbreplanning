@@ -32,6 +32,12 @@ export function EvolutionChart() {
   const [loading, setLoading] = useState(true);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [hovered, setHovered] = useState<string | null>(null);
+  // Recharts' tooltip sticks on touch (no hover-out) and covers the chart on
+  // mobile. Only enable it on hover-capable pointers (desktop).
+  const [canHover, setCanHover] = useState(false);
+  useEffect(() => {
+    setCanHover(window.matchMedia('(hover: hover)').matches);
+  }, []);
 
   useEffect(() => {
     async function loadData() {
@@ -136,7 +142,7 @@ export function EvolutionChart() {
             <CartesianGrid {...chartGridProps} />
             <XAxis dataKey="date" tickFormatter={formatDate} {...chartAxisProps} interval="preserveStartEnd" />
             <YAxis {...chartAxisProps} />
-            <Tooltip content={<CustomTooltip />} cursor={chartTooltipStyle.cursor} />
+            {canHover && <Tooltip content={<CustomTooltip />} cursor={chartTooltipStyle.cursor} />}
             {members.map((member) => {
               if (hidden.has(member.id)) return null;
               const highlighted = member.id === currentUserId || member.id === leaderId;

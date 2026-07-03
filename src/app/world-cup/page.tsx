@@ -802,8 +802,6 @@ export default function WorldCupPage() {
     const ps = scorePredictions[m.id];
     return !ps?.result && !ps?.predictionLocked && !ps?.myPrediction;
   })?.id ?? null;
-  // Sliding-indicator index for the phase segmented.
-  const activePhaseIndex = Math.max(0, phases.findIndex((p) => p.id === selectedPhase));
 
   return (
     <div className="min-h-screen bg-[var(--canvas)]">
@@ -832,16 +830,8 @@ export default function WorldCupPage() {
 
       {/* Phase filters — segmented */}
       <section className="max-w-7xl mx-auto px-4 pt-6">
-        <div className="flex justify-center">
-          <div
-            className="relative inline-grid rounded-[8px] bg-[var(--surface-2)] p-0.5 max-w-full overflow-x-auto scrollbar-hide"
-            style={{ gridTemplateColumns: `repeat(${phases.length}, minmax(0, 1fr))` }}
-          >
-            <span
-              aria-hidden
-              className="pointer-events-none absolute top-0.5 bottom-0.5 left-0.5 rounded-[6px] bg-[var(--surface-3)] top-light transition-transform duration-150 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]"
-              style={{ width: `calc((100% - 4px) / ${phases.length})`, transform: `translateX(${activePhaseIndex * 100}%)` }}
-            />
+        <div className="flex justify-start sm:justify-center">
+          <div className="inline-flex max-w-full overflow-x-auto scrollbar-hide rounded-[8px] bg-[var(--surface-2)] p-0.5">
             {phases.map(phase => (
               <button
                 key={phase.id}
@@ -849,9 +839,9 @@ export default function WorldCupPage() {
                   setSelectedPhase(phase.id);
                   if (phase.id !== 'PHASE DE GROUPES') setSelectedGroup(null);
                 }}
-                className={`relative z-10 text-center px-3 py-2.5 sm:py-1.5 rounded-[6px] text-[13px] whitespace-nowrap transition-colors ${
+                className={`shrink-0 px-3 py-2.5 sm:py-1.5 rounded-[6px] text-[13px] whitespace-nowrap transition-colors ${
                   selectedPhase === phase.id
-                    ? 'text-[var(--text-primary)]'
+                    ? 'bg-[var(--surface-3)] top-light text-[var(--text-primary)]'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                 }`}
               >
@@ -1034,12 +1024,12 @@ export default function WorldCupPage() {
                     {/* Row 2 — teams + score */}
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <span className="text-[20px] shrink-0">{getFlag(team1)}</span>
+                        <span className="text-[17px] sm:text-[20px] shrink-0">{getFlag(team1)}</span>
                         <span className="text-[14px] sm:text-[15px] font-medium text-[var(--text-primary)] truncate">{team1}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); toggleFavorite(team1); }}
                           disabled={loadingFavorite === team1}
-                          className={`shrink-0 p-2.5 -m-1 transition-colors ${favorites.includes(team1) ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}
+                          className={`shrink-0 p-1.5 -m-0.5 sm:p-2.5 sm:-m-1 transition-colors ${favorites.includes(team1) ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}
                           aria-label="Favori"
                         >
                           <Star className="w-3.5 h-3.5" strokeWidth={1.75} fill={favorites.includes(team1) ? 'currentColor' : 'none'} />
@@ -1058,13 +1048,13 @@ export default function WorldCupPage() {
                         <button
                           onClick={(e) => { e.stopPropagation(); toggleFavorite(team2); }}
                           disabled={loadingFavorite === team2}
-                          className={`shrink-0 p-2.5 -m-1 transition-colors ${favorites.includes(team2) ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}
+                          className={`shrink-0 p-1.5 -m-0.5 sm:p-2.5 sm:-m-1 transition-colors ${favorites.includes(team2) ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}
                           aria-label="Favori"
                         >
                           <Star className="w-3.5 h-3.5" strokeWidth={1.75} fill={favorites.includes(team2) ? 'currentColor' : 'none'} />
                         </button>
                         <span className="text-[14px] sm:text-[15px] font-medium text-[var(--text-primary)] truncate text-right">{team2}</span>
-                        <span className="text-[20px] shrink-0">{getFlag(team2)}</span>
+                        <span className="text-[17px] sm:text-[20px] shrink-0">{getFlag(team2)}</span>
                       </div>
                     </div>
 
