@@ -11,17 +11,15 @@ import { MEMBERS } from '@/data/members';
 import { toast } from 'sonner';
 import { TeamInfoButton } from '@/components/TeamFactsSheet';
 import { PHASES, PHASE_DISPLAY, PHASE_ORDER, GROUPS, isKnockoutPhase, getPhaseBadge, Phase } from '@/lib/constants';
-import { PageHeader, EmptyState, Spinner } from '@/components/ui';
+import { PageHeader, EmptyState, Spinner, DayStrip } from '@/components/ui';
 import { CountUp } from '@/components/CountUp';
 import { Lock, ExternalLink, Star } from 'lucide-react';
 
 // Filter types
-type TimeFilter = 'all' | 'today' | 'week';
 type TimeSlot = 'all' | 'evening' | 'night';
 type ResultsFilter = 'all' | 'last24h' | 'last10';
 
 interface FilterState {
-  time: TimeFilter;
   myTeams: boolean;
   toPredictOnly: boolean;
   timeSlot: TimeSlot;
@@ -94,6 +92,12 @@ const getFlag = (country: string): string => {
   return '⚽';
 };
 
+// Today's date as a local "YYYY-MM-DD" string (client-only — call after mount).
+const getTodayISO = (): string => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
 const parseMatch = (matchStr: string) => {
   const parts = matchStr.split(' - ');
   if (parts.length === 2) {
@@ -159,12 +163,15 @@ export default function WorldCupPage() {
 
   // Filter state (persisted in localStorage)
   const [filters, setFilters] = useState<FilterState>({
-    time: 'all',
     myTeams: false,
     toPredictOnly: false,
     timeSlot: 'all',
     resultsOnly: 'all',
   });
+
+  // Selected day for the DayStrip: 'all' or a "YYYY-MM-DD".
+  // Default is set client-side on mount (today if the tournament plays today, else 'all').
+  const [selectedDay, setSelectedDay] = useState<string>('all');
 
   // Helper to parse match datetime
   const getMatchDateTime = useCallback((match: Match): Date => {
@@ -202,24 +209,6 @@ export default function WorldCupPage() {
     });
     return sorted[0]?.user_id || null;
   }, [participations]);
-
-  // Helper to check if match is in time range
-  const isMatchInTimeRange = useCallback((match: Match, range: TimeFilter): boolean => {
-    if (range === 'all') return true;
-    const matchDate = getMatchDateTime(match);
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
-    const weekEnd = new Date(todayStart.getTime() + 7 * 24 * 60 * 60 * 1000);
-
-    if (range === 'today') {
-      return matchDate >= todayStart && matchDate < todayEnd;
-    }
-    if (range === 'week') {
-      return matchDate >= todayStart && matchDate < weekEnd;
-    }
-    return true;
-  }, [getMatchDateTime]);
 
   // Helper to check time slot (based on actual World Cup 2026 schedule)
   // Evening: 18:00-23:59 (Belgian time)
@@ -294,6 +283,34 @@ export default function WorldCupPage() {
     return new Set();
   }, [matchesWithResults, getMatchDateTime]);
 
+  // Unique tournament days (sorted) with their match counts — powers the DayStrip.
+  const dayOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const m of matches as Match[]) {
+      counts.set(m.date, (counts.get(m.date) || 0) + 1);
+    }
+    return [...counts.entries()]
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, []);
+
+  // Today's ISO date (client-only, to avoid hydration mismatch).
+  const todayISO = useMemo(() => (mounted ? getTodayISO() : null), [mounted]);
+
+  // Default day: today if the tournament plays today, otherwise 'all'.
+  const defaultDay = useMemo(
+    () => (todayISO && dayOptions.some(d => d.date === todayISO) ? todayISO : 'all'),
+    [todayISO, dayOptions]
+  );
+
+  // Apply the default selection once, on mount (client-side).
+  const dayDefaultAppliedRef = useRef(false);
+  useEffect(() => {
+    if (!mounted || dayDefaultAppliedRef.current) return;
+    dayDefaultAppliedRef.current = true;
+    if (defaultDay !== 'all') setSelectedDay(defaultDay);
+  }, [mounted, defaultDay]);
+
   const filteredMatches = useMemo(() => {
     const now = new Date();
 
@@ -303,8 +320,8 @@ export default function WorldCupPage() {
 
       const groupMatch = !selectedGroup || m.group === `GROUPE ${selectedGroup}`;
 
-      // Time filter
-      const timeMatch = isMatchInTimeRange(m, filters.time);
+      // Day filter (from the DayStrip)
+      const dayMatch = selectedDay === 'all' || m.date === selectedDay;
 
       // Time slot filter
       const timeSlotMatch = isMatchInTimeSlot(m, filters.timeSlot);
@@ -335,7 +352,7 @@ export default function WorldCupPage() {
         resultsMatch = resultsMatchIds.has(m.id);
       }
 
-      return phaseMatch && groupMatch && timeMatch && timeSlotMatch && myTeamsMatch && toPredictMatch && resultsMatch;
+      return phaseMatch && groupMatch && dayMatch && timeSlotMatch && myTeamsMatch && toPredictMatch && resultsMatch;
     });
 
     // Sort by date/time
@@ -351,7 +368,7 @@ export default function WorldCupPage() {
     });
 
     return result;
-  }, [selectedPhase, selectedGroup, filters, favorites, scorePredictions, getMatchDateTime, isMatchInTimeRange, isMatchInTimeSlot, getResultsFilterMatchIds]);
+  }, [selectedPhase, selectedGroup, selectedDay, filters, favorites, scorePredictions, getMatchDateTime, isMatchInTimeSlot, getResultsFilterMatchIds]);
 
   // Load data for visible matches
   const loadMatchData = useCallback(async (matchIds: number[]) => {
@@ -767,16 +784,11 @@ export default function WorldCupPage() {
     return Math.ceil((worldCupStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   }, [mounted]);
 
-  // Format today's date only on client
-  const todayFormatted = useMemo(() => {
-    if (!mounted) return '';
-    return new Date().toLocaleDateString('fr-FR');
-  }, [mounted]);
-
-  const weekEndFormatted = useMemo(() => {
-    if (!mounted) return '';
-    return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('fr-FR');
-  }, [mounted]);
+  // Human label for the selected day (e.g. "11 juin"), for the empty state.
+  const selectedDayLabel = useMemo(() => {
+    if (selectedDay === 'all') return '';
+    return (matches as Match[]).find(m => m.date === selectedDay)?.dateDisplay ?? '';
+  }, [selectedDay]);
 
   // Show loading spinner while validating session
   if (userLoading) {
@@ -876,14 +888,21 @@ export default function WorldCupPage() {
         )}
       </section>
 
+      {/* Day strip — pick a day to see its matches (prono-app style) */}
+      <section data-shot="day-strip" className="max-w-7xl mx-auto px-4 pt-5">
+        <DayStrip
+          days={dayOptions}
+          selectedDay={selectedDay}
+          todayISO={todayISO}
+          totalCount={(matches as Match[]).length}
+          onSelect={setSelectedDay}
+        />
+      </section>
+
       {/* Sticky filter bar — one row of chips */}
       <section data-shot="filters" className="sticky top-14 z-30 bg-[var(--canvas)]/95 backdrop-blur-sm border-b border-[var(--hairline)] py-2.5 px-4 mt-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
-            <button onClick={() => setFilters(f => ({ ...f, time: 'today' }))} className={chip(filters.time === 'today')} title={mounted ? `Matchs du ${todayFormatted}` : undefined}>Aujourd&apos;hui</button>
-            <button onClick={() => setFilters(f => ({ ...f, time: 'week' }))} className={chip(filters.time === 'week')} title={mounted ? `Du ${todayFormatted} au ${weekEndFormatted}` : undefined}>Cette semaine</button>
-            <button onClick={() => setFilters(f => ({ ...f, time: 'all' }))} className={chip(filters.time === 'all')}>Tous</button>
-
             <button onClick={() => setFilters(f => ({ ...f, myTeams: !f.myTeams }))} className={chip(filters.myTeams)}>
               Mes équipes{favorites.length > 0 && <span className="opacity-70">{favorites.length}</span>}
             </button>
@@ -906,13 +925,16 @@ export default function WorldCupPage() {
             )}
           </div>
 
-          {(filters.time !== 'all' || filters.myTeams || filters.toPredictOnly || filters.timeSlot !== 'all' || filters.resultsOnly !== 'all') && (
+          {(selectedDay !== defaultDay || filters.myTeams || filters.toPredictOnly || filters.timeSlot !== 'all' || filters.resultsOnly !== 'all') && (
             <div className="flex items-center justify-between mt-2 text-[12px]">
               <span className="text-[var(--text-tertiary)]">
                 {filteredMatches.length} match{filteredMatches.length > 1 ? 's' : ''}
               </span>
               <button
-                onClick={() => setFilters({ time: 'all', myTeams: false, toPredictOnly: false, timeSlot: 'all', resultsOnly: 'all' })}
+                onClick={() => {
+                  setFilters({ myTeams: false, toPredictOnly: false, timeSlot: 'all', resultsOnly: 'all' });
+                  setSelectedDay(defaultDay);
+                }}
                 className="text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
               >
                 Réinitialiser
@@ -1252,19 +1274,17 @@ export default function WorldCupPage() {
           <EmptyState
             title="Aucun match trouvé"
             description={
-              filters.time !== 'all' && mounted
-                ? filters.time === 'today'
-                  ? `Pas de match le ${todayFormatted}`
-                  : `Pas de match du ${todayFormatted} au ${weekEndFormatted}`
+              selectedDay !== 'all' && selectedDayLabel
+                ? `Pas de match le ${selectedDayLabel} pour cette phase`
                 : undefined
             }
             action={
-              filters.time !== 'all' ? (
+              selectedDay !== 'all' ? (
                 <button
-                  onClick={() => setFilters(f => ({ ...f, time: 'all' }))}
+                  onClick={() => setSelectedDay('all')}
                   className="px-4 py-2 rounded-[8px] text-[13px] bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
                 >
-                  Voir tous les matchs
+                  Voir tous les jours
                 </button>
               ) : undefined
             }
