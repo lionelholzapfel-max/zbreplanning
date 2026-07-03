@@ -603,7 +603,7 @@ export default function PredictionsPage() {
                             className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[var(--surface-2)]"
                           >
                             <div className="relative w-4 h-4 rounded-full overflow-hidden">
-                              <Image src={`/members/${pred.user?.member_slug || 'default'}.png`} alt="" fill sizes="16px" className="object-cover object-top" />
+                              <Image src={`/members/${pred.user?.member_slug || 'default'}.webp`} alt="" fill sizes="16px" className="object-cover object-top" />
                             </div>
                             <span className="text-[12px] text-[var(--text-tertiary)]">{pred.user?.member_name?.split(' ')[0]}</span>
                             <span className="text-[12px] font-medium text-[var(--text-secondary)]">

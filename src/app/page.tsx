@@ -235,7 +235,7 @@ export default function HomePage() {
       {/* Hero */}
       <section data-shot="hero" className="relative h-[420px] overflow-hidden">
         <Image
-          src="/team/group.png"
+          src="/team/group.webp"
           alt="Zbre Team"
           fill
           className="object-cover object-top grayscale contrast-[1.05]"

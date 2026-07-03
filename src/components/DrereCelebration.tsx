@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
-import confetti from 'canvas-confetti';
 import { Play, Pause } from 'lucide-react';
 import { CountUp } from '@/components/CountUp';
 
@@ -25,145 +24,151 @@ export default function DrereCelebration() {
 
   // Fire daily confetti (classic style)
   const fireDailyConfetti = useCallback(() => {
-    const duration = 3000;
-    const end = Date.now() + duration;
+    import('canvas-confetti').then(({ default: confetti }) => {
+      const duration = 3000;
+      const end = Date.now() + duration;
 
-    const frame = () => {
-      confetti({
-        particleCount: 5,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0 },
-        colors: ['#E8B93E', '#DAA520', '#F0E68C'],
-      });
-      confetti({
-        particleCount: 5,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1 },
-        colors: ['#E8B93E', '#DAA520', '#F0E68C'],
-      });
+      const frame = () => {
+        confetti({
+          particleCount: 5,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 },
+          colors: ['#E8B93E', '#DAA520', '#F0E68C'],
+        });
+        confetti({
+          particleCount: 5,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 },
+          colors: ['#E8B93E', '#DAA520', '#F0E68C'],
+        });
 
-      if (Date.now() < end) {
-        requestAnimationFrame(frame);
-      }
-    };
-    frame();
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      };
+      frame();
+    });
   }, []);
 
   // Fire weekly confetti (champion style - bigger, more gold, more epic)
   const fireWeeklyConfetti = useCallback(() => {
-    const duration = 5000;
-    const end = Date.now() + duration;
+    import('canvas-confetti').then(({ default: confetti }) => {
+      const duration = 5000;
+      const end = Date.now() + duration;
 
-    // Initial big burst
-    confetti({
-      particleCount: 100,
-      spread: 100,
-      origin: { y: 0.6 },
-      colors: ['#FFD700', '#FFA500', '#FFDF00', '#F0E68C', '#DAA520'],
-      scalar: 1.5,
+      // Initial big burst
+      confetti({
+        particleCount: 100,
+        spread: 100,
+        origin: { y: 0.6 },
+        colors: ['#FFD700', '#FFA500', '#FFDF00', '#F0E68C', '#DAA520'],
+        scalar: 1.5,
+      });
+
+      // Continuous gold rain
+      const frame = () => {
+        // Left cannon
+        confetti({
+          particleCount: 8,
+          angle: 60,
+          spread: 70,
+          origin: { x: 0, y: 0.5 },
+          colors: ['#FFD700', '#FFA500', '#FFDF00', '#ffffff'],
+          scalar: 1.3,
+          gravity: 0.8,
+        });
+        // Right cannon
+        confetti({
+          particleCount: 8,
+          angle: 120,
+          spread: 70,
+          origin: { x: 1, y: 0.5 },
+          colors: ['#FFD700', '#FFA500', '#FFDF00', '#ffffff'],
+          scalar: 1.3,
+          gravity: 0.8,
+        });
+        // Center shower
+        confetti({
+          particleCount: 3,
+          angle: 270,
+          spread: 60,
+          origin: { x: 0.5, y: 0 },
+          colors: ['#FFD700', '#FFDF00', '#DAA520'],
+          scalar: 1.2,
+          drift: 0,
+        });
+
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      };
+      frame();
+
+      // Star bursts every second
+      const starBurst = setInterval(() => {
+        if (Date.now() >= end) {
+          clearInterval(starBurst);
+          return;
+        }
+        confetti({
+          particleCount: 50,
+          spread: 360,
+          origin: { x: Math.random(), y: Math.random() * 0.5 + 0.2 },
+          colors: ['#FFD700', '#FFA500'],
+          scalar: 0.8,
+          shapes: ['star'],
+        });
+      }, 800);
     });
-
-    // Continuous gold rain
-    const frame = () => {
-      // Left cannon
-      confetti({
-        particleCount: 8,
-        angle: 60,
-        spread: 70,
-        origin: { x: 0, y: 0.5 },
-        colors: ['#FFD700', '#FFA500', '#FFDF00', '#ffffff'],
-        scalar: 1.3,
-        gravity: 0.8,
-      });
-      // Right cannon
-      confetti({
-        particleCount: 8,
-        angle: 120,
-        spread: 70,
-        origin: { x: 1, y: 0.5 },
-        colors: ['#FFD700', '#FFA500', '#FFDF00', '#ffffff'],
-        scalar: 1.3,
-        gravity: 0.8,
-      });
-      // Center shower
-      confetti({
-        particleCount: 3,
-        angle: 270,
-        spread: 60,
-        origin: { x: 0.5, y: 0 },
-        colors: ['#FFD700', '#FFDF00', '#DAA520'],
-        scalar: 1.2,
-        drift: 0,
-      });
-
-      if (Date.now() < end) {
-        requestAnimationFrame(frame);
-      }
-    };
-    frame();
-
-    // Star bursts every second
-    const starBurst = setInterval(() => {
-      if (Date.now() >= end) {
-        clearInterval(starBurst);
-        return;
-      }
-      confetti({
-        particleCount: 50,
-        spread: 360,
-        origin: { x: Math.random(), y: Math.random() * 0.5 + 0.2 },
-        colors: ['#FFD700', '#FFA500'],
-        scalar: 0.8,
-        shapes: ['star'],
-      });
-    }, 800);
   }, []);
 
   // Fire MZI "loser" effect - sad falling particles
   const fireLoserEffect = useCallback(() => {
-    const duration = 5000;
-    const end = Date.now() + duration;
+    import('canvas-confetti').then(({ default: confetti }) => {
+      const duration = 5000;
+      const end = Date.now() + duration;
 
-    // Sad grey/brown falling particles
-    const frame = () => {
-      // Falling from top - slow and sad
-      confetti({
-        particleCount: 2,
-        angle: 270,
-        spread: 30,
-        origin: { x: Math.random(), y: 0 },
-        colors: ['#6b7280', '#4b5563', '#374151', '#78716c', '#57534e'],
-        scalar: 1.5,
-        gravity: 2,
-        drift: Math.random() * 2 - 1,
-        ticks: 300,
-      });
+      // Sad grey/brown falling particles
+      const frame = () => {
+        // Falling from top - slow and sad
+        confetti({
+          particleCount: 2,
+          angle: 270,
+          spread: 30,
+          origin: { x: Math.random(), y: 0 },
+          colors: ['#6b7280', '#4b5563', '#374151', '#78716c', '#57534e'],
+          scalar: 1.5,
+          gravity: 2,
+          drift: Math.random() * 2 - 1,
+          ticks: 300,
+        });
 
-      if (Date.now() < end) {
-        requestAnimationFrame(frame);
-      }
-    };
-    frame();
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      };
+      frame();
 
-    // Occasional "thumbs down" burst
-    const sadBurst = setInterval(() => {
-      if (Date.now() >= end) {
-        clearInterval(sadBurst);
-        return;
-      }
-      confetti({
-        particleCount: 10,
-        spread: 60,
-        origin: { x: Math.random(), y: 0.3 },
-        colors: ['#ef4444', '#991b1b', '#7f1d1d'],
-        scalar: 0.6,
-        gravity: 1.5,
-      });
-    }, 1200);
+      // Occasional "thumbs down" burst
+      const sadBurst = setInterval(() => {
+        if (Date.now() >= end) {
+          clearInterval(sadBurst);
+          return;
+        }
+        confetti({
+          particleCount: 10,
+          spread: 60,
+          origin: { x: Math.random(), y: 0.3 },
+          colors: ['#ef4444', '#991b1b', '#7f1d1d'],
+          scalar: 0.6,
+          gravity: 1.5,
+        });
+      }, 1200);
 
-    loserIntervalRef.current = sadBurst;
+      loserIntervalRef.current = sadBurst;
+    });
   }, []);
 
   // Play/pause music
@@ -185,10 +190,10 @@ export default function DrereCelebration() {
     }
 
     const soundFile = type === 'weekly'
-      ? '/sounds/drere-week.mp3'
+      ? '/sounds/drere-week.m4a'
       : type === 'mzi'
-        ? '/sounds/mzi.mp3'
-        : '/sounds/drere.mp3';
+        ? '/sounds/mzi.m4a'
+        : '/sounds/drere.m4a';
 
     if (!audioRef.current || audioRef.current.src !== soundFile) {
       audioRef.current = new Audio(soundFile);
@@ -432,7 +437,7 @@ export default function DrereCelebration() {
               style={{ animationDelay: '80ms' }}
             >
               <Image
-                src={`/members/${celebrationData.member_slug}.png`}
+                src={`/members/${celebrationData.member_slug}.webp`}
                 alt={celebrationData.member_name}
                 fill
                 className="object-cover object-top"

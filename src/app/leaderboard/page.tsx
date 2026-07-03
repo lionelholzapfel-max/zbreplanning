@@ -1,15 +1,22 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 
 // recharts is heavy (~390 KB) and the chart sits below the fold → load it lazily.
+// The placeholder matches EvolutionChart's own loading box (p-6 + h-64 = ~304px)
+// so mounting the real chart causes no layout shift.
 const EvolutionChart = dynamic(
   () => import('@/components/EvolutionChart').then((m) => m.EvolutionChart),
-  { ssr: false }
+  {
+    ssr: false,
+    loading: () => (
+      <div className="rounded-[10px] bg-[var(--surface-1)] top-light h-[304px] animate-pulse" />
+    ),
+  }
 );
 import { WallOfShame } from '@/components/WallOfShame';
 import { DrereSpeech } from '@/components/DrereSpeech';
@@ -122,11 +129,17 @@ export default function LeaderboardPage() {
   const [mounted, setMounted] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [view, setView] = useState<'general' | 'semaine' | 'live'>('general');
+  const [chartVisible, setChartVisible] = useState(false);
+  const evolutionRef = useRef<HTMLElement>(null);
 
   const loadData = useCallback(async () => {
     try {
       setLoadError(false);
-      const res = await fetch('/api/leaderboard');
+      // These two endpoints are independent → fire them in parallel (no waterfall).
+      const [res, liveRes] = await Promise.all([
+        fetch('/api/leaderboard'),
+        fetch('/api/leaderboard/live'),
+      ]);
       if (!res.ok) {
         if (res.status === 401) {
           router.push('/login');
@@ -152,8 +165,7 @@ export default function LeaderboardPage() {
       setMostDrereRecord(data.most_drere_record || null);
       setMostExactScoresRecord(data.most_exact_scores_record || null);
 
-      // Fetch live ranking
-      const liveRes = await fetch('/api/leaderboard/live');
+      // Live ranking was fetched in parallel above.
       if (liveRes.ok) {
         const liveData = await liveRes.json();
         setLiveRanking(liveData);
@@ -167,11 +179,25 @@ export default function LeaderboardPage() {
     }
   }, [router]);
 
+  // Live view is only relevant when there are matches today (or we're showing the
+  // previous day's recap). No point polling otherwise.
+  const liveAvailable =
+    !!liveRanking && (liveRanking.matchesToday > 0 || !!liveRanking.isPreviousDay);
+
+  // Initial load (also drives the manual retry button via loadData).
   useEffect(() => {
     loadData();
+  }, [loadData]);
 
-    // Refresh live ranking every 30 seconds
-    const liveInterval = setInterval(async () => {
+  // Live polling — every 30s, but only while the Live view is relevant AND the tab
+  // is visible. Pauses on tab hide, resumes (with an immediate refresh) on return.
+  useEffect(() => {
+    if (!liveAvailable) return;
+
+    let interval: ReturnType<typeof setInterval> | undefined;
+
+    const fetchLive = async () => {
+      if (document.hidden) return;
       try {
         const res = await fetch('/api/leaderboard/live');
         if (res.ok) {
@@ -181,10 +207,53 @@ export default function LeaderboardPage() {
       } catch {
         // Silently fail on refresh errors
       }
-    }, 30000);
+    };
 
-    return () => clearInterval(liveInterval);
-  }, [loadData]);
+    const start = () => {
+      if (interval === undefined) interval = setInterval(fetchLive, 30000);
+    };
+    const stop = () => {
+      if (interval !== undefined) {
+        clearInterval(interval);
+        interval = undefined;
+      }
+    };
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        stop();
+      } else {
+        fetchLive();
+        start();
+      }
+    };
+
+    if (!document.hidden) start();
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [liveAvailable]);
+
+  // Mount the heavy chart only once its section approaches the viewport.
+  useEffect(() => {
+    if (chartVisible) return;
+    const el = evolutionRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setChartVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [chartVisible, loading]);
 
   const getRankChange = (change: number) => {
     if (change > 0) return <span className="text-[11px] text-[var(--accent)]">▲{change}</span>;
@@ -233,7 +302,7 @@ export default function LeaderboardPage() {
   const dreresWeek = leaderboard.filter(e => e.is_drere_week);
 
   // ---- Unified table rows (Général / Semaine / Live) ----
-  const liveAvailable = !!liveRanking && (liveRanking.matchesToday > 0 || !!liveRanking.isPreviousDay);
+  // liveAvailable is computed above (drives live polling too).
   const isLiveActive = !!liveRanking?.isLive;
   const activeView = view === 'live' && !liveAvailable ? 'general' : view;
 
@@ -550,9 +619,13 @@ export default function LeaderboardPage() {
       </section>
 
       {/* Évolution */}
-      <section className="max-w-4xl mx-auto px-4 pb-8">
+      <section ref={evolutionRef} className="max-w-4xl mx-auto px-4 pb-8">
         <h2 className="display text-[22px] text-[var(--text-primary)] mb-4">Évolution</h2>
-        <EvolutionChart />
+        {chartVisible ? (
+          <EvolutionChart />
+        ) : (
+          <div className="rounded-[10px] bg-[var(--surface-1)] top-light h-[304px] animate-pulse" />
+        )}
       </section>
 
       {/* Records */}

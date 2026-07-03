@@ -236,6 +236,35 @@ async function captureMotion(browser: Awaited<ReturnType<typeof chromium.launch>
   }
 }
 
+// ── Perf mode: transferred bytes + request count + LCP per page ──
+// Indicative (dev server, unthrottled). The deltas before/after reflect the work.
+async function capturePerf(browser: Awaited<ReturnType<typeof chromium.launch>>, token: string) {
+  const ctx = await newCtx(browser, true, token);
+  const targets = [{ n: 'home', p: '/' }, { n: 'world-cup', p: '/world-cup' }, { n: 'leaderboard', p: '/leaderboard' }];
+  for (const t of targets) {
+    const page = await ctx.newPage();
+    let bytes = 0, reqs = 0;
+    page.on('requestfinished', async (req) => {
+      try { const s = await req.sizes(); bytes += (s.responseBodySize || 0) + (s.responseHeadersSize || 0); reqs++; } catch { /* ignore */ }
+    });
+    try {
+      await page.goto(`${BASE_URL}${t.p}`, { waitUntil: 'load', timeout: 30000 });
+      await page.waitForTimeout(3500); // let async data + lazy chunks settle
+      const lcp = await page.evaluate(() => new Promise<number>((res) => {
+        let v = 0;
+        try { new PerformanceObserver((list) => { for (const e of list.getEntries()) v = (e as PerformanceEntry).startTime; }).observe({ type: 'largest-contentful-paint', buffered: true }); } catch { /* ignore */ }
+        setTimeout(() => res(Math.round(v)), 600);
+      }));
+      console.log(`  ${t.n.padEnd(12)} LCP ${String(lcp).padStart(4)}ms · ${String(reqs).padStart(3)} req · ${(bytes / 1024).toFixed(0).padStart(5)} KB`);
+    } catch (e) {
+      console.log(`  ✗ ${t.n} — ${(e as Error).message.split('\n')[0]}`);
+    } finally {
+      await page.close();
+    }
+  }
+  await ctx.close();
+}
+
 async function main() {
   mkdirSync(OUT_DIR, { recursive: true });
   const token = await forgeSessionCookie();
@@ -257,6 +286,12 @@ async function main() {
     await captureMotion(browser, token);
     await browser.close();
     console.log(`\nClips motion-*.webm dans ${OUT_DIR}/`);
+    return;
+  }
+
+  if (arg === 'perf') {
+    await capturePerf(browser, token);
+    await browser.close();
     return;
   }
   const profiles =

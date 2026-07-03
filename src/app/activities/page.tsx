@@ -255,7 +255,7 @@ export default function ActivitiesPage() {
                       {yesParticipants.map(p => (
                         <div key={p.id} className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[var(--surface-2)]">
                           <div className="relative w-5 h-5 rounded-full overflow-hidden ring-1 ring-[var(--hairline)]">
-                            <Image src={`/members/${p.users?.member_slug || 'default'}.png`} alt="" fill sizes="20px" className="object-cover object-top" />
+                            <Image src={`/members/${p.users?.member_slug || 'default'}.webp`} alt="" fill sizes="20px" className="object-cover object-top" />
                           </div>
                           <span className="text-[12px] text-[var(--text-secondary)]">{p.users?.member_name?.split(' ')[0]}</span>
                         </div>
@@ -263,7 +263,7 @@ export default function ActivitiesPage() {
                       {maybeParticipants.map(p => (
                         <div key={p.id} className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[var(--surface-2)]">
                           <div className="relative w-5 h-5 rounded-full overflow-hidden ring-1 ring-[var(--hairline)]">
-                            <Image src={`/members/${p.users?.member_slug || 'default'}.png`} alt="" fill sizes="20px" className="object-cover object-top" />
+                            <Image src={`/members/${p.users?.member_slug || 'default'}.webp`} alt="" fill sizes="20px" className="object-cover object-top" />
                           </div>
                           <span className="text-[12px] text-[var(--text-tertiary)]">{p.users?.member_name?.split(' ')[0]} ?</span>
                         </div>

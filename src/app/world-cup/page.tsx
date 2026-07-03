@@ -1152,7 +1152,7 @@ export default function WorldCupPage() {
                           return member ? (
                             <div key={pred.user_id} className="flex items-center gap-1.5">
                               <div className="relative w-5 h-5 rounded-full overflow-hidden ring-1 ring-[var(--hairline)]">
-                                <Image src={`/members/${member.slug}.png`} alt={member.name} fill sizes="20px" className="object-cover object-top" />
+                                <Image src={`/members/${member.slug}.webp`} alt={member.name} fill sizes="20px" className="object-cover object-top" />
                               </div>
                               <span className="text-[12px] text-[var(--text-tertiary)]">{member.name.split(' ')[0]}</span>
                               <span className="score text-[13px] text-[var(--text-secondary)]">{pred.home_score}-{pred.away_score}</span>
@@ -1225,7 +1225,7 @@ export default function WorldCupPage() {
                                 const member = MEMBERS.find(m => m.id === p.user_id);
                                 return member ? (
                                   <div key={p.user_id} className="relative w-5 h-5 rounded-full overflow-hidden ring-1 ring-[var(--hairline)]">
-                                    <Image src={`/members/${member.slug}.png`} alt={member.name} fill sizes="20px" className="object-cover object-top" />
+                                    <Image src={`/members/${member.slug}.webp`} alt={member.name} fill sizes="20px" className="object-cover object-top" />
                                   </div>
                                 ) : null;
                               })}

@@ -459,7 +459,7 @@ export default function GamesPage() {
                         <div className="flex items-center gap-2.5">
                           <div className="relative w-8 h-8 rounded-full overflow-hidden ring-1 ring-white/10 shrink-0">
                             <Image
-                              src={`/members/${entry.memberSlug}.png`}
+                              src={`/members/${entry.memberSlug}.webp`}
                               alt={entry.userName}
                               fill
                               sizes="32px"

@@ -25,7 +25,7 @@ export function Avatar({ slug, name, size = 40, ring = 'none', className = '' }:
       style={{ width: size, height: size }}
     >
       <Image
-        src={`/members/${slug}.png`}
+        src={`/members/${slug}.webp`}
         alt={name}
         fill
         sizes={`${size}px`}
