@@ -86,14 +86,9 @@ export function DrereWeekSong({ weekStartDate, drereName }: DrereWeekSongProps) 
   // No song available yet
   if (!song) {
     return (
-      <div className="mt-4 p-4 bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-xl border border-purple-500/30">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">🎵</span>
-          <div>
-            <p className="text-sm text-white font-medium">Hymne du Drère of the Week</p>
-            <p className="text-xs text-gray-400">Bientôt disponible...</p>
-          </div>
-        </div>
+      <div className="mt-4 p-4 rounded-[10px] bg-[var(--surface-2)] top-light">
+        <p className="text-sm text-[var(--text-primary)] font-medium">Hymne du Drère of the Week</p>
+        <p className="text-xs text-[var(--text-tertiary)] mt-0.5">Bientôt disponible…</p>
       </div>
     );
   }
@@ -101,18 +96,15 @@ export function DrereWeekSong({ weekStartDate, drereName }: DrereWeekSongProps) 
   // Song is being generated
   if (song.status === 'generating' || song.status === 'pending') {
     return (
-      <div className="mt-4 p-4 bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-xl border border-purple-500/30">
+      <div className="mt-4 p-4 rounded-[10px] bg-[var(--surface-2)] top-light">
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <span className="text-2xl">🎵</span>
-            <span className="absolute -top-1 -right-1 flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-purple-500"></span>
-            </span>
-          </div>
+          <span className="flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-[var(--gold)] opacity-75" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[var(--gold)]" />
+          </span>
           <div>
-            <p className="text-sm text-white font-medium">Hymne en création...</p>
-            <p className="text-xs text-gray-400">L&apos;IA compose la chanson de {drereName}</p>
+            <p className="text-sm text-[var(--text-primary)] font-medium">Hymne en création…</p>
+            <p className="text-xs text-[var(--text-tertiary)]">La chanson de {drereName} se compose</p>
           </div>
         </div>
       </div>
@@ -124,72 +116,60 @@ export function DrereWeekSong({ weekStartDate, drereName }: DrereWeekSongProps) 
     return null;
   }
 
-  // Song is ready!
+  // Song is ready
   return (
-    <div className="mt-4 p-4 bg-gradient-to-r from-purple-900/40 to-pink-900/40 rounded-xl border border-purple-500/40">
-      {/* Header with cover art and play button */}
+    <div className="mt-4 p-4 rounded-[10px] bg-[var(--surface-2)] top-light">
       <div className="flex items-center gap-3">
-        {/* Album cover or play button */}
+        {/* Album cover or play button — gold ring = the Drère (legitimate) */}
         <div className="relative">
           {song.cover_image_url ? (
             <div className="relative w-14 h-14">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={song.cover_image_url}
-                alt="Album cover"
-                className={`w-14 h-14 rounded-lg object-cover shadow-lg ${isPlaying ? 'ring-2 ring-purple-500 ring-offset-2 ring-offset-gray-900' : ''}`}
+                alt="Pochette"
+                className={`w-14 h-14 rounded-[8px] object-cover ${
+                  isPlaying ? 'ring-2 ring-[var(--gold)] ring-offset-2 ring-offset-[var(--surface-2)]' : ''
+                }`}
               />
               <button
                 onClick={togglePlay}
                 disabled={!song.audio_url}
-                className={`absolute inset-0 flex items-center justify-center rounded-lg transition-all ${
-                  isPlaying
-                    ? 'bg-black/50'
-                    : 'bg-black/30 hover:bg-black/50'
-                }`}
+                className="absolute inset-0 flex items-center justify-center rounded-[8px] bg-black/30 hover:bg-black/50 transition-colors"
               >
-                {isPlaying ? (
-                  <span className="text-white text-xl">⏹</span>
-                ) : (
-                  <span className="text-white text-xl">▶</span>
-                )}
+                <span className="text-[var(--text-primary)] text-xl">{isPlaying ? '⏹' : '▶'}</span>
               </button>
             </div>
           ) : (
             <button
               onClick={togglePlay}
               disabled={!song.audio_url}
-              className={`w-14 h-14 rounded-lg flex items-center justify-center transition-all ${
-                isPlaying
-                  ? 'bg-red-500 hover:bg-red-600 animate-pulse'
-                  : song.audio_url
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
-                  : 'bg-gray-600 cursor-not-allowed'
+              className={`w-14 h-14 rounded-[8px] flex items-center justify-center transition-colors ${
+                song.audio_url
+                  ? 'bg-[var(--surface-3)] hover:bg-[var(--surface-4)]'
+                  : 'bg-[var(--surface-3)] cursor-not-allowed'
               }`}
             >
-              {isPlaying ? (
-                <span className="text-white text-xl">⏹</span>
-              ) : (
-                <span className="text-white text-xl">▶</span>
-              )}
+              <span className="text-[var(--gold)] text-xl">{isPlaying ? '⏹' : '▶'}</span>
             </button>
           )}
         </div>
         <div className="flex-1">
-          <p className="text-sm text-white font-bold flex items-center gap-2">
-            🎵 Hymne du Drère of the Week
+          <p className="text-sm text-[var(--text-primary)] font-medium flex items-center gap-2">
+            Hymne du Drère of the Week
             {isPlaying && (
               <span className="flex gap-0.5">
-                <span className="w-1 h-3 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                <span className="w-1 h-4 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                <span className="w-1 h-3 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                <span className="w-1 h-3 bg-[var(--gold)] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1 h-4 bg-[var(--gold)] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1 h-3 bg-[var(--gold)] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
               </span>
             )}
           </p>
-          <p className="text-xs text-gray-400">La chanson de {drereName} - Drère of the Week</p>
+          <p className="text-xs text-[var(--text-tertiary)]">La chanson de {drereName}</p>
         </div>
         <button
           onClick={() => setShowLyrics(!showLyrics)}
-          className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
+          className="text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
         >
           {showLyrics ? 'Masquer' : 'Paroles'}
         </button>
@@ -197,20 +177,20 @@ export function DrereWeekSong({ weekStartDate, drereName }: DrereWeekSongProps) 
 
       {/* Lyrics dropdown */}
       {showLyrics && song.lyrics && (
-        <div className="mt-3 p-3 bg-black/30 rounded-lg">
-          <p className="text-xs text-gray-300 whitespace-pre-line italic">
+        <div className="mt-3 p-3 rounded-[8px] bg-[var(--surface-3)]">
+          <p className="text-xs text-[var(--text-secondary)] whitespace-pre-line italic">
             {song.lyrics}
           </p>
         </div>
       )}
 
-      {/* Animated visualizer when playing */}
+      {/* Visualizer when playing */}
       {isPlaying && (
         <div className="mt-3 flex justify-center gap-1">
           {[...Array(20)].map((_, i) => (
             <div
               key={i}
-              className="w-1 bg-gradient-to-t from-purple-500 to-pink-500 rounded-full animate-pulse"
+              className="w-1 bg-[var(--gold)] rounded-full animate-pulse"
               style={{
                 height: `${Math.random() * 20 + 5}px`,
                 animationDelay: `${i * 50}ms`,

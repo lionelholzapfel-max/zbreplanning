@@ -105,15 +105,14 @@ export function TeamFactsSheet({ teamName, isOpen, onClose, triggerRef }: TeamFa
     <>
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-1.5 sm:gap-2 flex-wrap">
-          <span className="text-lg sm:text-xl">💡</span>
+        <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)] flex items-center gap-1.5 sm:gap-2 flex-wrap">
           <span>Le saviez-vous ?</span>
           <span className="text-xl sm:text-2xl">{getFlag(teamName)}</span>
           <span>{teamName}</span>
         </h3>
         <button
           onClick={onClose}
-          className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white/70 hover:text-white flex-shrink-0"
+          className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-[var(--surface-4)] transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex-shrink-0"
           aria-label="Fermer"
         >
           ✕
@@ -122,9 +121,9 @@ export function TeamFactsSheet({ teamName, isOpen, onClose, triggerRef }: TeamFa
 
       {/* Facts */}
       <div className="space-y-3">
-        <FactItem emoji="😂" label="Marrante" text={facts.funny} />
-        <FactItem emoji="🧠" label="Intelligente" text={facts.smart} />
-        <FactItem emoji="⚽" label="Footballistique" text={facts.football} />
+        <FactItem label="Marrante" text={facts.funny} />
+        <FactItem label="Intelligente" text={facts.smart} />
+        <FactItem label="Footballistique" text={facts.football} />
       </div>
     </>
   );
@@ -134,7 +133,7 @@ export function TeamFactsSheet({ teamName, isOpen, onClose, triggerRef }: TeamFa
     <div className="fixed inset-0 z-50">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
+        className="absolute inset-0 bg-[var(--canvas)]/80 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
       />
 
@@ -142,7 +141,7 @@ export function TeamFactsSheet({ teamName, isOpen, onClose, triggerRef }: TeamFa
       <div className="absolute inset-0 flex items-end md:items-center justify-center pointer-events-none md:p-8">
         <div
           ref={sheetRef}
-          className={`relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 backdrop-blur-xl border border-white/10 shadow-2xl pointer-events-auto ${
+          className={`relative bg-[var(--surface-3)] top-light backdrop-blur-xl shadow-2xl pointer-events-auto ${
             isMobile
               ? 'w-full rounded-t-3xl rounded-b-none'
               : 'w-[450px] max-w-full rounded-2xl'
@@ -151,8 +150,8 @@ export function TeamFactsSheet({ teamName, isOpen, onClose, triggerRef }: TeamFa
         >
           {/* Handle bar - mobile only */}
           {isMobile && (
-            <div className="sticky top-0 pt-2 pb-1 bg-gradient-to-b from-gray-900 to-transparent rounded-t-3xl">
-              <div className="mx-auto w-10 h-1 bg-white/30 rounded-full" />
+            <div className="sticky top-0 pt-2 pb-1 bg-[var(--surface-3)] rounded-t-3xl">
+              <div className="mx-auto w-10 h-1 bg-[var(--text-tertiary)] rounded-full" />
             </div>
           )}
 
@@ -169,14 +168,11 @@ export function TeamFactsSheet({ teamName, isOpen, onClose, triggerRef }: TeamFa
   );
 }
 
-function FactItem({ emoji, label, text }: { emoji: string; label: string; text: string }) {
+function FactItem({ label, text }: { label: string; text: string }) {
   return (
-    <div className="bg-white/5 rounded-xl p-3 border border-white/5">
-      <div className="flex items-center gap-1.5 mb-1.5">
-        <span className="text-lg">{emoji}</span>
-        <span className="text-xs font-semibold text-white/70 uppercase tracking-wide">{label}</span>
-      </div>
-      <p className="text-white/90 text-sm leading-snug">{text}</p>
+    <div className="bg-[var(--surface-2)] rounded-[10px] p-3">
+      <p className="eyebrow mb-1.5">{label}</p>
+      <p className="text-[var(--text-secondary)] text-sm leading-snug">{text}</p>
     </div>
   );
 }

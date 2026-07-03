@@ -9,6 +9,7 @@ import { fr } from 'date-fns/locale';
 import { useSupabase } from '@/hooks/useSupabase';
 import { toast } from 'sonner';
 import { Star, Trophy, Users, Plus, ChevronRight, Pencil, Trash2, TrendingUp, Activity, Calendar } from 'lucide-react';
+import { EmptyState } from '@/components/ui';
 
 type PeriodFilter = '7d' | 'month' | 'all';
 
@@ -377,6 +378,20 @@ export default function GamesPage() {
             </div>
           </div>
         </div>
+
+        {/* Empty state — treated Zbrétoile (grayscale + contrast + grain), like chrome photos */}
+        {games.length === 0 && (
+          <EmptyState
+            media={
+              <div className="relative w-28 h-28 rounded-[16px] overflow-hidden">
+                <Image src="/zbretoile.jpeg" alt="" fill sizes="112px" className="object-cover grayscale contrast-[1.05]" />
+                <div className="grain absolute inset-0 pointer-events-none" />
+              </div>
+            }
+            title="Aucun jeu pour l'instant"
+            description="Crée ton premier jeu pour lancer le classement Zbrétoile."
+          />
+        )}
 
         {/* Top Winner */}
         {stats?.topWinner && (

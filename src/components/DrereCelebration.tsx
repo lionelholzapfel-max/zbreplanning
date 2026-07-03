@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import confetti from 'canvas-confetti';
+import { Play, Pause } from 'lucide-react';
 
 interface CelebrationData {
   member_name: string;
@@ -32,14 +33,14 @@ export default function DrereCelebration() {
         angle: 60,
         spread: 55,
         origin: { x: 0 },
-        colors: ['#fbbf24', '#f59e0b', '#22c55e', '#6366f1'],
+        colors: ['#E8B93E', '#DAA520', '#F0E68C'],
       });
       confetti({
         particleCount: 5,
         angle: 120,
         spread: 55,
         origin: { x: 1 },
-        colors: ['#fbbf24', '#f59e0b', '#22c55e', '#6366f1'],
+        colors: ['#E8B93E', '#DAA520', '#F0E68C'],
       });
 
       if (Date.now() < end) {
@@ -350,67 +351,25 @@ export default function DrereCelebration() {
   const isWeekly = celebrationData.type === 'weekly';
   const isMzi = celebrationData.type === 'mzi';
 
-  // Styling based on type
-  const getBorderColor = () => {
-    if (isMzi) return 'border-[#ef4444]';
-    if (isWeekly) return 'border-[#FFD700]';
-    return 'border-[#fbbf24]';
-  };
-
-  const getGradient = () => {
-    if (isMzi) return 'from-[#1f1315] to-[#0a0a0f]';
-    if (isWeekly) return 'from-[#2a1a0a] to-[#0f0a00]';
-    return 'from-[#1a1a2e] to-[#0a0a0f]';
-  };
-
-  const getTextColor = () => {
-    if (isMzi) return 'text-[#ef4444]';
-    if (isWeekly) return 'text-[#FFD700]';
-    return 'text-[#fbbf24]';
-  };
-
-  const getRingColor = () => {
-    if (isMzi) return 'ring-[#ef4444]';
-    if (isWeekly) return 'ring-[#FFD700]';
-    return 'ring-[#fbbf24]';
-  };
-
-  const getButtonStyle = () => {
-    if (isMzi) return 'bg-[#ef4444] text-white hover:bg-[#dc2626]';
-    if (isWeekly) return 'bg-[#FFD700] text-black hover:bg-[#FFA500]';
-    return 'bg-[#fbbf24] text-black hover:bg-[#f59e0b]';
-  };
+  // Styling by type — gold is legitimate here (the Drère celebration); danger for Mzi.
+  const getTextColor = () => (isMzi ? 'text-[var(--danger)]' : 'text-[var(--gold)]');
+  const getRingColor = () => (isMzi ? 'ring-[var(--danger)]' : 'ring-[var(--gold)]');
+  const getButtonStyle = () =>
+    isMzi ? 'bg-[var(--danger)] text-white hover:opacity-90' : 'bg-[var(--gold)] text-black hover:opacity-90';
 
   const getMusicButtonStyle = () => {
-    if (isPlaying) return 'bg-red-500/20 text-red-400 hover:bg-red-500/30';
-    if (isMzi) return 'bg-[#ef4444]/20 text-[#ef4444] hover:bg-[#ef4444]/30';
-    if (isWeekly) return 'bg-[#FFD700]/20 text-[#FFD700] hover:bg-[#FFD700]/30';
-    return 'bg-[#fbbf24]/20 text-[#fbbf24] hover:bg-[#fbbf24]/30';
-  };
-
-  const getIcon = () => {
-    if (isMzi) return '💩';
-    if (isWeekly) return '🏆';
-    return '👑';
+    if (isPlaying) return 'bg-[var(--surface-4)] text-[var(--text-primary)]';
+    if (isMzi) return 'bg-[var(--danger)]/15 text-[var(--danger)] hover:bg-[var(--danger)]/25';
+    return 'bg-[var(--gold)]/15 text-[var(--gold)] hover:bg-[var(--gold)]/25';
   };
 
   const getTitle = () => {
-    if (isMzi) return 'TU ES LE TYPE MZI DU JOUR !';
-    if (isWeekly) return 'TU ES LE DRÈRE OF THE WEEK !';
-    return 'TU ES LE DRÈRE DU JOUR !';
+    if (isMzi) return 'Type Mzi du jour';
+    if (isWeekly) return 'Drère de la semaine';
+    return 'Drère du jour';
   };
 
-  const getSubtitle = () => {
-    if (isMzi) return `Avec seulement ${celebrationData.points} point${celebrationData.points > 1 ? 's' : ''} aujourd'hui... 😢`;
-    if (isWeekly) return `Avec ${celebrationData.points} points cette semaine`;
-    return `Avec ${celebrationData.points} points aujourd'hui`;
-  };
-
-  const getCloseButtonText = () => {
-    if (isMzi) return 'Je ferai mieux demain... 😔';
-    if (isWeekly) return 'Champion! 🏆';
-    return 'Merci, je sais ! 😎';
-  };
+  const getCloseButtonText = () => (isMzi ? 'Je ferai mieux demain' : 'Merci');
 
   // Start music on first interaction (for browsers that block autoplay)
   const handleModalClick = () => {
@@ -425,19 +384,14 @@ export default function DrereCelebration() {
     <>
       {/* Celebration Modal */}
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--canvas)]/90 backdrop-blur-sm"
         onClick={handleModalClick}
       >
-        <div className={`relative w-full max-w-md bg-gradient-to-br ${getGradient()} rounded-3xl border-2 ${getBorderColor()} p-8 text-center animate-bounce-in`}>
-          {/* Icon animation */}
-          <div className={`absolute -top-8 left-1/2 -translate-x-1/2 text-7xl ${isMzi ? 'animate-pulse' : 'animate-bounce'}`}>
-            {getIcon()}
-          </div>
-
+        <div className="relative w-full max-w-md bg-[var(--surface-3)] top-light rounded-[16px] p-8 text-center animate-bounce-in">
           {/* Close button */}
           <button
             onClick={closeCelebration}
-            className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+            className="absolute top-4 right-4 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -445,47 +399,40 @@ export default function DrereCelebration() {
           </button>
 
           {/* Content */}
-          <div className="mt-8">
-            <h2 className={`text-2xl font-black mb-2 ${getTextColor()}`}>
-              {getTitle()}
-            </h2>
-            <p className="text-gray-400 mb-6">
-              {getSubtitle()}
-            </p>
+          <div>
+            <p className="eyebrow mb-4">{getTitle()}</p>
 
             {/* Avatar */}
-            <div className={`relative w-32 h-32 mx-auto mb-6 rounded-full overflow-hidden ring-4 ${getRingColor()} ${isMzi ? 'grayscale' : ''}`}>
+            <div className={`relative w-28 h-28 mx-auto mb-5 rounded-full overflow-hidden ring-2 ${getRingColor()} ${isMzi ? 'grayscale' : ''}`}>
               <Image
                 src={`/members/${celebrationData.member_slug}.png`}
                 alt={celebrationData.member_name}
                 fill
                 className="object-cover object-top"
               />
-              {isMzi && (
-                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                  <span className="text-4xl">😢</span>
-                </div>
-              )}
+              {isMzi && <div className="absolute inset-0 bg-black/30" />}
             </div>
 
-            <p className="text-xl font-bold text-white mb-6">
+            <p className="display text-xl text-[var(--text-primary)] mb-4">
               {celebrationData.member_name}
             </p>
+
+            {/* Points — the number is the signature */}
+            <p className={`score text-[44px] ${getTextColor()}`}>{celebrationData.points}</p>
+            <p className="eyebrow mt-1 mb-6">points {isWeekly ? 'cette semaine' : "aujourd'hui"}</p>
 
             {/* Music control button */}
             <button
               onClick={() => toggleMusic(celebrationData?.type || 'daily')}
-              className={`mb-4 px-6 py-2 rounded-full transition-all flex items-center gap-2 mx-auto ${getMusicButtonStyle()}`}
+              className={`mb-4 px-5 py-2 rounded-full transition-colors flex items-center gap-2 mx-auto ${getMusicButtonStyle()}`}
             >
-              <span className="text-xl">{isPlaying ? '⏸️' : '▶️'}</span>
-              <span className="text-sm font-medium">
-                {isPlaying ? 'Pause la musique' : 'Jouer la musique'}
-              </span>
+              {isPlaying ? <Pause className="w-4 h-4" strokeWidth={2} /> : <Play className="w-4 h-4" strokeWidth={2} />}
+              <span className="text-sm font-medium">{isPlaying ? 'Pause' : 'Jouer la musique'}</span>
             </button>
 
             <button
               onClick={closeCelebration}
-              className={`px-8 py-3 font-bold rounded-xl transition-colors ${getButtonStyle()}`}
+              className={`px-8 py-3 font-medium rounded-[8px] transition-opacity ${getButtonStyle()}`}
             >
               {getCloseButtonText()}
             </button>
@@ -497,15 +444,11 @@ export default function DrereCelebration() {
       {!showCelebration && isPlaying && (
         <button
           onClick={() => toggleMusic(celebrationData?.type || 'daily')}
-          className={`fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-colors ${
-            isMzi
-              ? 'bg-[#ef4444] hover:bg-[#dc2626]'
-              : isWeekly
-                ? 'bg-[#FFD700] hover:bg-[#FFA500]'
-                : 'bg-[#fbbf24] hover:bg-[#f59e0b]'
+          className={`fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full flex items-center justify-center transition-opacity hover:opacity-90 ${
+            isMzi ? 'bg-[var(--danger)]' : 'bg-[var(--gold)]'
           }`}
         >
-          <span className="text-2xl">⏸️</span>
+          <Pause className={`w-5 h-5 ${isMzi ? 'text-white' : 'text-black'}`} strokeWidth={2} />
         </button>
       )}
     </>
