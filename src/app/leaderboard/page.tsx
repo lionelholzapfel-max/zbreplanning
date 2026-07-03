@@ -452,6 +452,23 @@ export default function LeaderboardPage() {
           return <p className="mb-3 text-[12px] text-[var(--text-tertiary)]">Reset lundi 6h · verdict dans {diffH}h</p>;
         })()}
 
+        {/* Column headers — aligned on the row columns */}
+        <div className="flex items-center gap-3 px-3 pb-2">
+          <span className="w-7 shrink-0" aria-hidden />
+          {activeView === 'general' && <span className="w-5 shrink-0" aria-hidden />}
+          <span className="w-8 shrink-0" aria-hidden />
+          <span className="flex-1" aria-hidden />
+          {activeView === 'general' && (
+            <div className="hidden sm:flex items-center gap-6">
+              <span className="eyebrow w-12 text-right">Pronos</span>
+              <span className="eyebrow w-8 text-right">Exacts</span>
+              <span className="eyebrow w-8 text-right">Visio</span>
+            </div>
+          )}
+          {activeView === 'live' && <span className="eyebrow">Δ</span>}
+          <span className="eyebrow w-12 text-right">Pts</span>
+        </div>
+
         <div>
           {rows.map((r, i) => (
             <div

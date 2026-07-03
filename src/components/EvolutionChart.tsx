@@ -121,7 +121,6 @@ export function EvolutionChart() {
   if (history.length === 0) {
     return (
       <div className="rounded-[10px] bg-[var(--surface-1)] top-light p-6">
-        <h3 className="display text-[18px] text-[var(--text-primary)] mb-4">Évolution des points</h3>
         <div className="flex items-center justify-center h-48 text-sm text-[var(--text-tertiary)]">
           Pas encore de données
         </div>
@@ -131,8 +130,6 @@ export function EvolutionChart() {
 
   return (
     <div className="rounded-[10px] bg-[var(--surface-1)] top-light p-4 sm:p-6">
-      <h3 className="display text-[18px] text-[var(--text-primary)] mb-4">Évolution des points</h3>
-
       <div className="h-64 sm:h-80">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={history} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>

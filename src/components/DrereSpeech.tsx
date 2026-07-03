@@ -216,11 +216,11 @@ export function DrereSpeech({ date, drereUserId, drereName, isMe }: DrereSpeechP
       <div className="flex items-center gap-3 mt-3 p-3 rounded-[10px] bg-[var(--surface-2)] top-light">
         <button
           onClick={playAudio}
-          className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
-            isPlaying ? 'bg-[var(--live)]' : 'bg-[var(--gold)] hover:opacity-90'
+          className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+            isPlaying ? 'bg-[var(--live)]' : 'bg-[var(--surface-3)] top-light hover:bg-[var(--surface-4)]'
           }`}
         >
-          <span className={`text-lg ${isPlaying ? 'text-white' : 'text-black'}`}>{isPlaying ? '⏹' : '▶'}</span>
+          <span className={`text-sm ${isPlaying ? 'text-white' : 'text-[var(--gold)]'}`}>{isPlaying ? '⏹' : '▶'}</span>
         </button>
         <div className="flex-1">
           <p className="text-sm text-[var(--text-primary)] font-medium">Discours du Drère</p>

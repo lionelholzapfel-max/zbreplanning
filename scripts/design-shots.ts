@@ -142,6 +142,10 @@ async function main() {
         await el.waitFor({ state: 'visible', timeout: 5000 });
         await el.screenshot({ path: out });
       } else {
+        // Neutralize the sticky navbar so it doesn't re-paint mid-page in fullPage shots.
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.addStyleTag({ content: 'nav { position: static !important; }' });
+        await page.waitForTimeout(300);
         await page.screenshot({ path: out, fullPage: true });
       }
       console.log(`  ✓ ${out}`);

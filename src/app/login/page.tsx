@@ -218,7 +218,7 @@ export default function LoginPage() {
       <div className="w-full max-w-2xl">
         {/* Wordmark */}
         <div className="text-center mb-10">
-          <h1 className="text-3xl font-semibold tracking-[-0.02em] text-[var(--text-primary)]">ZbrePlanning</h1>
+          <h1 className="display text-3xl text-[var(--text-primary)]">ZbrePlanning</h1>
         </div>
 
         {/* Card */}
@@ -252,7 +252,7 @@ export default function LoginPage() {
                         className="object-cover"
                       />
                     </div>
-                    <span className="text-[13px] font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] group-focus-visible:text-[var(--text-primary)] transition-colors truncate max-w-full">
+                    <span className="text-[12px] font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] group-focus-visible:text-[var(--text-primary)] transition-colors whitespace-nowrap">
                       {member.name.split(' ')[0]}
                     </span>
                   </button>
