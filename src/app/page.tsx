@@ -517,9 +517,7 @@ export default function HomePage() {
             const isMe = currentUser.member_slug === member.slug;
             return (
               <div key={member.id} className="min-w-0 text-center">
-                <div className="mx-auto w-16 h-16 md:w-20 md:h-20">
-                  <Avatar slug={member.slug} name={member.name} size={80} ring={isMe ? 'accent' : 'none'} className="w-full h-full" />
-                </div>
+                <Avatar slug={member.slug} name={member.name} size={72} ring={isMe ? 'accent' : 'none'} className="mx-auto" />
                 <p className={`mt-2 text-[11px] sm:text-sm truncate ${isMe ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'}`}>
                   {member.name.split(' ')[0]}
                 </p>
