@@ -238,6 +238,7 @@ export default function LeaderboardPage() {
     key: string; rank: number; slug: string; name: string;
     isMe: boolean; isDrere: boolean; isMzi: boolean;
     points: number; pronos?: string; exacts?: number; visionnaires?: number;
+    crownCount?: number; mziCount?: number;
     rankChange?: number; delta?: number; inactive?: boolean;
   };
 
@@ -246,7 +247,8 @@ export default function LeaderboardPage() {
       key: e.user_id, rank: e.rank, slug: e.member_slug, name: e.member_name.split(' ')[0],
       isMe: e.user_id === currentUserId, isDrere: e.is_drere_today, isMzi: e.is_mzi_today,
       points: e.total_points, pronos: `${e.matches_predicted}/${totalMatchesWithResults}`,
-      exacts: e.exact_scores, visionnaires: e.visionary_count, rankChange: e.rank_change,
+      exacts: e.exact_scores, visionnaires: e.visionary_count,
+      crownCount: e.crown_count, mziCount: e.mzi_count, rankChange: e.rank_change,
     })),
     ...inactivePlayers.map((e, i): UnifiedRow => ({
       key: e.user_id, rank: activePlayers.length + i + 1, slug: e.member_slug, name: e.member_name.split(' ')[0],
@@ -459,10 +461,12 @@ export default function LeaderboardPage() {
           <span className="w-8 shrink-0" aria-hidden />
           <span className="flex-1" aria-hidden />
           {activeView === 'general' && (
-            <div className="hidden sm:flex items-center gap-6">
+            <div className="hidden sm:flex items-center gap-4">
               <span className="eyebrow w-12 text-right">Pronos</span>
               <span className="eyebrow w-8 text-right">Exacts</span>
               <span className="eyebrow w-8 text-right">Visio</span>
+              <span className="eyebrow w-8 text-right">Drère</span>
+              <span className="eyebrow w-8 text-right">Mzi</span>
             </div>
           )}
           {activeView === 'live' && <span className="eyebrow">Δ</span>}
@@ -491,10 +495,12 @@ export default function LeaderboardPage() {
               </div>
 
               {activeView === 'general' && !r.inactive && (
-                <div className="hidden sm:flex items-center gap-6 text-[var(--text-tertiary)]">
+                <div className="hidden sm:flex items-center gap-4 text-[var(--text-tertiary)]">
                   <span className="score text-[13px] w-12 text-right tabular-nums">{r.pronos}</span>
                   <span className="score text-[13px] w-8 text-right tabular-nums">{r.exacts}</span>
                   <span className="score text-[13px] w-8 text-right tabular-nums">{r.visionnaires}</span>
+                  <span className="score text-[13px] w-8 text-right tabular-nums">{r.crownCount}</span>
+                  <span className="score text-[13px] w-8 text-right tabular-nums">{r.mziCount}</span>
                 </div>
               )}
 
