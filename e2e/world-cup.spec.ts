@@ -11,50 +11,55 @@ test.beforeEach(async ({ page }) => {
 
   // Scroll down to ensure match cards are in viewport and wait for them
   await page.evaluate(() => window.scrollTo(0, 500));
-  // Look for participation button (shows ✓ on mobile, "Oui" on desktop)
-  await expect(page.locator('button:has-text("✓")').first()).toBeVisible({ timeout: 15000 });
+  // v2: participation is a segmented control with text labels ("Je regarde" / "Peut-être" / "Non")
+  await expect(page.locator('button:has-text("Je regarde")').first()).toBeVisible({ timeout: 15000 });
 });
 
 test.describe('World Cup Page', () => {
   test('should display matches', async ({ page }) => {
-    // Wait for match cards to appear - look for participation button (✓ on mobile)
-    await expect(page.locator('button:has-text("✓")').first()).toBeVisible({ timeout: 10000 });
+    // Wait for match cards to appear - look for the "Je regarde" participation button
+    await expect(page.locator('button:has-text("Je regarde")').first()).toBeVisible({ timeout: 10000 });
   });
 
   test('should filter by phase', async ({ page }) => {
-    const phaseBtn = page.locator('button:has-text("8e")');
+    // Phase tabs use shortLabels: Groupes / 16es / 8es / Quarts / Demis / 3e place / Finale
+    const phaseBtn = page.locator('button:has-text("8es")');
     await expect(phaseBtn).toBeVisible({ timeout: 10000 });
     await phaseBtn.click();
-    // Check button is now active (has gold gradient background)
-    await expect(phaseBtn).toHaveClass(/from-\[#fbbf24\]/, { timeout: 5000 });
+    // v2 segmented: active tab is the one with primary text colour (inactive tabs are secondary)
+    await expect(phaseBtn).toHaveClass(/text-\[var\(--text-primary\)\]/, { timeout: 5000 });
   });
 
-  test('should respond "Oui" to a match', async ({ page }) => {
-    // Button shows ✓ on mobile, "Oui" text on desktop (hidden sm:inline)
-    const yesButton = page.locator('button:has-text("✓")').first();
+  test('should respond "Je regarde" to a match', async ({ page }) => {
+    // v2: participation segmented, first option = "Je regarde" (yes)
+    const yesButton = page.locator('button:has-text("Je regarde")').first();
     await expect(yesButton).toBeVisible({ timeout: 10000 });
     await yesButton.click();
-    // Wait for state update - button should have green background
-    await expect(yesButton).toHaveClass(/bg-\[#22c55e\]/, { timeout: 5000 });
+    // Active option is highlighted with accent text colour
+    await expect(yesButton).toHaveClass(/text-\[var\(--accent\)\]/, { timeout: 5000 });
   });
 
   test('should respond "Peut-être" to a match', async ({ page }) => {
-    // Button shows 🤔 on mobile, "Peut-être" text on desktop
-    const maybeButton = page.locator('button:has-text("🤔")').first();
+    // v2: participation segmented, second option = "Peut-être"
+    const maybeButton = page.locator('button:has-text("Peut-être")').first();
     await expect(maybeButton).toBeVisible({ timeout: 10000 });
     await maybeButton.click();
-    // Wait for state update - button should have gold background
-    await expect(maybeButton).toHaveClass(/bg-\[#fbbf24\]/, { timeout: 5000 });
+    // Active option is highlighted with accent text colour
+    await expect(maybeButton).toHaveClass(/text-\[var\(--accent\)\]/, { timeout: 5000 });
   });
 
   test('should expand match details', async ({ page }) => {
     const detailsBtn = page.locator('button:has-text("Détails")').first();
     await expect(detailsBtn).toBeVisible({ timeout: 10000 });
     await detailsBtn.click();
-    await expect(page.locator('text=Où regarder ensemble ?').first()).toBeVisible({ timeout: 5000 });
+    // v2 details panel shows the "Facts équipes" section (was "Où regarder ensemble ?")
+    await expect(page.locator('text=Facts équipes').first()).toBeVisible({ timeout: 5000 });
   });
 
-  test('should show progress bar', async ({ page }) => {
-    await expect(page.locator('text=/\\d+\\/14 ont répondu/').first()).toBeVisible({ timeout: 10000 });
+  test('should show the score-prediction CTA', async ({ page }) => {
+    // The old "X/14 ont répondu" progress bar was removed in the v2 redesign (it now lives
+    // on the home page). Equivalent robust check on world-cup: the score-prediction "Valider"
+    // CTA — the signature action of the new prono flow — is present for an open match.
+    await expect(page.locator('button:has-text("Valider")').first()).toBeVisible({ timeout: 10000 });
   });
 });

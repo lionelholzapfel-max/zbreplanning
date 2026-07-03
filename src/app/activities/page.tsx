@@ -7,6 +7,7 @@ import Navbar from '@/components/Navbar';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useSupabase, Activity, ActivityParticipation } from '@/hooks/useSupabase';
+import { PageHeader, Spinner, EmptyState } from '@/components/ui';
 
 const ACTIVITY_TYPES = [
   { id: 'resto', label: 'Restaurant', icon: '🍕', description: 'Sortie resto entre potes' },
@@ -21,25 +22,33 @@ const ACTIVITY_TYPES = [
 
 export default function ActivitiesPage() {
   const router = useRouter();
-  const { currentUser, loading: userLoading, getActivities, createActivity, getActivityParticipations, setActivityParticipation } = useSupabase();
+  const { currentUser, loading: userLoading, getActivities, createActivity, updateActivity, getActivityParticipations, setActivityParticipation } = useSupabase();
 
   const [activities, setActivitiesState] = useState<Activity[]>([]);
   const [participations, setParticipations] = useState<Record<string, ActivityParticipation[]>>({});
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [newActivity, setNewActivity] = useState({ title: '', description: '', date: '', time: '', location: '' });
+  const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [loadingActivity, setLoadingActivity] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   const loadData = useCallback(async () => {
-    const acts = await getActivities();
-    setActivitiesState(acts);
+    setLoadError(false);
+    try {
+      const acts = await getActivities();
+      setActivitiesState(acts);
 
-    const allParticipations: Record<string, ActivityParticipation[]> = {};
-    await Promise.all(acts.map(async (act) => {
-      allParticipations[act.id] = await getActivityParticipations(act.id);
-    }));
-    setParticipations(allParticipations);
+      const allParticipations: Record<string, ActivityParticipation[]> = {};
+      await Promise.all(acts.map(async (act) => {
+        allParticipations[act.id] = await getActivityParticipations(act.id);
+      }));
+      setParticipations(allParticipations);
+    } catch (err) {
+      console.error(err);
+      setLoadError(true);
+    }
   }, [getActivities, getActivityParticipations]);
 
   useEffect(() => {
@@ -53,24 +62,47 @@ export default function ActivitiesPage() {
     if (currentUser) loadData();
   }, [currentUser, loadData]);
 
-  const handleCreateActivity = async (e: React.FormEvent) => {
+  const handleSubmitActivity = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser || !selectedType) return;
+    if (!currentUser) return;
 
-    const type = ACTIVITY_TYPES.find(t => t.id === selectedType);
-
-    await createActivity({
-      title: newActivity.title || `${type?.icon} ${type?.label}`,
-      description: newActivity.description,
-      date: newActivity.date,
-      time: newActivity.time,
-      location: newActivity.location,
-    });
+    if (editingActivityId) {
+      await updateActivity(editingActivityId, {
+        title: newActivity.title,
+        description: newActivity.description,
+        date: newActivity.date,
+        time: newActivity.time,
+        location: newActivity.location,
+      });
+    } else {
+      if (!selectedType) return;
+      const type = ACTIVITY_TYPES.find(t => t.id === selectedType);
+      await createActivity({
+        title: newActivity.title || `${type?.icon} ${type?.label}`,
+        description: newActivity.description,
+        date: newActivity.date,
+        time: newActivity.time,
+        location: newActivity.location,
+      });
+    }
 
     setShowCreateModal(false);
     setSelectedType(null);
+    setEditingActivityId(null);
     setNewActivity({ title: '', description: '', date: '', time: '', location: '' });
     loadData();
+  };
+
+  const openEditActivity = (activity: Activity) => {
+    setEditingActivityId(activity.id);
+    setNewActivity({
+      title: activity.title,
+      description: activity.description || '',
+      date: activity.date || '',
+      time: activity.time || '',
+      location: activity.location || '',
+    });
+    setShowCreateModal(true);
   };
 
   const handleParticipation = async (activityId: string, status: 'yes' | 'no' | 'maybe', activityTitle: string, creatorId: string) => {
@@ -105,11 +137,8 @@ export default function ActivitiesPage() {
   // Show loading spinner while validating session
   if (userLoading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-[#6366f1] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Chargement...</p>
-        </div>
+      <div className="min-h-screen bg-[var(--canvas)] flex items-center justify-center">
+        <Spinner size={32} />
       </div>
     );
   }
@@ -117,195 +146,128 @@ export default function ActivitiesPage() {
   if (!currentUser) return null;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f]">
+    <div className="min-h-screen bg-[var(--canvas)]">
       <Navbar />
 
-      <section className="relative py-6 sm:py-12 px-4 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#6366f1]/20 to-transparent" />
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#a855f7]/10 rounded-full blur-3xl hidden sm:block" />
-
-        <div className={`max-w-7xl mx-auto relative transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sm:gap-6">
-            <div>
-              <h1 className="text-2xl sm:text-4xl md:text-5xl font-black flex items-center gap-2 sm:gap-4 mb-1 sm:mb-2">
-                <span className="text-3xl sm:text-5xl">📅</span>
-                Activités
-              </h1>
-              <p className="text-gray-400 text-sm sm:text-lg">Propose une sortie ou rejoins-en une !</p>
-            </div>
-
+      <section className="max-w-7xl mx-auto px-4 pt-8">
+        <PageHeader
+          title="Activités"
+          subtitle="Propose une soirée, un resto, une sortie."
+          action={
             <button
               onClick={() => setShowCreateModal(true)}
-              className="px-4 sm:px-8 py-2.5 sm:py-4 bg-gradient-to-r from-[#6366f1] to-[#a855f7] text-white rounded-xl sm:rounded-2xl font-bold text-sm sm:text-lg hover:scale-105 transition-transform shadow-lg shadow-[#6366f1]/30 flex items-center gap-2 sm:gap-3"
+              className="h-9 px-4 rounded-[8px] bg-[var(--accent)] text-[#0A0C0B] text-[13px] font-medium hover:opacity-90 transition-opacity"
             >
-              <span className="text-base sm:text-xl">+</span>
-              <span className="hidden xs:inline">Créer une activité</span>
-              <span className="xs:hidden">Créer</span>
+              Créer une activité
             </button>
-          </div>
-
-          <div className="mt-8 flex flex-wrap gap-3">
-            {ACTIVITY_TYPES.slice(0, 6).map(type => (
-              <button
-                key={type.id}
-                onClick={() => { setSelectedType(type.id); setShowCreateModal(true); }}
-                className="px-4 py-2 bg-[#1e1e2e] rounded-xl text-gray-300 hover:text-white hover:bg-[#2a2a3a] transition-all flex items-center gap-2 border border-transparent hover:border-white/10"
-              >
-                <span>{type.icon}</span>
-                <span className="text-sm font-medium">{type.label}</span>
-              </button>
-            ))}
-          </div>
+          }
+        />
+        <div className="-mt-2 mb-6 flex flex-wrap gap-2">
+          {ACTIVITY_TYPES.slice(0, 6).map(type => (
+            <button
+              key={type.id}
+              onClick={() => { setSelectedType(type.id); setShowCreateModal(true); }}
+              className="h-10 sm:h-8 px-3 rounded-full bg-[var(--surface-2)] text-[12px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            >
+              {type.label}
+            </button>
+          ))}
         </div>
+        {loadError && (
+          <div className="flex items-center justify-between gap-3 rounded-[10px] bg-[var(--surface-2)] border border-[var(--danger)]/30 px-4 py-3 mb-4">
+            <p className="text-[13px] text-[var(--text-secondary)]">Impossible de charger les activités — vérifie ta connexion.</p>
+            <button onClick={() => loadData()} className="shrink-0 h-8 px-3 rounded-[8px] bg-[var(--surface-3)] text-[13px] text-[var(--text-primary)] hover:bg-[var(--surface-4)] transition-colors">Réessayer</button>
+          </div>
+        )}
       </section>
 
-      <section className="max-w-7xl mx-auto px-4 pb-12">
+      <section className="max-w-7xl mx-auto px-4 pb-24">
         <div className="space-y-4">
           {activities.map((activity, index) => {
             const myStatus = getMyStatus(activity.id);
             const yesParticipants = getParticipantsByStatus(activity.id, 'yes');
             const maybeParticipants = getParticipantsByStatus(activity.id, 'maybe');
-            const icon = getActivityIcon(activity.title);
-            const isUpcoming = activity.date && new Date(activity.date) >= new Date();
             const isLoading = loadingActivity === activity.id;
 
             return (
               <div
                 key={activity.id}
-                className={`relative overflow-hidden rounded-3xl border transition-all duration-300 ${
+                className={`rounded-[10px] bg-[var(--surface-1)] top-light transition-all duration-300 ${
                   mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-                } ${
-                  yesParticipants.length > 0
-                    ? 'border-[#22c55e]/30 bg-gradient-to-br from-[#22c55e]/10 to-[#12121a]'
-                    : 'border-[#6366f1]/20 bg-gradient-to-br from-[#6366f1]/10 to-[#12121a]'
                 }`}
-                style={{ transitionDelay: `${index * 50}ms` }}
+                style={{ transitionDelay: `${Math.min(index, 20) * 50}ms` }}
               >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-[#6366f1]/5 rounded-full blur-2xl" />
-
-                <div className="relative p-6">
+                <div className="p-5">
                   <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-start gap-4 mb-4">
-                        <div className="w-14 h-14 rounded-2xl bg-[#6366f1]/20 flex items-center justify-center text-2xl shrink-0">{icon}</div>
-                        <div>
-                          <h3 className="text-xl font-bold text-white mb-1">{activity.title}</h3>
-                          {activity.description && <p className="text-gray-400">{activity.description}</p>}
-                        </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-[17px] font-medium text-[var(--text-primary)]">{activity.title}</h3>
+                      {activity.description && <p className="mt-1 text-[14px] text-[var(--text-secondary)]">{activity.description}</p>}
+
+                      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-[var(--text-tertiary)]">
+                        {activity.date && <span>{format(new Date(activity.date), 'EEEE d MMMM', { locale: fr })}</span>}
+                        {activity.time && <span>{activity.time}</span>}
+                        {activity.location && <span>{activity.location}</span>}
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-4 text-sm">
-                        {activity.date && (
-                          <span className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${isUpcoming ? 'bg-[#6366f1]/20 text-[#6366f1]' : 'bg-white/10 text-gray-400'}`}>
-                            <span>📅</span>
-                            <span className="font-medium">{format(new Date(activity.date), 'EEEE d MMMM', { locale: fr })}</span>
-                          </span>
-                        )}
-                        {activity.time && (
-                          <span className="flex items-center gap-2 px-3 py-1.5 bg-white/10 rounded-lg text-gray-300">
-                            <span>⏰</span>
-                            <span className="font-medium">{activity.time}</span>
-                          </span>
-                        )}
-                        {activity.location && (
-                          <span className="flex items-center gap-2 px-3 py-1.5 bg-white/10 rounded-lg text-gray-300">
-                            <span>📍</span>
-                            <span className="font-medium">{activity.location}</span>
-                          </span>
-                        )}
-                      </div>
+                      <p className="mt-2 text-[12px] text-[var(--text-tertiary)]">Proposé par {activity.creator?.member_name || 'Anonyme'}</p>
 
-                      <p className="text-xs text-gray-500 mt-3 flex items-center gap-2">
-                        <span>Proposé par</span>
-                        <span className="text-white font-medium">{activity.creator?.member_name || 'Anonyme'}</span>
-                      </p>
-
-                      {/* Response Progress Bar */}
-                      <div className="mt-4">
-                        <div className="flex items-center justify-between text-xs mb-1.5">
-                          <span className="text-gray-400">{yesParticipants.length + maybeParticipants.length + getParticipantsByStatus(activity.id, 'no').length}/14 ont répondu</span>
-                          {yesParticipants.length < 5 && yesParticipants.length > 0 && (
-                            <span className="text-[#6366f1]">Encore {5 - yesParticipants.length} pour confirmer</span>
-                          )}
+                      <div className="mt-4 flex items-center gap-3">
+                        <div className="w-40 h-1 rounded-full bg-[var(--hairline)] overflow-hidden">
+                          <div className="h-full bg-[var(--accent)]" style={{ width: `${((yesParticipants.length + maybeParticipants.length + getParticipantsByStatus(activity.id, 'no').length) / 14) * 100}%` }} />
                         </div>
-                        <div className="h-2 bg-[#1e1e2e] rounded-full overflow-hidden">
-                          <div
-                            className={`h-full transition-all ${yesParticipants.length >= 5 ? 'bg-gradient-to-r from-[#22c55e] to-[#16a34a]' : 'bg-gradient-to-r from-[#6366f1] to-[#a855f7]'}`}
-                            style={{ width: `${((yesParticipants.length + maybeParticipants.length + getParticipantsByStatus(activity.id, 'no').length) / 14) * 100}%` }}
-                          />
-                        </div>
+                        <span className="text-[12px] text-[var(--text-tertiary)]">
+                          {yesParticipants.length > 0 && `${yesParticipants.length} viennent`}
+                          {yesParticipants.length > 0 && maybeParticipants.length > 0 && ' · '}
+                          {maybeParticipants.length > 0 && `${maybeParticipants.length} peut-être`}
+                          {yesParticipants.length === 0 && maybeParticipants.length === 0 && 'Personne pour l’instant'}
+                        </span>
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-4">
-                      <div className="flex items-center gap-2">
-                        {/* Confirmed Badge */}
-                        {yesParticipants.length >= 5 && (
-                          <div className="px-3 py-1.5 bg-[#22c55e] text-white text-sm font-bold rounded-xl flex items-center gap-1.5 shadow-lg shadow-[#22c55e]/30">
-                            <span>✓</span> Confirmé !
-                          </div>
-                        )}
-                        {yesParticipants.length > 0 && (
-                          <div className="flex items-center gap-2 px-4 py-2 bg-[#22c55e]/20 rounded-xl border border-[#22c55e]/30">
-                            <div className="flex -space-x-2">
-                              {yesParticipants.slice(0, 3).map(p => (
-                                <div key={p.id} className="w-6 h-6 rounded-full overflow-hidden relative ring-2 ring-[#12121a]">
-                                  <Image src={`/members/${p.users?.member_slug || 'default'}.png`} alt="" fill className="object-cover" />
-                                </div>
-                              ))}
-                              {yesParticipants.length > 3 && (
-                                <div className="w-6 h-6 rounded-full bg-[#22c55e] flex items-center justify-center text-xs font-bold text-white ring-2 ring-[#12121a]">+{yesParticipants.length - 3}</div>
-                              )}
-                            </div>
-                            <span className="text-[#22c55e] font-bold">{yesParticipants.length}</span>
-                            <span className="text-[#22c55e]/70 text-sm">viennent</span>
-                          </div>
-                        )}
-                        {maybeParticipants.length > 0 && (
-                          <div className="flex items-center gap-2 px-4 py-2 bg-[#fbbf24]/20 rounded-xl border border-[#fbbf24]/30">
-                            <span className="text-[#fbbf24] font-bold">{maybeParticipants.length}</span>
-                            <span className="text-[#fbbf24]/70 text-sm">peut-être</span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => handleParticipation(activity.id, 'yes', activity.title, activity.created_by)} disabled={isLoading}
-                          className={`px-5 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 ${myStatus === 'yes' ? 'bg-[#22c55e] text-white shadow-lg shadow-[#22c55e]/30' : 'bg-[#22c55e]/20 text-[#22c55e] hover:bg-[#22c55e]/30 border border-[#22c55e]/30'} ${isLoading ? 'opacity-50' : ''}`}>
-                          <span>✓</span><span>Je viens</span>
+                    <div className="shrink-0 self-start flex items-center gap-3">
+                      {(activity.created_by === currentUser.id || myStatus) && (
+                        <button
+                          onClick={() => openEditActivity(activity)}
+                          className="px-3 py-2.5 -my-1 text-[13px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+                        >
+                          Modifier
                         </button>
-                        <button onClick={() => handleParticipation(activity.id, 'maybe', activity.title, activity.created_by)} disabled={isLoading}
-                          className={`px-5 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 ${myStatus === 'maybe' ? 'bg-[#fbbf24] text-black shadow-lg shadow-[#fbbf24]/30' : 'bg-[#fbbf24]/20 text-[#fbbf24] hover:bg-[#fbbf24]/30 border border-[#fbbf24]/30'} ${isLoading ? 'opacity-50' : ''}`}>
-                          <span>🤔</span><span>Peut-être</span>
-                        </button>
-                        <button onClick={() => handleParticipation(activity.id, 'no', activity.title, activity.created_by)} disabled={isLoading}
-                          className={`px-5 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 ${myStatus === 'no' ? 'bg-[#ef4444] text-white shadow-lg shadow-[#ef4444]/30' : 'bg-[#ef4444]/20 text-[#ef4444] hover:bg-[#ef4444]/30 border border-[#ef4444]/30'} ${isLoading ? 'opacity-50' : ''}`}>
-                          <span>✗</span><span>Non</span>
-                        </button>
+                      )}
+                      <div className="inline-flex rounded-[8px] bg-[var(--surface-2)] p-0.5">
+                        {([['yes', 'Je viens'], ['maybe', 'Peut-être'], ['no', 'Non']] as const).map(([k, label]) => (
+                          <button
+                            key={k}
+                            onClick={() => handleParticipation(activity.id, k, activity.title, activity.created_by)}
+                            disabled={isLoading}
+                            className={`px-3 py-2.5 sm:py-1.5 rounded-[6px] text-[13px] transition-colors ${
+                              myStatus === k ? 'bg-[var(--accent-muted)] text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                            } ${isLoading ? 'opacity-50' : ''}`}
+                          >
+                            {label}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </div>
 
                   {(yesParticipants.length > 0 || maybeParticipants.length > 0) && (
-                    <div className="mt-4 pt-4 border-t border-white/10">
-                      <div className="flex flex-wrap gap-2">
-                        {yesParticipants.map(p => (
-                          <div key={p.id} className="flex items-center gap-2 px-3 py-1.5 bg-[#22c55e]/20 rounded-xl">
-                            <div className="w-6 h-6 rounded-full overflow-hidden relative">
-                              <Image src={`/members/${p.users?.member_slug || 'default'}.png`} alt="" fill className="object-cover" />
-                            </div>
-                            <span className="text-sm font-medium text-[#22c55e]">{p.users?.member_name?.split(' ')[0]}</span>
+                    <div className="mt-4 pt-4 border-t border-[var(--hairline)] flex flex-wrap gap-2">
+                      {yesParticipants.map(p => (
+                        <div key={p.id} className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[var(--surface-2)]">
+                          <div className="relative w-5 h-5 rounded-full overflow-hidden ring-1 ring-[var(--hairline)]">
+                            <Image src={`/members/${p.users?.member_slug || 'default'}.webp`} alt="" fill sizes="20px" className="object-cover object-top" />
                           </div>
-                        ))}
-                        {maybeParticipants.map(p => (
-                          <div key={p.id} className="flex items-center gap-2 px-3 py-1.5 bg-[#fbbf24]/20 rounded-xl">
-                            <div className="w-6 h-6 rounded-full overflow-hidden relative">
-                              <Image src={`/members/${p.users?.member_slug || 'default'}.png`} alt="" fill className="object-cover" />
-                            </div>
-                            <span className="text-sm font-medium text-[#fbbf24]">{p.users?.member_name?.split(' ')[0]} ?</span>
+                          <span className="text-[12px] text-[var(--text-secondary)]">{p.users?.member_name?.split(' ')[0]}</span>
+                        </div>
+                      ))}
+                      {maybeParticipants.map(p => (
+                        <div key={p.id} className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[var(--surface-2)]">
+                          <div className="relative w-5 h-5 rounded-full overflow-hidden ring-1 ring-[var(--hairline)]">
+                            <Image src={`/members/${p.users?.member_slug || 'default'}.webp`} alt="" fill sizes="20px" className="object-cover object-top" />
                           </div>
-                        ))}
-                      </div>
+                          <span className="text-[12px] text-[var(--text-tertiary)]">{p.users?.member_name?.split(' ')[0]} ?</span>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -314,90 +276,94 @@ export default function ActivitiesPage() {
           })}
 
           {activities.length === 0 && (
-            <div className="text-center py-16 px-4">
-              <div className="inline-block p-8 rounded-3xl bg-gradient-to-br from-[#6366f1]/20 to-transparent border border-[#6366f1]/20">
-                <span className="text-6xl mb-4 block">🎉</span>
-                <h3 className="text-2xl font-bold mb-2">Aucune activité pour le moment</h3>
-                <p className="text-gray-400 mb-6">Sois le premier à proposer quelque chose !</p>
-                <button onClick={() => setShowCreateModal(true)} className="px-8 py-4 bg-gradient-to-r from-[#6366f1] to-[#a855f7] text-white rounded-2xl font-bold hover:scale-105 transition-transform">
+            <EmptyState
+              title="Aucune activité pour le moment"
+              description="Propose une sortie pour lancer le mouvement."
+              action={
+                <button
+                  onClick={() => { setEditingActivityId(null); setShowCreateModal(true); }}
+                  className="h-9 px-4 rounded-[8px] bg-[var(--accent)] text-[#0A0C0B] text-[13px] font-medium hover:opacity-90 transition-opacity"
+                >
                   Créer une activité
                 </button>
-              </div>
-            </div>
+              }
+            />
           )}
         </div>
       </section>
 
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="glass rounded-3xl p-8 w-full max-w-lg border border-white/10 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--canvas)]/90 backdrop-blur-sm">
+          <div className="bg-[var(--surface-3)] top-light rounded-[16px] p-6 w-full max-w-lg shadow-2xl">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold">Nouvelle activité</h2>
-              <button onClick={() => { setShowCreateModal(false); setSelectedType(null); }} className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/20 transition-all">✕</button>
+              <h2 className="display text-[20px] text-[var(--text-primary)]">{editingActivityId ? 'Modifier l’activité' : 'Nouvelle activité'}</h2>
+              <button onClick={() => { setShowCreateModal(false); setSelectedType(null); setEditingActivityId(null); }} className="w-10 h-10 sm:w-8 sm:h-8 rounded-[8px] bg-[var(--surface-2)] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">✕</button>
             </div>
 
-            {!selectedType ? (
+            {!selectedType && !editingActivityId ? (
               <div className="space-y-4">
-                <p className="text-gray-400 mb-4">Quel type d&apos;activité ?</p>
-                <div className="grid grid-cols-2 gap-3">
+                <p className="text-[13px] text-[var(--text-secondary)] mb-3">Quel type d&apos;activité ?</p>
+                <div className="grid grid-cols-2 gap-2">
                   {ACTIVITY_TYPES.map(type => (
-                    <button key={type.id} onClick={() => setSelectedType(type.id)} className="p-4 rounded-2xl border border-white/10 bg-[#1e1e2e] hover:bg-[#2a2a3a] hover:border-white/20 transition-all text-left group">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-3xl group-hover:scale-110 transition-transform">{type.icon}</span>
-                        <span className="font-bold text-white">{type.label}</span>
+                    <button key={type.id} onClick={() => setSelectedType(type.id)} className="p-3 rounded-[10px] bg-[var(--surface-2)] hover:bg-[var(--surface-1)] transition-colors text-left">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xl">{type.icon}</span>
+                        <span className="text-[14px] font-medium text-[var(--text-primary)]">{type.label}</span>
                       </div>
-                      <p className="text-sm text-gray-500">{type.description}</p>
+                      <p className="text-[12px] text-[var(--text-tertiary)]">{type.description}</p>
                     </button>
                   ))}
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleCreateActivity} className="space-y-4">
-                <div className="flex items-center gap-3 p-4 bg-[#6366f1]/20 rounded-2xl border border-[#6366f1]/30 mb-4">
-                  <span className="text-3xl">{ACTIVITY_TYPES.find(t => t.id === selectedType)?.icon}</span>
-                  <div>
-                    <p className="font-bold text-white">{ACTIVITY_TYPES.find(t => t.id === selectedType)?.label}</p>
-                    <button type="button" onClick={() => setSelectedType(null)} className="text-sm text-[#6366f1] hover:underline">Changer</button>
+              <form onSubmit={handleSubmitActivity} className="space-y-4">
+                {selectedType && (
+                  <div className="flex items-center gap-3 p-3 rounded-[8px] bg-[var(--surface-2)] mb-2">
+                    <span className="text-xl">{ACTIVITY_TYPES.find(t => t.id === selectedType)?.icon}</span>
+                    <div>
+                      <p className="text-[14px] font-medium text-[var(--text-primary)]">{ACTIVITY_TYPES.find(t => t.id === selectedType)?.label}</p>
+                      <button type="button" onClick={() => setSelectedType(null)} className="text-[12px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors">Changer</button>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Titre</label>
+                  <label className="block text-[13px] text-[var(--text-secondary)] mb-1.5">Titre</label>
                   <input type="text" value={newActivity.title} onChange={(e) => setNewActivity({ ...newActivity, title: e.target.value })}
                     placeholder={`Ex: ${ACTIVITY_TYPES.find(t => t.id === selectedType)?.icon} ${ACTIVITY_TYPES.find(t => t.id === selectedType)?.label} chez Kevin`}
-                    className="w-full px-4 py-3 bg-[#1e1e2e] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#6366f1] transition-colors" />
+                    className="w-full px-4 py-3 bg-[var(--surface-2)] border border-[var(--hairline)] rounded-[8px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)] focus:border-[var(--accent)] transition-colors" />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Description (optionnel)</label>
+                  <label className="block text-[13px] text-[var(--text-secondary)] mb-1.5">Description (optionnel)</label>
                   <textarea value={newActivity.description} onChange={(e) => setNewActivity({ ...newActivity, description: e.target.value })}
                     placeholder="Plus de détails..." rows={3}
-                    className="w-full px-4 py-3 bg-[#1e1e2e] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#6366f1] resize-none transition-colors" />
+                    className="w-full px-4 py-3 bg-[var(--surface-2)] border border-[var(--hairline)] rounded-[8px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)] focus:border-[var(--accent)] resize-none transition-colors" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">📅 Date</label>
+                    <label className="block text-[13px] text-[var(--text-secondary)] mb-1.5">Date</label>
                     <input type="date" value={newActivity.date} onChange={(e) => setNewActivity({ ...newActivity, date: e.target.value })}
-                      className="w-full px-4 py-3 bg-[#1e1e2e] border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#6366f1] transition-colors" />
+                      className="w-full px-4 py-3 bg-[var(--surface-2)] border border-[var(--hairline)] rounded-[8px] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)] focus:border-[var(--accent)] transition-colors" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">⏰ Heure</label>
+                    <label className="block text-[13px] text-[var(--text-secondary)] mb-1.5">Heure</label>
                     <input type="time" value={newActivity.time} onChange={(e) => setNewActivity({ ...newActivity, time: e.target.value })}
-                      className="w-full px-4 py-3 bg-[#1e1e2e] border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#6366f1] transition-colors" />
+                      className="w-full px-4 py-3 bg-[var(--surface-2)] border border-[var(--hairline)] rounded-[8px] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)] focus:border-[var(--accent)] transition-colors" />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">📍 Lieu</label>
+                  <label className="block text-[13px] text-[var(--text-secondary)] mb-1.5">Lieu</label>
                   <input type="text" value={newActivity.location} onChange={(e) => setNewActivity({ ...newActivity, location: e.target.value })}
                     placeholder="Ex: Chez Kevin, Bar XYZ..."
-                    className="w-full px-4 py-3 bg-[#1e1e2e] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#6366f1] transition-colors" />
+                    className="w-full px-4 py-3 bg-[var(--surface-2)] border border-[var(--hairline)] rounded-[8px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)] focus:border-[var(--accent)] transition-colors" />
                 </div>
 
                 <div className="flex gap-3 pt-4">
-                  <button type="button" onClick={() => { setShowCreateModal(false); setSelectedType(null); }} className="flex-1 px-6 py-3 bg-white/10 text-white rounded-xl font-bold hover:bg-white/20 transition-colors">Annuler</button>
-                  <button type="submit" className="flex-1 px-6 py-3 bg-gradient-to-r from-[#6366f1] to-[#a855f7] text-white rounded-xl font-bold hover:scale-[1.02] transition-transform shadow-lg shadow-[#6366f1]/30">Créer</button>
+                  <button type="button" onClick={() => { setShowCreateModal(false); setSelectedType(null); setEditingActivityId(null); }} className="flex-1 h-11 rounded-[8px] bg-[var(--surface-2)] text-[14px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Annuler</button>
+                  <button type="submit" className="flex-1 h-11 rounded-[8px] bg-[var(--accent)] text-[#0A0C0B] text-[14px] font-medium hover:opacity-90 transition-opacity">{editingActivityId ? 'Enregistrer' : 'Créer'}</button>
                 </div>
               </form>
             )}

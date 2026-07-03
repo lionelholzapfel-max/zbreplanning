@@ -10,13 +10,16 @@ export interface SessionUser {
   is_admin: boolean;
 }
 
-// Fail-closed: never fall back to a hardcoded secret. If JWT_SECRET is missing
-// in an environment, we'd rather crash loudly than silently sign forgeable tokens.
-const jwtSecretValue = process.env.JWT_SECRET;
-if (!jwtSecretValue) {
-  throw new Error('JWT_SECRET environment variable is required (no insecure fallback)');
+// Fail-closed: never fall back to a hardcoded secret. Resolved LAZILY (at request
+// time, not module load) so a build in an env without JWT_SECRET (e.g. Vercel
+// preview) doesn't crash — only actual auth usage without the secret throws.
+function getJwtSecret(): Uint8Array {
+  const value = process.env.JWT_SECRET;
+  if (!value) {
+    throw new Error('JWT_SECRET environment variable is required (no insecure fallback)');
+  }
+  return new TextEncoder().encode(value);
 }
-const JWT_SECRET = new TextEncoder().encode(jwtSecretValue);
 
 const COOKIE_NAME = 'zbre_session';
 const COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds
@@ -62,13 +65,13 @@ export async function createSessionToken(user: SessionUser): Promise<string> {
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('30d')
-    .sign(JWT_SECRET);
+    .sign(getJwtSecret());
 }
 
 // Verify a session JWT
 export async function verifySessionToken(token: string): Promise<SessionUser | null> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const { payload } = await jwtVerify(token, getJwtSecret());
     return {
       id: payload.id as string,
       member_id: payload.member_id as string,

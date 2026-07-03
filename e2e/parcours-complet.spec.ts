@@ -9,7 +9,13 @@ test.describe('Parcours Complet E2E', () => {
 
     // 2. GO TO WORLD CUP AND MAKE A PREDICTION
     await page.goto('/world-cup');
-    await expect(page.locator('button:has-text("✓")').first()).toBeVisible({ timeout: 10000 });
+    // v2: participation segmented with text labels ("Je regarde" is always rendered per card)
+    await expect(page.locator('button:has-text("Je regarde")').first()).toBeVisible({ timeout: 10000 });
+
+    // Only unlocked, still-predictable matches can be saved (the API 403s a started
+    // match). Filter to "À pronostiquer" so the first card is guaranteed editable.
+    await page.locator('button:has-text("À pronostiquer")').first().click();
+    await page.waitForTimeout(600);
 
     // Find a match card with score inputs (not locked)
     const scoreInputHome = page.locator('input[inputmode="numeric"]').first();
@@ -21,27 +27,32 @@ test.describe('Parcours Complet E2E', () => {
       await scoreInputHome.fill('2');
       await scoreInputAway.fill('1');
 
-      // Wait for auto-save (1 second debounce + network)
-      await page.waitForTimeout(2000);
+      // Save deterministically — the 1s debounce auto-save can lag under parallel
+      // load; clicking Valider commits immediately.
+      await page.locator('button:has-text("Valider")').first().click().catch(() => {});
 
-      // Verify toast appeared or checkmark visible (use .first() for strict mode)
-      const toastOrCheck = page.locator('text=Pronostic enregistré').or(page.locator('text=✓'));
-      await expect(toastOrCheck.first()).toBeVisible({ timeout: 5000 });
+      // The on-card "Prono enregistré" badge persists (unlike the transient toast).
+      await expect(page.locator('text=Prono enregistré').first()).toBeVisible({ timeout: 10000 });
     }
 
     // 3. PERSISTENCE CHECK - Reload and verify prediction persists
     await page.reload();
-    await expect(page.locator('button:has-text("✓")').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('button:has-text("Je regarde")').first()).toBeVisible({ timeout: 10000 });
+    // Let async data + entry animations settle so cards stop re-rendering before we click.
+    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.waitForTimeout(1000);
 
     // 4. TEST "MES ÉQUIPES" FILTER
-    // First, toggle a favorite team by clicking the star
-    const starButton = page.locator('button:has-text("☆")').first();
-    if (await starButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await starButton.click();
+    // First, toggle a favorite team by clicking the star (v2: lucide Star icon, aria-label="Favori")
+    const starButton = page.locator('button[aria-label="Favori"]').first();
+    if (await starButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await starButton.click({ timeout: 10000 });
       await page.waitForTimeout(500);
 
-      // Star should now be filled
-      await expect(page.locator('button:has-text("★")').first()).toBeVisible({ timeout: 5000 });
+      // A favorite is now highlighted with the accent colour (re-query fresh: the card
+      // re-renders on toggle, which can detach the original node).
+      await expect(page.locator('button[aria-label="Favori"]').first())
+        .toHaveClass(/text-\[var\(--accent\)\]/, { timeout: 5000 });
     }
 
     // Click on "Mes équipes" filter chip
@@ -49,8 +60,8 @@ test.describe('Parcours Complet E2E', () => {
     await expect(myTeamsFilter).toBeVisible({ timeout: 5000 });
     await myTeamsFilter.click();
 
-    // Filter should be active (has the right background)
-    await expect(myTeamsFilter).toHaveClass(/bg-\[#6366f1\]/, { timeout: 5000 });
+    // Filter should be active (v2 chip active state uses the accent-muted background token)
+    await expect(myTeamsFilter).toHaveClass(/bg-\[var\(--accent-muted\)\]/, { timeout: 5000 });
 
     // 5. The filter is working - test complete
     // Note: We don't toggle favorite off because the star button can get detached after the filter applies
@@ -76,10 +87,10 @@ test.describe('Admin Flow', () => {
 
     // Go to leaderboard and verify it shows
     await page.goto('/leaderboard');
-    await expect(page.locator('text=Classement').or(page.locator('text=Leaderboard')).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: 'Classement' })).toBeVisible({ timeout: 10000 });
 
-    // Check leaderboard shows Points column header
-    await expect(page.locator('text=Points').first()).toBeVisible({ timeout: 10000 });
+    // Check leaderboard shows the "Pts" column header (v2 uses "Pts", not "Points")
+    await expect(page.locator('text=Pts').first()).toBeVisible({ timeout: 10000 });
   });
 });
 
@@ -96,7 +107,7 @@ test.describe('Mobile Screenshots @mobile', () => {
 
     // Screenshot: World Cup
     await page.goto('/world-cup');
-    await expect(page.locator('button:has-text("✓")').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('button:has-text("Je regarde")').first()).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(1000);
     await page.screenshot({ path: 'screenshots/mobile-world-cup.png', fullPage: false });
 

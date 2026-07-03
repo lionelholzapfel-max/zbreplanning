@@ -27,9 +27,12 @@ describe('Database Connection', () => {
   });
 
   it('should have test users in the database', async () => {
+    // Scoped to the test-user fixtures: the seed also holds the 14 real team
+    // members (needed by the e2e suite) in the same table.
     const { data, error } = await supabase
       .from('users')
       .select('id, email, member_name, is_admin')
+      .like('id', 'test-user-%')
       .order('id');
 
     expect(error).toBeNull();
@@ -47,6 +50,7 @@ describe('Database Connection', () => {
     const { data, error } = await supabase
       .from('user_stats')
       .select('id, member_name, total_points')
+      .like('id', 'test-user-%')
       .order('id');
 
     expect(error).toBeNull();

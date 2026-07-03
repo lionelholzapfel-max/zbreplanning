@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { MEMBERS, Member } from '@/data/members';
 import { toast } from 'sonner';
+import { Avatar, Spinner } from '@/components/ui';
 
 type Step = 'select' | 'pin' | 'setup';
 
@@ -15,8 +16,9 @@ export default function LoginPage() {
   const [confirmPin, setConfirmPin] = useState(['', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [hoveredMember, setHoveredMember] = useState<string | null>(null);
   const [isSettingUp, setIsSettingUp] = useState(false);
+  const [pinError, setPinError] = useState('');
+  const [shake, setShake] = useState(false);
   const pinRefs = useRef<(HTMLInputElement | null)[]>([]);
   const confirmPinRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
@@ -38,6 +40,7 @@ export default function LoginPage() {
     setSelectedMember(member);
     setPin(['', '', '', '']);
     setConfirmPin(['', '', '', '']);
+    setPinError('');
     setLoading(true);
 
     try {
@@ -66,6 +69,7 @@ export default function LoginPage() {
 
   const handlePinChange = (index: number, value: string, isConfirm = false) => {
     if (!/^\d*$/.test(value)) return;
+    if (!isConfirm) setPinError('');
 
     const newPin = isConfirm ? [...confirmPin] : [...pin];
     newPin[index] = value.slice(-1);
@@ -98,7 +102,7 @@ export default function LoginPage() {
 
     const pinString = pin.join('');
     if (pinString.length !== 4) {
-      toast.error('Entre ton PIN à 4 chiffres');
+      setPinError('Entre ton PIN à 4 chiffres');
       return;
     }
 
@@ -121,14 +125,18 @@ export default function LoginPage() {
           setStep('setup');
           setIsSettingUp(true);
         } else {
-          toast.error(data.error || 'Erreur de connexion');
+          // Inline error + shake, then reset for a retry
+          setPinError(data.error || 'PIN incorrect');
+          setShake(true);
+          setTimeout(() => setShake(false), 200);
           setPin(['', '', '', '']);
           pinRefs.current[0]?.focus();
+          setTimeout(() => setPinError(''), 2000);
         }
         return;
       }
 
-      toast.success(`Bienvenue ${selectedMember.name.split(' ')[0]} !`);
+      toast.success(`Bienvenue ${selectedMember.name.split(' ')[0]}`);
       router.push('/');
     } catch {
       toast.error('Erreur de connexion au serveur');
@@ -144,12 +152,12 @@ export default function LoginPage() {
     const confirmPinString = confirmPin.join('');
 
     if (pinString.length !== 4) {
-      toast.error('Entre un PIN à 4 chiffres');
+      setPinError('Entre un PIN à 4 chiffres');
       return;
     }
 
     if (pinString !== confirmPinString) {
-      toast.error('Les PINs ne correspondent pas');
+      setPinError('Les PINs ne correspondent pas');
       setConfirmPin(['', '', '', '']);
       confirmPinRefs.current[0]?.focus();
       return;
@@ -174,7 +182,7 @@ export default function LoginPage() {
         return;
       }
 
-      toast.success('PIN configuré ! Bienvenue !');
+      toast.success('PIN configuré');
       router.push('/');
     } catch {
       toast.error('Erreur de connexion au serveur');
@@ -188,6 +196,7 @@ export default function LoginPage() {
     setSelectedMember(null);
     setPin(['', '', '', '']);
     setConfirmPin(['', '', '', '']);
+    setPinError('');
   };
 
   // Auto-submit when PIN is complete
@@ -199,95 +208,53 @@ export default function LoginPage() {
 
   if (!mounted) return null;
 
+  const pinBoxClass = (hasError: boolean) =>
+    `w-14 h-14 text-center text-xl font-semibold rounded-[6px] bg-[var(--surface-raised)] border text-[var(--text-primary)] focus:outline-none transition-colors duration-150 ${
+      hasError ? 'border-[var(--danger)]' : 'border-[var(--hairline)] focus:border-[var(--accent)]'
+    }`;
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* Animated background particles */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#6366f1]/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#a855f7]/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-[#ec4899]/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
-      </div>
-
-      {/* Background with team photo */}
-      <div className="absolute inset-0 z-0">
-        <Image
-          src="/team/group.png"
-          alt="Zbre Team"
-          fill
-          className="object-cover opacity-15 scale-110"
-          priority
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0f]/90 via-[#0a0a0f]/95 to-[#0a0a0f]" />
-      </div>
-
-      {/* Content */}
-      <div className={`relative z-10 w-full max-w-2xl transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-        {/* Logo / Title */}
-        <div className="text-center mb-8">
-          <div className="inline-block mb-4 relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] blur-xl opacity-50 animate-pulse" />
-            <h1 className="relative text-6xl md:text-7xl font-black tracking-tight">
-              <span className="gradient-text">Zbre</span>
-              <span className="text-white">Planning</span>
-            </h1>
-          </div>
-          <p className="text-gray-400 text-xl">La team au complet</p>
-          <div className="flex items-center justify-center gap-2 mt-3">
-            <span className="w-12 h-px bg-gradient-to-r from-transparent via-[#6366f1] to-transparent" />
-            <span className="text-[#6366f1]">●</span>
-            <span className="w-12 h-px bg-gradient-to-r from-transparent via-[#6366f1] to-transparent" />
-          </div>
+    <div className="min-h-screen flex flex-col items-center px-4 pt-20 pb-10">
+      <div className="w-full max-w-2xl">
+        {/* Wordmark */}
+        <div className="text-center mb-10">
+          <h1 className="display text-3xl text-[var(--text-primary)]">ZbrePlanning</h1>
         </div>
 
         {/* Card */}
-        <div className="glass rounded-3xl p-8 border border-white/5 shadow-2xl shadow-[#6366f1]/5">
+        <div className="rounded-lg border border-[var(--hairline)] bg-[var(--surface)] p-6 sm:p-10">
           {step === 'select' && (
-            <div className="space-y-6">
+            <div>
               <div className="text-center">
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#6366f1]/10 rounded-full text-[#6366f1] text-sm font-medium mb-4">
-                  <span className="w-2 h-2 rounded-full bg-[#6366f1] animate-pulse" />
+                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border border-[var(--hairline)] bg-[var(--surface-raised)] text-[13px] text-[var(--text-secondary)] mb-5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
                   {MEMBERS.length} membres actifs
                 </div>
-                <h2 className="text-2xl font-bold mb-2">Salut ! Qui es-tu ?</h2>
-                <p className="text-gray-400">Sélectionne ton profil pour rejoindre la team</p>
+                <h2 className="text-[22px] font-semibold text-[var(--text-primary)]">Qui es-tu ?</h2>
+                <p className="mt-1 text-[15px] text-[var(--text-secondary)]">Sélectionne ton profil pour rejoindre la team</p>
               </div>
 
-              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-3">
-                {MEMBERS.map((member, index) => (
+              <div className="mt-8 grid grid-cols-4 md:grid-cols-7 gap-6">
+                {MEMBERS.map((member) => (
                   <button
                     key={member.id}
                     data-testid={`member-${member.slug}`}
                     onClick={() => handleMemberSelect(member)}
-                    onMouseEnter={() => setHoveredMember(member.id)}
-                    onMouseLeave={() => setHoveredMember(null)}
                     disabled={loading}
-                    className={`group relative p-2 rounded-2xl border-2 transition-all duration-300 ${
-                      hoveredMember === member.id
-                        ? 'border-[#6366f1]/50 bg-[#1e1e2e]'
-                        : 'border-transparent bg-[#1e1e2e]/50 hover:bg-[#1e1e2e]'
-                    } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    style={{ animationDelay: `${index * 50}ms` }}
+                    className="group flex flex-col items-center gap-2 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <div className="relative">
-                      <div className={`relative w-12 h-12 md:w-14 md:h-14 mx-auto rounded-full overflow-hidden ring-2 transition-all duration-300 ${
-                        'ring-[#2a2a3a] group-hover:ring-[#6366f1]/50'
-                      }`}>
-                        <Image
-                          src={member.photo}
-                          alt={member.name}
-                          fill
-                          className="object-cover transition-transform duration-300 group-hover:scale-110"
-                        />
-                      </div>
-
-                      <div className={`absolute -bottom-1 left-1/2 -translate-x-1/2 translate-y-full pointer-events-none transition-all duration-200 ${
-                        hoveredMember === member.id ? 'opacity-100' : 'opacity-0'
-                      }`}>
-                        <div className="bg-[#1e1e2e] border border-[#2a2a3a] rounded-lg px-2 py-1 text-xs font-medium whitespace-nowrap shadow-lg mt-2">
-                          {member.name}
-                        </div>
-                      </div>
+                    <div className="relative w-[72px] h-[72px] rounded-full overflow-hidden ring-2 ring-transparent group-hover:ring-[var(--accent)] group-focus-visible:ring-[var(--accent)] transition-all duration-150">
+                      <Image
+                        src={member.photo}
+                        alt={member.name}
+                        fill
+                        sizes="72px"
+                        className="object-cover"
+                      />
                     </div>
+                    <span className="text-[12px] font-medium text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] group-focus-visible:text-[var(--text-primary)] transition-colors whitespace-nowrap">
+                      {member.name.split(' ')[0]}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -295,35 +262,27 @@ export default function LoginPage() {
           )}
 
           {(step === 'pin' || step === 'setup') && selectedMember && (
-            <div className="space-y-6">
+            <div>
               <button
                 onClick={handleBack}
-                className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+                className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
               >
-                <span>←</span>
-                <span>Retour</span>
+                ← Retour
               </button>
 
-              <div className="text-center">
-                <div className="relative w-20 h-20 mx-auto rounded-full overflow-hidden ring-4 ring-[#6366f1] mb-4">
-                  <Image
-                    src={selectedMember.photo}
-                    alt={selectedMember.name}
-                    fill
-                    className="object-cover"
-                  />
+              <div className="text-center mt-6">
+                <div className="mx-auto w-[88px] h-[88px] mb-4">
+                  <Avatar slug={selectedMember.slug} name={selectedMember.name} size={88} ring="accent" className="w-full h-full" />
                 </div>
-                <h2 className="text-2xl font-bold mb-2">{selectedMember.name}</h2>
-                <p className="text-gray-400">
-                  {isSettingUp
-                    ? 'Configure ton PIN à 4 chiffres'
-                    : 'Entre ton PIN'}
+                <h2 className="text-xl font-semibold text-[var(--text-primary)]">{selectedMember.name.split(' ')[0]}</h2>
+                <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                  {isSettingUp ? 'Configure ton PIN à 4 chiffres' : 'Entre ton PIN'}
                 </p>
               </div>
 
               {/* PIN Input */}
-              <div className="space-y-4">
-                <div className="flex justify-center gap-3">
+              <div className="mt-6">
+                <div className={`flex justify-center gap-3 ${shake ? 'animate-shake' : ''}`}>
                   {[0, 1, 2, 3].map((i) => (
                     <input
                       key={i}
@@ -335,15 +294,19 @@ export default function LoginPage() {
                       onChange={(e) => handlePinChange(i, e.target.value)}
                       onKeyDown={(e) => handlePinKeyDown(i, e)}
                       autoFocus={i === 0}
-                      className="w-14 h-16 text-center text-2xl font-bold bg-[#1e1e2e] border-2 border-white/10 rounded-xl focus:border-[#6366f1] focus:outline-none transition-colors"
+                      className={pinBoxClass(!!pinError && !isSettingUp)}
                     />
                   ))}
                 </div>
 
+                {!isSettingUp && pinError && (
+                  <p className="mt-3 text-center text-[13px] text-[var(--danger)]">{pinError}</p>
+                )}
+
                 {isSettingUp && (
                   <>
-                    <p className="text-center text-gray-400 text-sm">Confirme ton PIN</p>
-                    <div className="flex justify-center gap-3">
+                    <p className="mt-5 text-center text-sm text-[var(--text-secondary)]">Confirme ton PIN</p>
+                    <div className="mt-3 flex justify-center gap-3">
                       {[0, 1, 2, 3].map((i) => (
                         <input
                           key={i}
@@ -354,10 +317,13 @@ export default function LoginPage() {
                           value={confirmPin[i]}
                           onChange={(e) => handlePinChange(i, e.target.value, true)}
                           onKeyDown={(e) => handlePinKeyDown(i, e, true)}
-                          className="w-14 h-16 text-center text-2xl font-bold bg-[#1e1e2e] border-2 border-white/10 rounded-xl focus:border-[#6366f1] focus:outline-none transition-colors"
+                          className={pinBoxClass(false)}
                         />
                       ))}
                     </div>
+                    {pinError && (
+                      <p className="mt-3 text-center text-[13px] text-[var(--danger)]">{pinError}</p>
+                    )}
                   </>
                 )}
               </div>
@@ -366,47 +332,24 @@ export default function LoginPage() {
                 <button
                   onClick={handleSetupPin}
                   disabled={loading || pin.some(d => !d) || confirmPin.some(d => !d)}
-                  className={`w-full py-4 rounded-2xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-3 ${
-                    !loading && pin.every(d => d) && confirmPin.every(d => d)
-                      ? 'bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] text-white hover:shadow-lg hover:shadow-[#6366f1]/30'
-                      : 'bg-[#1e1e2e] text-gray-500 cursor-not-allowed'
-                  }`}
+                  className="mt-6 w-full h-10 rounded-[6px] text-sm font-medium bg-[var(--accent)] text-[#0A0A0B] transition-opacity duration-150 ease-out hover:opacity-90 disabled:opacity-40 disabled:pointer-events-none inline-flex items-center justify-center gap-2"
                 >
-                  {loading ? (
-                    <>
-                      <svg className="animate-spin h-6 w-6" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      Configuration...
-                    </>
-                  ) : (
-                    <>
-                      <span>Configurer mon PIN</span>
-                      <span className="text-xl">🔐</span>
-                    </>
-                  )}
+                  {loading ? <Spinner size={18} /> : 'Configurer mon PIN'}
                 </button>
               )}
 
               {!isSettingUp && loading && (
-                <div className="flex justify-center">
-                  <svg className="animate-spin h-8 w-8 text-[#6366f1]" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
+                <div className="mt-6 flex justify-center">
+                  <Spinner size={22} />
                 </div>
               )}
             </div>
           )}
         </div>
 
+        {/* Footer */}
         <div className="mt-8 text-center">
-          <div className="inline-flex items-center gap-4 text-gray-500 text-sm">
-            <span>🇧🇪</span>
-            <span>La Zbre Team - Bruxelles</span>
-            <span>❤️</span>
-          </div>
+          <p className="text-[13px] text-[var(--text-tertiary)]">🇧🇪 La Zbre Team - Bruxelles ❤️</p>
         </div>
       </div>
     </div>

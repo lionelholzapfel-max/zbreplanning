@@ -14,6 +14,7 @@ import {
 } from '@/lib/football-api';
 import matches from '@/data/matches.json';
 import { getCompetitionDay, updateDailyAwards } from '@/lib/awards';
+import { getResolvedTeamNames } from '@/lib/team-names';
 
 // For knockout matches, find by team overrides since our match names are placeholders
 async function findKnockoutMatchId(
@@ -292,6 +293,8 @@ async function recordMatchResult(
   }
 
   const teams = parseMatchTeams(match.match);
+  // Real names (overrides) for user-facing notification text only — NOT scoring.
+  const displayTeams = await getResolvedTeamNames(matchId);
 
   // Upsert result with source tracking (upsert so a corrected score re-records
   // cleanly instead of failing on the unique match_id constraint).
@@ -372,7 +375,7 @@ async function recordMatchResult(
     return {
       user_id: member.id,
       type: 'match_response' as const,
-      title: `${teams.home} ${homeScore}-${awayScore} ${teams.away}`,
+      title: `${displayTeams.home} ${homeScore}-${awayScore} ${displayTeams.away}`,
       message: `Résultat ${source === 'auto' ? '(auto)' : ''} — ${pointsText}`,
       link: '/leaderboard',
       created_by: null, // auto-sync has no human author (FK would reject 'system')

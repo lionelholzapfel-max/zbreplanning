@@ -12,16 +12,16 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         position="top-center"
         toastOptions={{
           style: {
-            background: '#1e1e2e',
-            border: '1px solid rgba(255,255,255,0.1)',
-            color: '#fff',
+            background: 'var(--surface-3)',
+            border: '1px solid var(--hairline)',
+            borderRadius: '8px',
+            color: 'var(--text-primary)',
           },
           classNames: {
-            error: 'bg-red-500/20 border-red-500/30 text-red-200',
-            success: 'bg-green-500/20 border-green-500/30 text-green-200',
+            error: 'border-[var(--danger)]/40 text-[var(--danger)]',
+            success: 'border-[var(--accent)]/40 text-[var(--accent)]',
           },
         }}
-        richColors
         closeButton
       />
     </>

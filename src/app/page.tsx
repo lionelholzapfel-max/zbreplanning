@@ -1,16 +1,20 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { Fragment, useEffect, useState, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Trophy, CalendarRange, ArrowRight, MapPin } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import { MEMBERS } from '@/data/members';
 import matches from '@/data/matches.json';
 import { useSupabase, Activity, ActivityParticipation } from '@/hooks/useSupabase';
+import { useTeamOverrides } from '@/hooks/useTeamOverrides';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { FunFactCard } from '@/components/FunFactCard';
+import { Badge, ListRow, Avatar, Spinner } from '@/components/ui';
+import { CountUp } from '@/components/CountUp';
 
 interface UpcomingActivity extends Activity {
   participations: ActivityParticipation[];
@@ -40,39 +44,28 @@ interface Match {
   group: string;
 }
 
-// Flag helper
-const getFlag = (country: string): string => {
-  const flags: Record<string, string> = {
-    'Mexique': '🇲🇽', 'Afrique du Sud': '🇿🇦', 'Corée du Sud': '🇰🇷', 'République tchèque': '🇨🇿',
-    'Canada': '🇨🇦', 'Bosnie-Herzégovine': '🇧🇦', 'Qatar': '🇶🇦', 'Suisse': '🇨🇭',
-    'Brésil': '🇧🇷', 'Maroc': '🇲🇦', 'Haïti': '🇭🇹', 'Écosse': '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
-    'Allemagne': '🇩🇪', 'Japon': '🇯🇵', 'Honduras': '🇭🇳', 'Turquie': '🇹🇷',
-    'Argentine': '🇦🇷', 'Ouganda': '🇺🇬', 'Australie': '🇦🇺', 'Bahreïn': '🇧🇭',
-    'France': '🇫🇷', 'Colombie': '🇨🇴', 'Panama': '🇵🇦', 'Nouvelle-Zélande': '🇳🇿',
-    'Espagne': '🇪🇸', 'Pays-Bas': '🇳🇱', 'Équateur': '🇪🇨', 'Corée du Nord': '🇰🇵',
-    'Angleterre': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Pologne': '🇵🇱', 'Sénégal': '🇸🇳', 'Slovénie': '🇸🇮',
-    'Belgique': '🇧🇪', 'Croatie': '🇭🇷', 'Grèce': '🇬🇷', 'Ukraine': '🇺🇦',
-    'Portugal': '🇵🇹', 'Italie': '🇮🇹', 'Irlande': '🇮🇪', 'Égypte': '🇪🇬',
-    'USA': '🇺🇸', 'États-Unis': '🇺🇸', 'Chili': '🇨🇱', 'Arabie Saoudite': '🇸🇦',
-    'Uruguay': '🇺🇾', 'Nigeria': '🇳🇬', 'Pérou': '🇵🇪', 'Tunisie': '🇹🇳',
-  };
-  for (const [key, flag] of Object.entries(flags)) {
-    if (country.includes(key)) return flag;
-  }
-  return '⚽';
+
+// Compact a French date string ("4 juillet" → "4 juil.") for tight mobile rows.
+const MONTH_ABBR: Record<string, string> = {
+  janvier: 'janv.', février: 'févr.', mars: 'mars', avril: 'avr.', mai: 'mai', juin: 'juin',
+  juillet: 'juil.', août: 'août', septembre: 'sept.', octobre: 'oct.', novembre: 'nov.', décembre: 'déc.',
 };
+function compactDate(s: string): string {
+  return s.replace(/janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre/i,
+    (m) => MONTH_ABBR[m.toLowerCase()] ?? m);
+}
 
 export default function HomePage() {
   const [mounted, setMounted] = useState(false);
   const [stats, setStats] = useState({ matchesJoined: 0, activitiesCreated: 0 });
-  const [showCastor, setShowCastor] = useState(false);
   const [upcomingActivities, setUpcomingActivities] = useState<UpcomingActivity[]>([]);
   const [myUpcomingMatches, setMyUpcomingMatches] = useState<UpcomingMatch[]>([]);
   const [myPredictions, setMyPredictions] = useState<Set<number>>(new Set());
-  const [favorites, setFavorites] = useState<string[]>([]);
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [loadError, setLoadError] = useState(false);
   const router = useRouter();
   const { currentUser, loading, getUserStats, getUpcomingActivities, getMyUpcomingMatches } = useSupabase();
+  const { getTeamNames } = useTeamOverrides();
 
   // Load user's predictions (single API call instead of 20+)
   const loadPredictions = useCallback(async () => {
@@ -80,7 +73,6 @@ export default function HomePage() {
       const res = await fetch('/api/predictions/my-scores');
       if (res.ok) {
         const data = await res.json();
-        // matchIds is an array of match IDs that have predictions
         setMyPredictions(new Set(data.matchIds || []));
       }
     } catch (err) {
@@ -88,31 +80,23 @@ export default function HomePage() {
     }
   }, []);
 
-  // Load favorites
-  const loadFavorites = useCallback(async () => {
-    try {
-      const res = await fetch('/api/favorites');
-      if (res.ok) {
-        const data = await res.json();
-        setFavorites(data.favorites || []);
-      }
-    } catch (err) {
-      console.error('Error loading favorites:', err);
-    }
-  }, []);
-
   const loadData = useCallback(async () => {
-    const [userStats, activities, myMatches] = await Promise.all([
-      getUserStats(),
-      getUpcomingActivities(),
-      getMyUpcomingMatches(),
-      loadPredictions(),
-      loadFavorites(),
-    ]);
-    setStats(userStats);
-    setUpcomingActivities(activities);
-    setMyUpcomingMatches(myMatches);
-  }, [getUserStats, getUpcomingActivities, getMyUpcomingMatches, loadPredictions, loadFavorites]);
+    try {
+      setLoadError(false);
+      const [userStats, activities, myMatches] = await Promise.all([
+        getUserStats(),
+        getUpcomingActivities(),
+        getMyUpcomingMatches(),
+        loadPredictions(),
+      ]);
+      setStats(userStats);
+      setUpcomingActivities(activities);
+      setMyUpcomingMatches(myMatches);
+    } catch (err) {
+      console.error('Error loading home data:', err);
+      setLoadError(true);
+    }
+  }, [getUserStats, getUpcomingActivities, getMyUpcomingMatches, loadPredictions]);
 
   useEffect(() => {
     if (!loading && !currentUser) {
@@ -177,6 +161,14 @@ export default function HomePage() {
     return parts.length === 2 ? { team1: parts[0].trim(), team2: parts[1].trim() } : { team1: matchStr, team2: '' };
   };
 
+  // Resolve knockout placeholders ("Vainqueur M73") to real team names via overrides.
+  // Placeholders remain only for genuinely undetermined matches.
+  const resolveTeams = (matchId: number, matchStr: string) => {
+    const def = parseMatch(matchStr);
+    const r = getTeamNames(matchId, def.team1, def.team2);
+    return { team1: r.home, team2: r.away };
+  };
+
   // Get next upcoming matches (sorted by date)
   const nextMatches = useMemo(() => {
     const now = new Date();
@@ -212,680 +204,367 @@ export default function HomePage() {
     }).length;
   }, [myPredictions]);
 
-  // Show loading spinner while validating session
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-[#6366f1] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Chargement...</p>
-        </div>
+      <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
+        <Spinner size={32} />
       </div>
     );
   }
 
   if (!currentUser) return null;
 
-  // Calculate days until World Cup
-  const worldCupStart = new Date('2026-06-11');
-  const today = new Date();
-  const daysUntil = Math.ceil((worldCupStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  const statCards = [
+    { value: MEMBERS.length, label: 'Membres', accent: false },
+    { value: toPredictCount, label: 'À pronostiquer', accent: true },
+    { value: matches.length, label: 'Matchs', accent: false },
+    { value: 48, label: 'Équipes', accent: false },
+  ];
+
+  const countdownUnits = [
+    { value: countdown.days, label: 'jours', pad: 0 },
+    { value: countdown.hours, label: 'heures', pad: 2 },
+    { value: countdown.minutes, label: 'min', pad: 2 },
+    { value: countdown.seconds, label: 'sec', pad: 2 },
+  ];
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f]">
+    <div className="min-h-screen bg-[var(--bg)]">
       <Navbar />
 
-      {/* Hero Section */}
-      <section className="relative h-[60vh] sm:h-[80vh] flex items-center justify-center overflow-hidden">
-        {/* Animated gradient orbs - hidden on mobile */}
-        <div className="absolute inset-0 overflow-hidden hidden sm:block">
-          <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-[#6366f1]/20 rounded-full blur-[128px] animate-pulse" />
-          <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-[#a855f7]/20 rounded-full blur-[128px] animate-pulse" style={{ animationDelay: '1s' }} />
-        </div>
-
+      {/* Hero */}
+      <section data-shot="hero" className="relative h-[420px] overflow-hidden">
         <Image
-          src="/team/group.png"
+          src="/team/group.webp"
           alt="Zbre Team"
           fill
-          className="object-cover object-top"
+          className="object-cover object-top grayscale contrast-[1.05]"
           priority
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0f] via-[#0a0a0f]/70 to-[#0a0a0f]/40" />
+        {/* Archive treatment: canvas tint 25% + grain + bottom scrim toward --canvas */}
+        <div className="absolute inset-0 bg-[var(--canvas)]/25" />
+        <div className="grain absolute inset-0 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[var(--canvas)] via-[var(--canvas)]/60 to-transparent" />
 
-        <div className={`relative z-10 text-center px-4 transition-all duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-          <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-white/10 backdrop-blur-sm rounded-full text-white/80 text-xs sm:text-sm font-medium mb-4 sm:mb-6 border border-white/10">
-            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            {MEMBERS.length} membres • En ligne
-          </div>
-
-          <h1 className="text-4xl sm:text-6xl md:text-8xl font-black mb-4 sm:mb-6">
-            <span className="bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] bg-clip-text text-transparent">La Zbre Team</span>
-          </h1>
-
-          <p className="text-base sm:text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto mb-6 sm:mb-8">
-            Toujours ensemble, toujours prêts pour l&apos;aventure
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
-            <Link
-              href="/world-cup"
-              className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-[#1a472a] to-[#2d5a3d] text-white rounded-xl sm:rounded-2xl font-bold text-base sm:text-lg hover:scale-105 transition-transform shadow-lg shadow-[#1a472a]/30 flex items-center justify-center gap-2 sm:gap-3"
-            >
-              <span>⚽</span>
-              Coupe du Monde
-            </Link>
-            <Link
-              href="/activities"
-              className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-[#6366f1] to-[#a855f7] text-white rounded-xl sm:rounded-2xl font-bold text-base sm:text-lg hover:scale-105 transition-transform shadow-lg shadow-[#6366f1]/30 flex items-center justify-center gap-2 sm:gap-3"
-            >
-              <span>🎉</span>
-              Activités
-            </Link>
-          </div>
-        </div>
-
-        {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
-          <div className="w-6 h-10 rounded-full border-2 border-white/30 flex items-start justify-center p-2">
-            <div className="w-1 h-2 bg-white/50 rounded-full animate-pulse" />
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Banner */}
-      <section className="max-w-7xl mx-auto px-4 -mt-16 relative z-20">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="glass rounded-2xl p-6 text-center border border-white/5 hover:border-[#6366f1]/30 transition-colors group">
-            <span className="text-4xl mb-2 block group-hover:scale-110 transition-transform">👥</span>
-            <span className="text-3xl font-bold text-white">{MEMBERS.length}</span>
-            <p className="text-gray-400 text-sm">Membres</p>
-          </div>
-          <Link
-            href="/world-cup"
-            className="glass rounded-2xl p-6 text-center border border-white/5 hover:border-[#22c55e]/30 transition-colors group cursor-pointer"
-          >
-            <span className="text-4xl mb-2 block group-hover:scale-110 transition-transform">✍️</span>
-            <span className="text-3xl font-bold text-[#22c55e]">{toPredictCount}</span>
-            <p className="text-gray-400 text-sm">À pronostiquer</p>
-          </Link>
-          <div className="glass rounded-2xl p-6 text-center border border-white/5 hover:border-[#22c55e]/30 transition-colors group">
-            <span className="text-4xl mb-2 block group-hover:scale-110 transition-transform">⏰</span>
-            <span className="text-3xl font-bold text-[#fbbf24]">{daysUntil > 0 ? daysUntil : 'C\'est parti!'}</span>
-            <p className="text-gray-400 text-sm">{daysUntil > 0 ? 'Jours avant la CDM' : ''}</p>
-          </div>
-          <div className="glass rounded-2xl p-6 text-center border border-white/5 hover:border-[#ec4899]/30 transition-colors group">
-            <span className="text-4xl mb-2 block group-hover:scale-110 transition-transform">🏆</span>
-            <span className="text-3xl font-bold text-white">48</span>
-            <p className="text-gray-400 text-sm">Équipes</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Fun Fact du jour */}
-      <section className="max-w-7xl mx-auto px-4 py-8">
-        <FunFactCard />
-      </section>
-
-      {/* Countdown to Next Match */}
-      {nextMatch && (
-        <section className="max-w-7xl mx-auto px-4 py-8">
-          <Link href="/world-cup" className="block">
-            <div className="relative overflow-hidden rounded-3xl border border-[#fbbf24]/30 bg-gradient-to-br from-[#1a472a]/80 to-[#0d2818]/80 p-6 hover:border-[#fbbf24]/50 transition-all group">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-[#fbbf24]/10 rounded-full blur-3xl" />
-
-              <div className="relative flex flex-col md:flex-row items-center justify-between gap-6">
-                <div className="text-center md:text-left">
-                  <p className="text-[#fbbf24] font-bold text-sm mb-1">⏰ PROCHAIN MATCH</p>
-                  <h3 className="text-xl md:text-2xl font-bold text-white mb-2">
-                    {(() => {
-                      const { team1, team2 } = parseMatch(nextMatch.match);
-                      return (
-                        <>
-                          {getFlag(team1)} {team1} vs {team2} {getFlag(team2)}
-                        </>
-                      );
-                    })()}
-                  </h3>
-                  <p className="text-gray-400 text-sm">
-                    {nextMatch.dateDisplay} à {nextMatch.time}
-                  </p>
-                </div>
-
-                {/* Countdown Timer */}
-                <div className="flex items-center gap-3">
-                  <div className="text-center">
-                    <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-[#fbbf24]/20 border border-[#fbbf24]/30 flex items-center justify-center">
-                      <span className="text-2xl md:text-3xl font-black text-[#fbbf24]">{countdown.days}</span>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1">jours</p>
-                  </div>
-                  <span className="text-2xl text-[#fbbf24] font-bold animate-pulse">:</span>
-                  <div className="text-center">
-                    <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-[#fbbf24]/20 border border-[#fbbf24]/30 flex items-center justify-center">
-                      <span className="text-2xl md:text-3xl font-black text-[#fbbf24]">{String(countdown.hours).padStart(2, '0')}</span>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1">heures</p>
-                  </div>
-                  <span className="text-2xl text-[#fbbf24] font-bold animate-pulse">:</span>
-                  <div className="text-center">
-                    <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-[#fbbf24]/20 border border-[#fbbf24]/30 flex items-center justify-center">
-                      <span className="text-2xl md:text-3xl font-black text-[#fbbf24]">{String(countdown.minutes).padStart(2, '0')}</span>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1">min</p>
-                  </div>
-                  <span className="text-2xl text-[#fbbf24] font-bold animate-pulse">:</span>
-                  <div className="text-center">
-                    <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-[#22c55e]/20 border border-[#22c55e]/30 flex items-center justify-center">
-                      <span className="text-2xl md:text-3xl font-black text-[#22c55e] tabular-nums">{String(countdown.seconds).padStart(2, '0')}</span>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1">sec</p>
-                  </div>
-                </div>
-
-                <div className="hidden md:block text-right opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span className="text-[#fbbf24] font-medium">Voir les matchs →</span>
-                </div>
-              </div>
+        <div
+          className={`absolute inset-x-0 bottom-0 px-4 pb-10 transition-all duration-500 ${
+            mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
+          }`}
+        >
+          <div className="max-w-5xl mx-auto">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-[var(--surface)]/80 backdrop-blur-sm border border-[var(--hairline)] text-xs text-[var(--text-secondary)] mb-3">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
+              {MEMBERS.length} membres · En ligne
             </div>
-          </Link>
-        </section>
-      )}
 
-      {/* Next Matches Section */}
-      {nextMatches.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 py-12">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold flex items-center gap-3">
-                <span className="text-3xl">⚽</span>
-                Prochains matchs
-              </h2>
-              <p className="text-gray-400 mt-1">Les matchs à venir</p>
-            </div>
-            <div className="flex items-center gap-3">
-              {toPredictCount > 0 && (
-                <Link
-                  href="/world-cup"
-                  className="px-4 py-2 bg-[#22c55e]/20 text-[#22c55e] rounded-xl font-bold hover:bg-[#22c55e]/30 transition-colors flex items-center gap-2"
-                >
-                  <span>✍️</span>
-                  <span>{toPredictCount} à pronostiquer</span>
-                </Link>
-              )}
+            <h1 className="display text-[44px] sm:text-[52px] text-[var(--text-primary)] leading-[1.05]">
+              La Zbre Team
+            </h1>
+
+            <div className="mt-6 flex flex-wrap items-center gap-3">
               <Link
                 href="/world-cup"
-                className="text-[#fbbf24] hover:text-[#fbbf24]/80 transition-colors font-medium"
+                className="inline-flex h-11 sm:h-9 items-center justify-center rounded-[6px] px-4 text-sm font-medium bg-[var(--accent)] text-[#0A0A0B] transition-opacity duration-150 ease-out hover:opacity-90"
               >
-                Voir tous →
+                Coupe du Monde
               </Link>
-            </div>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {nextMatches.map((match) => {
-              const { team1, team2 } = parseMatch(match.match);
-              const hasPrediction = myPredictions.has(match.id);
-              const isFavorite = favorites.includes(team1) || favorites.includes(team2);
-
-              return (
-                <Link
-                  key={`next-${match.id}`}
-                  href="/world-cup"
-                  className={`group relative overflow-hidden rounded-2xl border transition-all hover:scale-[1.02] ${
-                    isFavorite
-                      ? 'border-[#fbbf24]/30 bg-gradient-to-br from-[#1a472a]/60 to-[#12121a]'
-                      : 'border-white/10 bg-gradient-to-br from-[#1a472a]/30 to-[#12121a]'
-                  }`}
-                >
-                  {/* Favorite badge */}
-                  {isFavorite && (
-                    <div className="absolute top-3 right-3 text-[#fbbf24]">
-                      ★
-                    </div>
-                  )}
-
-                  <div className="p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      {match.group && (
-                        <span className="px-2 py-1 bg-[#fbbf24]/20 text-[#fbbf24] text-xs font-bold rounded-lg">
-                          {match.group}
-                        </span>
-                      )}
-                      <span className="text-xs text-gray-400">{match.dateDisplay}</span>
-                      <span className="text-xs text-[#fbbf24] font-bold">{match.time}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-2xl">{getFlag(team1)}</span>
-                        <span className="font-bold text-white">{team1}</span>
-                      </div>
-                      <span className="text-gray-500">vs</span>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-white">{team2}</span>
-                        <span className="text-2xl">{getFlag(team2)}</span>
-                      </div>
-                    </div>
-
-                    {/* PRONO = STAR - Big CTA or score display */}
-                    {hasPrediction ? (
-                      <div className="flex items-center justify-center gap-2 py-2 px-3 bg-[#6366f1]/20 rounded-xl border border-[#6366f1]/30">
-                        <span className="text-[#6366f1]">🎯</span>
-                        <span className="text-[#6366f1] font-bold">Prono enregistré</span>
-                        <span className="text-[#6366f1]">✓</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-[#fbbf24] to-[#f59e0b] rounded-xl text-black font-bold group-hover:scale-[1.02] transition-transform">
-                        <span>🎯</span>
-                        <span>Pronostique !</span>
-                      </div>
-                    )}
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* My Upcoming Events Section */}
-      {(myUpcomingMatches.length > 0 || upcomingActivities.length > 0) && (
-        <section className="max-w-7xl mx-auto px-4 py-12">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold flex items-center gap-3">
-                <span className="text-3xl">📅</span>
-                Mes prochains rendez-vous
-              </h2>
-              <p className="text-gray-400 mt-1">Tes events confirmés et à venir</p>
-            </div>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Upcoming Matches */}
-            {myUpcomingMatches.slice(0, 3).map((um) => {
-              const matchData = getMatchData(um.matchId);
-              if (!matchData) return null;
-              const { team1, team2 } = parseMatch(matchData.match);
-
-              return (
-                <Link
-                  key={`match-${um.matchId}`}
-                  href="/world-cup"
-                  className="group relative overflow-hidden rounded-2xl border transition-all hover:scale-[1.02]"
-                  style={{
-                    borderColor: um.isConfirmed ? 'rgba(34, 197, 94, 0.3)' : 'rgba(251, 191, 36, 0.2)',
-                    background: um.isConfirmed
-                      ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(18, 18, 26, 1))'
-                      : 'linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(18, 18, 26, 1))',
-                  }}
-                >
-                  {/* Confirmed Badge */}
-                  {um.isConfirmed && (
-                    <div className="absolute top-3 right-3 px-2 py-1 bg-[#22c55e] text-white text-xs font-bold rounded-lg flex items-center gap-1">
-                      <span>✓</span> Confirmé
-                    </div>
-                  )}
-
-                  <div className="p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-2xl">⚽</span>
-                      <span className="text-xs text-gray-400">{matchData.dateDisplay}</span>
-                      <span className="text-xs text-[#fbbf24] font-bold">{matchData.time}</span>
-                    </div>
-
-                    <h3 className="text-lg font-bold text-white mb-1">{team1}</h3>
-                    <p className="text-sm text-gray-400 mb-3">vs {team2}</p>
-
-                    {/* Response Progress Bar */}
-                    <div className="mb-3">
-                      <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="text-gray-400">{um.totalResponses}/{MEMBERS.length} ont répondu</span>
-                        <span className="text-[#22c55e] font-bold">{um.yesCount} viennent</span>
-                      </div>
-                      <div className="h-2 bg-[#1e1e2e] rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-[#22c55e] to-[#16a34a] transition-all"
-                          style={{ width: `${(um.totalResponses / MEMBERS.length) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className={`px-2 py-1 rounded-lg text-xs font-bold ${
-                        um.status === 'yes' ? 'bg-[#22c55e]/20 text-[#22c55e]' : 'bg-[#fbbf24]/20 text-[#fbbf24]'
-                      }`}>
-                        {um.status === 'yes' ? '✓ Tu viens' : '🤔 Peut-être'}
-                      </span>
-                      <span className="text-xs text-gray-500 group-hover:text-white transition-colors">
-                        Voir →
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-
-            {/* Upcoming Activities */}
-            {upcomingActivities.slice(0, 3).map((activity) => (
               <Link
-                key={`activity-${activity.id}`}
                 href="/activities"
-                className="group relative overflow-hidden rounded-2xl border transition-all hover:scale-[1.02]"
-                style={{
-                  borderColor: activity.isConfirmed ? 'rgba(34, 197, 94, 0.3)' : 'rgba(99, 102, 241, 0.2)',
-                  background: activity.isConfirmed
-                    ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(18, 18, 26, 1))'
-                    : 'linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(18, 18, 26, 1))',
-                }}
+                className="inline-flex h-11 sm:h-9 items-center justify-center rounded-[6px] px-4 text-sm font-medium bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--hairline-strong)] transition-colors duration-150 ease-out hover:bg-[var(--surface-raised)]"
               >
-                {/* Confirmed Badge */}
-                {activity.isConfirmed && (
-                  <div className="absolute top-3 right-3 px-2 py-1 bg-[#22c55e] text-white text-xs font-bold rounded-lg flex items-center gap-1">
-                    <span>✓</span> Confirmé
-                  </div>
-                )}
-
-                <div className="p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-2xl">🎉</span>
-                    {activity.date && (
-                      <span className="text-xs text-gray-400">
-                        {format(new Date(activity.date), 'EEE d MMM', { locale: fr })}
-                      </span>
-                    )}
-                    {activity.time && (
-                      <span className="text-xs text-[#6366f1] font-bold">{activity.time}</span>
-                    )}
-                  </div>
-
-                  <h3 className="text-lg font-bold text-white mb-1 truncate">{activity.title}</h3>
-                  {activity.location && (
-                    <p className="text-sm text-gray-400 mb-3 flex items-center gap-1">
-                      <span>📍</span> {activity.location}
-                    </p>
-                  )}
-
-                  {/* Response Progress Bar */}
-                  <div className="mb-3">
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-gray-400">{activity.totalResponses}/{MEMBERS.length} ont répondu</span>
-                      <span className="text-[#22c55e] font-bold">{activity.yesCount} viennent</span>
-                    </div>
-                    <div className="h-2 bg-[#1e1e2e] rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-[#6366f1] to-[#a855f7] transition-all"
-                        style={{ width: `${(activity.totalResponses / MEMBERS.length) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className={`px-2 py-1 rounded-lg text-xs font-bold ${
-                      activity.myStatus === 'yes' ? 'bg-[#22c55e]/20 text-[#22c55e]' :
-                      activity.myStatus === 'maybe' ? 'bg-[#fbbf24]/20 text-[#fbbf24]' :
-                      activity.myStatus === 'no' ? 'bg-[#ef4444]/20 text-[#ef4444]' :
-                      'bg-white/10 text-gray-400'
-                    }`}>
-                      {activity.myStatus === 'yes' ? '✓ Tu viens' :
-                       activity.myStatus === 'maybe' ? '🤔 Peut-être' :
-                       activity.myStatus === 'no' ? '✗ Non' : '❓ Pas répondu'}
-                    </span>
-                    <span className="text-xs text-gray-500 group-hover:text-white transition-colors">
-                      Voir →
-                    </span>
-                  </div>
-                </div>
+                Activités
               </Link>
-            ))}
+            </div>
           </div>
-
-          {/* Empty state */}
-          {myUpcomingMatches.length === 0 && upcomingActivities.length === 0 && (
-            <div className="text-center py-12 px-4 glass rounded-2xl border border-white/5">
-              <span className="text-5xl mb-4 block">📅</span>
-              <h3 className="text-xl font-bold mb-2">Aucun événement à venir</h3>
-              <p className="text-gray-400 mb-4">Inscris-toi à des matchs ou crée une activité !</p>
-              <div className="flex justify-center gap-3">
-                <Link href="/world-cup" className="px-4 py-2 bg-[#fbbf24]/20 text-[#fbbf24] rounded-xl font-bold hover:bg-[#fbbf24]/30 transition-colors">
-                  ⚽ Voir les matchs
-                </Link>
-                <Link href="/activities" className="px-4 py-2 bg-[#6366f1]/20 text-[#6366f1] rounded-xl font-bold hover:bg-[#6366f1]/30 transition-colors">
-                  🎉 Voir les activités
-                </Link>
-              </div>
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* Quick Actions */}
-      <section className="max-w-7xl mx-auto px-4 py-16">
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* World Cup Card */}
-          <Link href="/world-cup" className="group relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#1a472a] to-[#0d2818] opacity-90" />
-            <div className="absolute inset-0 bg-[url('/team/group.png')] bg-cover bg-center opacity-10" />
-            <div className="absolute top-0 right-0 w-64 h-64 bg-[#fbbf24]/10 rounded-full blur-3xl" />
-
-            <div className="relative p-8 h-full min-h-[280px] rounded-3xl border border-[#fbbf24]/20 group-hover:border-[#fbbf24]/50 transition-all">
-              <div className="flex items-start justify-between mb-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-[#fbbf24]/20 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
-                    ⚽
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-white">Coupe du Monde 2026</h2>
-                    <p className="text-[#fbbf24]">USA • Mexique • Canada</p>
-                  </div>
-                </div>
-                <span className="text-6xl opacity-20 group-hover:opacity-40 group-hover:rotate-12 transition-all">🏆</span>
-              </div>
-
-              <p className="text-gray-300 mb-6 text-lg">
-                Regardons les matchs ensemble ! Inscris-toi pour les matchs que tu veux voir avec la team.
-              </p>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="px-4 py-2 bg-[#fbbf24]/20 text-[#fbbf24] rounded-xl text-sm font-bold">
-                  📅 11 juin - 19 juillet
-                </span>
-                <span className="px-4 py-2 bg-white/10 text-white rounded-xl text-sm font-medium">
-                  104 matchs
-                </span>
-              </div>
-
-              <div className="absolute bottom-8 right-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="text-[#fbbf24] font-medium flex items-center gap-2">
-                  Voir les matchs <span className="text-xl">→</span>
-                </span>
-              </div>
-            </div>
-          </Link>
-
-          {/* Activities Card */}
-          <Link href="/activities" className="group relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#6366f1]/20 to-[#12121a]" />
-            <div className="absolute top-0 left-0 w-64 h-64 bg-[#6366f1]/20 rounded-full blur-3xl" />
-            <div className="absolute bottom-0 right-0 w-64 h-64 bg-[#a855f7]/10 rounded-full blur-3xl" />
-
-            <div className="relative p-8 h-full min-h-[280px] rounded-3xl border border-[#6366f1]/20 group-hover:border-[#6366f1]/50 transition-all">
-              <div className="flex items-start justify-between mb-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-[#6366f1]/20 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
-                    📅
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-white">Activités</h2>
-                    <p className="text-[#6366f1]">Propose ou rejoins une activité</p>
-                  </div>
-                </div>
-                <span className="text-6xl opacity-20 group-hover:opacity-40 group-hover:rotate-12 transition-all">🎉</span>
-              </div>
-
-              <p className="text-gray-300 mb-6 text-lg">
-                Soirées, restos, sorties, events... Crée une activité et vois qui est chaud !
-              </p>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="px-4 py-2 bg-[#6366f1]/20 text-[#6366f1] rounded-xl text-sm font-bold">
-                  + Créer une activité
-                </span>
-                <span className="px-4 py-2 bg-white/10 text-white rounded-xl text-sm font-medium">
-                  🍕 🎬 🎮 🍻
-                </span>
-              </div>
-
-              <div className="absolute bottom-8 right-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="text-[#6366f1] font-medium flex items-center gap-2">
-                  Voir les activités <span className="text-xl">→</span>
-                </span>
-              </div>
-            </div>
-          </Link>
         </div>
       </section>
 
-      {/* Team Members */}
-      <section className="max-w-7xl mx-auto px-4 py-12">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-3xl font-bold flex items-center gap-3">
-              <span className="text-4xl">👥</span>
-              La Team
-            </h2>
-            <p className="text-gray-400 mt-1">{MEMBERS.length} membres • Toujours ensemble</p>
+      {loadError && (
+        <section className="max-w-5xl mx-auto px-4 pt-8">
+          <div className="flex items-center justify-between gap-3 rounded-[10px] bg-[var(--surface-2)] border border-[var(--danger)]/30 px-4 py-3">
+            <p className="text-[13px] text-[var(--text-secondary)]">Impossible de charger — vérifie ta connexion.</p>
+            <button onClick={() => loadData()} className="shrink-0 h-8 px-3 rounded-[8px] bg-[var(--surface-3)] text-[13px] text-[var(--text-primary)] hover:bg-[var(--surface-4)] transition-colors">Réessayer</button>
           </div>
-        </div>
+        </section>
+      )}
 
-        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-4 md:gap-6">
-          {MEMBERS.map((member, index) => (
-            <div
-              key={member.id}
-              className={`text-center group transition-all duration-300 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
-              style={{ transitionDelay: `${index * 50}ms` }}
-            >
-              <div className={`relative w-16 h-16 md:w-24 md:h-24 mx-auto mb-3 rounded-full overflow-hidden transition-all duration-300 group-hover:scale-110 ${
-                currentUser.member_slug === member.slug
-                  ? 'ring-4 ring-[#6366f1] ring-offset-4 ring-offset-[#0a0a0f]'
-                  : 'ring-2 ring-[#2a2a3a] group-hover:ring-[#6366f1]/50'
-              }`}>
-                <Image
-                  src={member.photo}
-                  alt={member.name}
-                  fill
-                  className="object-cover"
-                />
-                {currentUser.member_slug === member.slug && (
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#6366f1]/50 to-transparent" />
-                )}
-              </div>
-              <p className={`text-sm md:text-base font-medium truncate px-1 transition-colors ${
-                currentUser.member_slug === member.slug ? 'text-[#6366f1]' : 'text-gray-300 group-hover:text-white'
-              }`}>
-                {member.name.split(' ')[0]}
-              </p>
-              {currentUser.member_slug === member.slug && (
-                <span className="text-xs text-[#6366f1]">C&apos;est toi!</span>
-              )}
+      {/* Stats nues — directement sur --canvas, le chiffre EST l'icône (§3) */}
+      <section data-shot="stats" className="max-w-5xl mx-auto px-4 pt-16">
+        <div className="grid grid-cols-2 gap-6 sm:flex sm:flex-wrap sm:items-start sm:gap-x-14 sm:gap-y-8">
+          {statCards.map(({ value, label, accent }) => (
+            <div key={label} className="flex flex-col">
+              <span className={`score text-[40px] ${accent ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}>
+                {value}
+              </span>
+              <span className="eyebrow mt-2">{label}</span>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Your Stats (personal) */}
-      <section className="max-w-7xl mx-auto px-4 py-12">
-        <div className="glass rounded-3xl p-8 border border-white/5">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="relative w-16 h-16 rounded-full overflow-hidden ring-4 ring-[#6366f1]">
-              <Image
-                src={`/members/${currentUser.member_slug}.png`}
-                alt={currentUser.member_name}
-                fill
-                className="object-cover"
-              />
+      {/* Fun fact */}
+      <section className="max-w-5xl mx-auto px-4 pt-8">
+        <FunFactCard />
+      </section>
+
+      {/* Next match — PILOTE "Tableau d'affichage" (surface-1, liseré, halo, .score count-up) */}
+      {nextMatch && (
+        <section className="max-w-5xl mx-auto px-4 pt-8">
+          <Link href="/world-cup" className="block">
+            <div data-shot="next-match" className="relative overflow-hidden rounded-[10px] bg-[var(--surface-1)] top-light p-6 transition-colors duration-150 hover:bg-[var(--surface-2)]">
+              <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-8">
+                <div className="min-w-0">
+                  <p className="eyebrow">Prochain match</p>
+                  <h3 className="mt-3 text-[18px] font-medium text-[var(--text-primary)] truncate">
+                    {(() => {
+                      const { team1, team2 } = resolveTeams(nextMatch.id, nextMatch.match);
+                      return `${team1} — ${team2}`;
+                    })()}
+                  </h3>
+                  <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                    {nextMatch.dateDisplay} à {nextMatch.time}
+                  </p>
+                </div>
+
+                <div className="halo relative flex items-start gap-2 sm:gap-4 shrink-0">
+                  {countdownUnits.map((u, i) => (
+                    <Fragment key={u.label}>
+                      <div className="relative z-10 flex flex-col items-center">
+                        <CountUp value={u.value} pad={u.pad} className="score text-[40px] sm:text-[56px] text-[var(--text-primary)]" />
+                        <span className="mt-2.5 text-[11px] uppercase tracking-[0.08em] text-[var(--text-tertiary)]">{u.label}</span>
+                      </div>
+                      {i < countdownUnits.length - 1 && (
+                        <span className="score text-[28px] sm:text-[40px] text-[var(--text-tertiary)] relative z-10 self-start mt-[6px]">:</span>
+                      )}
+                    </Fragment>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div>
-              <h3 className="text-xl font-bold text-white">Salut {currentUser.member_name.split(' ')[0]} !</h3>
-              <p className="text-gray-400">Voici ton activité récente</p>
-            </div>
+          </Link>
+        </section>
+      )}
+
+      {/* Upcoming matches */}
+      {nextMatches.length > 0 && (
+        <section className="max-w-5xl mx-auto px-4 pt-12">
+          {/* Header: desktop = title + badge left, action right (one row). Mobile (<sm):
+              title on its own line, badge + action wrap to the line below. */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-4">
+            <h2 className="display text-[22px] text-[var(--text-primary)] w-full sm:w-auto">Prochains matchs</h2>
+            {toPredictCount > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[11px] uppercase tracking-[0.04em] bg-[var(--surface-raised)] border border-[var(--hairline)]">
+                <span className="stat text-[var(--accent)]">{toPredictCount}</span>
+                <span className="text-[var(--text-tertiary)]">à pronostiquer</span>
+              </span>
+            )}
+            <Link href="/world-cup" className="ml-auto text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+              Voir tous →
+            </Link>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-4 bg-[#1e1e2e] rounded-2xl text-center">
-              <span className="text-2xl font-bold text-[#22c55e]">{stats.matchesJoined}</span>
-              <p className="text-gray-400 text-sm">Matchs confirmés</p>
-            </div>
-            <div className="p-4 bg-[#1e1e2e] rounded-2xl text-center">
-              <span className="text-2xl font-bold text-[#6366f1]">{stats.activitiesCreated}</span>
-              <p className="text-gray-400 text-sm">Activités créées</p>
-            </div>
-            <div className="p-4 bg-[#1e1e2e] rounded-2xl text-center">
-              <span className="text-2xl font-bold text-[#fbbf24]">#{MEMBERS.findIndex(m => m.slug === currentUser.member_slug) + 1}</span>
-              <p className="text-gray-400 text-sm">Membre depuis</p>
-            </div>
-            <div className="p-4 bg-[#1e1e2e] rounded-2xl text-center">
-              <span className="text-2xl font-bold text-[#ec4899]">100%</span>
-              <p className="text-gray-400 text-sm">Zbre certifié</p>
-            </div>
+          <div data-shot="matches">
+            {nextMatches.map((match) => {
+              const { team1, team2 } = resolveTeams(match.id, match.match);
+              const hasPrediction = myPredictions.has(match.id);
+              return (
+                <Link key={`next-${match.id}`} href="/world-cup" className="block group">
+                  <ListRow interactive>
+                    <div className="flex flex-row sm:flex-col items-baseline sm:items-start gap-1.5 sm:gap-0 shrink-0 pr-3 w-auto sm:w-16">
+                      <span className="text-xs text-[var(--text-tertiary)] tabular-nums whitespace-nowrap">
+                        <span className="sm:hidden">{compactDate(match.dateDisplay)}</span>
+                        <span className="hidden sm:inline">{match.dateDisplay}</span>
+                      </span>
+                      <span className="score text-[13px] sm:text-[15px] text-[var(--text-secondary)]">{match.time}</span>
+                    </div>
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="flex-1 min-w-0 text-[14px] font-medium text-[var(--text-primary)] truncate">{team1}</span>
+                      <span className="shrink-0 text-[14px] text-[var(--text-tertiary)]">—</span>
+                      <span className="flex-1 min-w-0 text-[14px] font-medium text-[var(--text-primary)] truncate text-right">{team2}</span>
+                    </div>
+                    {hasPrediction ? (
+                      <Badge variant="accent">Enregistré</Badge>
+                    ) : (
+                      <span className="text-sm text-[var(--text-secondary)] group-hover:text-[var(--accent)] transition-colors duration-150 shrink-0">
+                        Pronostiquer →
+                      </span>
+                    )}
+                  </ListRow>
+                </Link>
+              );
+            })}
           </div>
+        </section>
+      )}
+
+      {/* My upcoming events */}
+      {(myUpcomingMatches.length > 0 || upcomingActivities.length > 0) && (
+        <section className="max-w-5xl mx-auto px-4 pt-12">
+          <h2 className="display text-[22px] text-[var(--text-primary)] mb-4">
+            Mes prochains rendez-vous
+          </h2>
+
+          <div className="rounded-[10px] bg-[var(--surface-1)] top-light overflow-hidden">
+            {myUpcomingMatches.slice(0, 3).map((um) => {
+              const matchData = getMatchData(um.matchId);
+              if (!matchData) return null;
+              const { team1, team2 } = resolveTeams(matchData.id, matchData.match);
+              const pct = Math.round((um.totalResponses / MEMBERS.length) * 100);
+              return (
+                <Link key={`match-${um.matchId}`} href="/world-cup" className="block">
+                  <ListRow interactive className="py-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="eyebrow">Match</p>
+                      <p className="mt-1 text-[15px] font-medium text-[var(--text-primary)] truncate">
+                        {team1} <span className="text-[var(--text-tertiary)]">—</span> {team2}
+                      </p>
+                      <p className="text-xs text-[var(--text-secondary)] mt-0.5">{matchData.dateDisplay}</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="w-40 h-0.5 bg-[var(--hairline)] rounded-full overflow-hidden">
+                          <div className="h-full bg-[var(--accent)]" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="text-xs text-[var(--text-tertiary)]">{um.totalResponses}/{MEMBERS.length} ont répondu</span>
+                      </div>
+                    </div>
+                    <Badge variant={um.status === 'yes' ? 'accent' : 'neutral'}>
+                      {um.status === 'yes' ? 'Oui' : 'Peut-être'}
+                    </Badge>
+                  </ListRow>
+                </Link>
+              );
+            })}
+
+            {upcomingActivities.slice(0, 3).map((activity) => {
+              const pct = Math.round((activity.totalResponses / MEMBERS.length) * 100);
+              const statusLabel =
+                activity.myStatus === 'yes' ? 'Oui'
+                : activity.myStatus === 'maybe' ? 'Peut-être'
+                : activity.myStatus === 'no' ? 'Non'
+                : 'Sans réponse';
+              return (
+                <Link key={`activity-${activity.id}`} href="/activities" className="block">
+                  <ListRow interactive className="py-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="eyebrow">Activité</p>
+                      <p className="mt-1 text-[15px] font-medium text-[var(--text-primary)] truncate">{activity.title}</p>
+                      <p className="text-xs text-[var(--text-secondary)] mt-0.5 flex items-center gap-1.5">
+                        {activity.location && (
+                          <span className="inline-flex items-center gap-1">
+                            <MapPin className="w-3 h-3" strokeWidth={1.75} />
+                            {activity.location}
+                          </span>
+                        )}
+                        {activity.date && (
+                          <span>{format(new Date(activity.date), 'EEE d MMM', { locale: fr })}</span>
+                        )}
+                      </p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="w-40 h-0.5 bg-[var(--hairline)] rounded-full overflow-hidden">
+                          <div className="h-full bg-[var(--accent)]" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="text-xs text-[var(--text-tertiary)]">{activity.totalResponses}/{MEMBERS.length} ont répondu</span>
+                      </div>
+                    </div>
+                    <Badge variant={activity.myStatus === 'yes' ? 'accent' : 'neutral'}>{statusLabel}</Badge>
+                  </ListRow>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Navigation cards */}
+      <section className="max-w-5xl mx-auto px-4 pt-12">
+        <div className="grid md:grid-cols-2 gap-3">
+          <Link href="/world-cup" className="block group">
+            <div className="rounded-[10px] bg-[var(--surface-1)] top-light p-6 h-full transition-colors duration-150 ease-out hover:bg-[var(--surface-2)]">
+              <div className="flex items-center gap-2.5">
+                <Trophy className="w-[18px] h-[18px] text-[var(--text-secondary)]" strokeWidth={1.75} />
+                <h2 className="text-base font-semibold text-[var(--text-primary)]">Coupe du Monde 2026</h2>
+              </div>
+              <p className="mt-1.5 text-sm text-[var(--text-secondary)]">
+                USA · Mexique · Canada — 104 matchs. Pronostique et regarde-les avec la team.
+              </p>
+              <span className="mt-4 inline-flex items-center gap-1 text-sm text-[var(--text-secondary)] group-hover:text-[var(--accent)] transition-colors duration-150">
+                Voir les matchs <ArrowRight className="w-4 h-4" strokeWidth={1.75} />
+              </span>
+            </div>
+          </Link>
+
+          <Link href="/activities" className="block group">
+            <div className="rounded-[10px] bg-[var(--surface-1)] top-light p-6 h-full transition-colors duration-150 ease-out hover:bg-[var(--surface-2)]">
+              <div className="flex items-center gap-2.5">
+                <CalendarRange className="w-[18px] h-[18px] text-[var(--text-secondary)]" strokeWidth={1.75} />
+                <h2 className="text-base font-semibold text-[var(--text-primary)]">Activités</h2>
+              </div>
+              <p className="mt-1.5 text-sm text-[var(--text-secondary)]">
+                Propose une soirée, un resto, une sortie.
+              </p>
+              <span className="mt-4 inline-flex items-center gap-1 text-sm text-[var(--text-secondary)] group-hover:text-[var(--accent)] transition-colors duration-150">
+                Voir les activités <ArrowRight className="w-4 h-4" strokeWidth={1.75} />
+              </span>
+            </div>
+          </Link>
         </div>
       </section>
 
-      {/* Castor Easter Egg Section */}
-      <section className="max-w-7xl mx-auto px-4 py-12">
-        <button
-          onClick={() => setShowCastor(!showCastor)}
-          className="w-full glass rounded-3xl p-6 border border-white/5 hover:border-[#a855f7]/30 transition-all group cursor-pointer"
-        >
-          <div className="flex items-center justify-center gap-4">
-            <span className="text-4xl group-hover:animate-bounce">🦫</span>
-            <div className="text-center">
-              <p className="text-gray-400 group-hover:text-white transition-colors">
-                {showCastor ? 'Cacher le secret...' : 'Psst... clique ici pour un secret'}
-              </p>
-            </div>
-            <span className="text-4xl group-hover:animate-bounce" style={{ animationDelay: '0.1s' }}>🦫</span>
-          </div>
-        </button>
+      {/* Team */}
+      <section className="max-w-5xl mx-auto px-4 pt-12">
+        <h2 className="display text-[22px] text-[var(--text-primary)] mb-4">La team</h2>
+        <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 gap-4">
+          {MEMBERS.map((member) => {
+            const isMe = currentUser.member_slug === member.slug;
+            return (
+              <div key={member.id} className="min-w-0 text-center">
+                <div className="mx-auto w-16 h-16 md:w-20 md:h-20">
+                  <Avatar slug={member.slug} name={member.name} size={80} ring={isMe ? 'accent' : 'none'} className="w-full h-full" />
+                </div>
+                <p className={`mt-2 text-[11px] sm:text-sm truncate ${isMe ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'}`}>
+                  {member.name.split(' ')[0]}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
-        {/* Castor Photo */}
-        <div className={`mt-6 overflow-hidden transition-all duration-500 ${showCastor ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'}`}>
-          <div className="relative rounded-3xl overflow-hidden border-4 border-[#a855f7] shadow-2xl shadow-[#a855f7]/20">
-            <Image
-              src="/team/castor.png"
-              alt="La Zbre Team en mode Castor"
-              width={1200}
-              height={800}
-              className="w-full h-auto"
-            />
-            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-6">
-              <h3 className="text-2xl font-bold text-white text-center">La Zbre Team - Castor Edition</h3>
-              <p className="text-gray-300 text-center mt-2">Les vrais savent 🦫</p>
+      {/* Personal stats */}
+      <section className="max-w-5xl mx-auto px-4 pt-12">
+        <div className="rounded-[10px] bg-[var(--surface-1)] top-light p-5">
+          <div className="flex items-center justify-between gap-6 flex-wrap">
+            <div className="flex items-center gap-3">
+              <Avatar slug={currentUser.member_slug} name={currentUser.member_name} size={40} />
+              <div>
+                <p className="text-base font-semibold text-[var(--text-primary)]">{currentUser.member_name.split(' ')[0]}</p>
+                <p className="text-[13px] text-[var(--text-secondary)]">Ton activité récente</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-8">
+              <div>
+                <p className="score text-2xl text-[var(--text-primary)]">{myPredictions.size}</p>
+                <p className="eyebrow mt-1">Pronos</p>
+              </div>
+              <div>
+                <p className="score text-2xl text-[var(--text-primary)]">{stats.matchesJoined}</p>
+                <p className="eyebrow mt-1">Matchs</p>
+              </div>
+              <div>
+                <p className="score text-2xl text-[var(--text-primary)]">{stats.activitiesCreated}</p>
+                <p className="eyebrow mt-1">Activités</p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-[#2a2a3a] mt-12">
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="relative w-10 h-10 rounded-full overflow-hidden group cursor-pointer" onClick={() => setShowCastor(!showCastor)}>
-                <Image
-                  src={showCastor ? "/team/castor.png" : "/team/group.png"}
-                  alt="Zbre Team"
-                  fill
-                  className="object-cover transition-transform group-hover:scale-110"
-                />
-              </div>
-              <span className="font-bold gradient-text">ZbrePlanning</span>
-            </div>
-            <p className="text-gray-500 text-sm">
-              Made with ❤️ pour la team • Bruxelles 🇧🇪 {showCastor && '🦫'}
-            </p>
-          </div>
+      <footer className="border-t border-[var(--hairline)] mt-16">
+        <div className="max-w-5xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <span className="font-medium text-[var(--text-primary)]">ZbrePlanning</span>
+          <p className="text-sm text-[var(--text-tertiary)]">
+            Made with ❤️ pour la team · Bruxelles 🇧🇪
+          </p>
         </div>
       </footer>
     </div>

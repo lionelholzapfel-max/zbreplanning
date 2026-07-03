@@ -8,7 +8,8 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useSupabase } from '@/hooks/useSupabase';
 import { toast } from 'sonner';
-import { Star, Trophy, Users, Plus, ChevronRight, Pencil, Trash2, TrendingUp, Activity, Calendar } from 'lucide-react';
+import { Star, Trophy, Users, Plus, ChevronRight, Pencil, Trash2, TrendingUp, Activity } from 'lucide-react';
+import { Spinner, EmptyState } from '@/components/ui';
 
 type PeriodFilter = '7d' | 'month' | 'all';
 
@@ -93,6 +94,7 @@ export default function GamesPage() {
   const [selectedPlayerForm, setSelectedPlayerForm] = useState<PlayerForm | null>(null);
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('all');
   const [mounted, setMounted] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [showCreateGame, setShowCreateGame] = useState(false);
   const [showCreateSession, setShowCreateSession] = useState(false);
   const [newGameName, setNewGameName] = useState('');
@@ -117,6 +119,7 @@ export default function GamesPage() {
   });
 
   const loadData = useCallback(async () => {
+    setLoadError(false);
     try {
       const [gamesRes, sessionsRes, statsRes, usersRes, activityRes] = await Promise.all([
         fetch('/api/games'),
@@ -136,6 +139,7 @@ export default function GamesPage() {
       }
     } catch (error) {
       console.error('Failed to load data:', error);
+      setLoadError(true);
     }
   }, [periodFilter]);
 
@@ -178,7 +182,7 @@ export default function GamesPage() {
         setNewGameName('');
         setShowCreateGame(false);
         loadData();
-        toast.success('Jeu créé ! 🎮');
+        toast.success('Jeu créé');
       } else {
         toast.error('Erreur lors de la création du jeu');
       }
@@ -215,7 +219,7 @@ export default function GamesPage() {
         });
         setShowCreateSession(false);
         loadData();
-        toast.success('Partie enregistrée ! ⭐');
+        toast.success('Partie enregistrée');
       } else {
         toast.error("Erreur lors de l'enregistrement de la partie");
       }
@@ -319,8 +323,8 @@ export default function GamesPage() {
 
   if (!mounted || userLoading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-[#6366f1] border-t-transparent rounded-full" />
+      <div className="min-h-screen bg-[var(--canvas)] flex items-center justify-center">
+        <Spinner size={32} />
       </div>
     );
   }
@@ -328,26 +332,23 @@ export default function GamesPage() {
   if (!currentUser) return null;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f]">
+    <div className="min-h-screen bg-[var(--canvas)]">
       <Navbar />
 
       <main className="max-w-4xl mx-auto px-4 py-6 pb-24">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Star className="w-7 h-7 text-yellow-400 fill-yellow-400" />
-            Zbrétoile
-          </h1>
+          <h1 className="display text-[22px] text-[var(--text-primary)]">Zbrétoile</h1>
           <div className="flex gap-2">
             <button
               onClick={() => setShowCreateGame(true)}
-              className="flex items-center gap-1 px-3 py-2 bg-[#6366f1] hover:bg-[#4f46e5] rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center gap-1 h-11 sm:h-9 px-3 rounded-[8px] text-[13px] font-medium bg-[var(--accent)] text-[#0A0C0B] hover:opacity-90 transition-opacity"
             >
               <Plus className="w-4 h-4" />
               Jeu
             </button>
             <button
               onClick={() => setShowCreateSession(true)}
-              className="flex items-center gap-1 px-3 py-2 bg-[#22c55e] hover:bg-[#16a34a] rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center gap-1 h-11 sm:h-9 px-3 rounded-[8px] text-[13px] font-medium bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
             >
               <Plus className="w-4 h-4" />
               Partie
@@ -355,28 +356,46 @@ export default function GamesPage() {
           </div>
         </div>
 
-        {/* Period Filter */}
-        <div className="mb-6">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-gray-400" />
-            <span className="text-sm text-gray-400">Période :</span>
-            <div className="flex gap-1">
-              {(['7d', 'month', 'all'] as PeriodFilter[]).map(period => (
-                <button
-                  key={period}
-                  onClick={() => setPeriodFilter(period)}
-                  className={`px-3 py-1 text-sm rounded-lg transition-colors ${
-                    periodFilter === period
-                      ? 'bg-[#6366f1] text-white'
-                      : 'bg-white/10 text-gray-400 hover:bg-white/20'
-                  }`}
-                >
-                  {getPeriodLabel(period)}
-                </button>
-              ))}
-            </div>
+        {loadError && (
+          <div className="flex items-center justify-between gap-3 rounded-[10px] bg-[var(--surface-2)] border border-[var(--danger)]/30 px-4 py-3 mb-4">
+            <p className="text-[13px] text-[var(--text-secondary)]">Impossible de charger les jeux — vérifie ta connexion.</p>
+            <button onClick={() => loadData()} className="shrink-0 h-8 px-3 rounded-[8px] bg-[var(--surface-3)] text-[13px] text-[var(--text-primary)] hover:bg-[var(--surface-4)] transition-colors">Réessayer</button>
+          </div>
+        )}
+
+        {/* Period Filter — segmented v2 */}
+        <div className="mb-6 flex items-center gap-3">
+          <span className="eyebrow">Période</span>
+          <div className="inline-flex rounded-[8px] bg-[var(--surface-2)] p-0.5">
+            {(['7d', 'month', 'all'] as PeriodFilter[]).map(period => (
+              <button
+                key={period}
+                onClick={() => setPeriodFilter(period)}
+                className={`px-3 py-2.5 sm:py-1.5 rounded-[6px] text-[13px] transition-colors ${
+                  periodFilter === period
+                    ? 'bg-[var(--surface-3)] top-light text-[var(--text-primary)]'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                {getPeriodLabel(period)}
+              </button>
+            ))}
           </div>
         </div>
+
+        {/* Empty state — treated Zbrétoile (grayscale + contrast + grain), like chrome photos */}
+        {games.length === 0 && (
+          <EmptyState
+            media={
+              <div className="relative w-28 h-28 rounded-[16px] overflow-hidden">
+                <Image src="/zbretoile.jpeg" alt="" fill sizes="112px" className="object-cover grayscale contrast-[1.05]" />
+                <div className="grain absolute inset-0 pointer-events-none" />
+              </div>
+            }
+            title="Aucun jeu pour l'instant"
+            description="Crée ton premier jeu pour lancer le classement Zbrétoile."
+          />
+        )}
 
         {/* Top Winner */}
         {stats?.topWinner && (
@@ -406,12 +425,13 @@ export default function GamesPage() {
                 </span>
               )}
             </h2>
-            <div className="glass rounded-xl overflow-x-auto">
+            <div className="relative">
+              <div className="glass rounded-xl overflow-x-auto">
               <table className="w-full min-w-[600px]">
                 <thead>
                   <tr className="border-b border-white/10">
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">#</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Joueur</th>
+                    <th className="sticky left-0 z-10 bg-[var(--surface-1)] px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Joueur</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">ELO</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Étoiles</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Ratio</th>
@@ -435,11 +455,11 @@ export default function GamesPage() {
                           {entry.rank}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="sticky left-0 z-10 bg-[var(--surface-1)] px-4 py-3">
                         <div className="flex items-center gap-2.5">
                           <div className="relative w-8 h-8 rounded-full overflow-hidden ring-1 ring-white/10 shrink-0">
                             <Image
-                              src={`/members/${entry.memberSlug}.png`}
+                              src={`/members/${entry.memberSlug}.webp`}
                               alt={entry.userName}
                               fill
                               sizes="32px"
@@ -466,6 +486,8 @@ export default function GamesPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
+              <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[var(--surface-1)] to-transparent" />
             </div>
           </div>
         )}
@@ -625,7 +647,10 @@ export default function GamesPage() {
               Forme de {selectedPlayerForm.userName}
             </h2>
             {Object.keys(selectedPlayerForm.formByGame).length === 0 ? (
-              <p className="text-gray-400">Aucune partie individuelle jouée.</p>
+              <EmptyState
+                title="Aucune partie jouée"
+                description="Ce joueur n'a pas encore de partie individuelle enregistrée."
+              />
             ) : (
               <div className="space-y-4">
                 {Object.entries(selectedPlayerForm.formByGame).map(([gameId, form]) => (
@@ -788,7 +813,7 @@ export default function GamesPage() {
                       key={user.id}
                       type="button"
                       onClick={() => toggleParticipant(user.id)}
-                      className={`px-2 py-1 text-sm rounded-lg transition-colors ${
+                      className={`px-2 py-2 sm:py-1 text-sm rounded-lg transition-colors ${
                         newSession.participant_ids.includes(user.id)
                           ? 'bg-[#6366f1] text-white'
                           : 'bg-white/10 text-gray-400 hover:bg-white/20'
@@ -931,7 +956,7 @@ export default function GamesPage() {
                       key={user.id}
                       type="button"
                       onClick={() => toggleEditParticipant(user.id)}
-                      className={`px-2 py-1 text-sm rounded-lg transition-colors ${
+                      className={`px-2 py-2 sm:py-1 text-sm rounded-lg transition-colors ${
                         editSession.participant_ids.includes(user.id)
                           ? 'bg-[#6366f1] text-white'
                           : 'bg-white/10 text-gray-400 hover:bg-white/20'

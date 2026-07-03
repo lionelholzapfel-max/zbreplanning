@@ -87,6 +87,14 @@ export default async function globalSetup(config: FullConfig) {
   // Set test mode flag for the app to use
   process.env.E2E_TEST_MODE = '1';
 
+  // Seed the TEST database (idempotent) so quickLogin's fixtures always exist.
+  // Run in its own tsx process — Playwright's setup runs in a CJS context that
+  // can't import the ESM seed module directly.
+  if (isTestSupabase) {
+    const { execSync } = await import('node:child_process');
+    execSync('npx tsx scripts/e2e-seed.ts', { stdio: 'inherit' });
+  }
+
   console.log('✅ Global setup complete');
   console.log(`   Supabase: ${supabaseUrl ? supabaseUrl.slice(8, 50) + '...' : '(not set)'}`);
   console.log(`   Environment: ${isProdSupabase ? '🔴 PRODUCTION' : isTestSupabase ? '🟢 TEST' : '🟡 UNKNOWN'}`);

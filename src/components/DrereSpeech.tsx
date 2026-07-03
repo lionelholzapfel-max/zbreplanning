@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { Mic } from 'lucide-react';
 
 interface DrereSpeechProps {
   date: string; // YYYY-MM-DD
@@ -212,24 +213,18 @@ export function DrereSpeech({ date, drereUserId, drereName, isMe }: DrereSpeechP
   // If there's a speech, show play button
   if (audioUrl && hasRecorded) {
     return (
-      <div className="flex items-center gap-3 mt-3 p-3 bg-black/20 rounded-xl border border-[#fbbf24]/20">
+      <div className="flex items-center gap-3 mt-3 p-3 rounded-[10px] bg-[var(--surface-2)] top-light">
         <button
           onClick={playAudio}
-          className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-            isPlaying
-              ? 'bg-red-500 hover:bg-red-600'
-              : 'bg-[#fbbf24] hover:bg-[#f59e0b]'
+          className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+            isPlaying ? 'bg-[var(--live)]' : 'bg-[var(--surface-3)] top-light hover:bg-[var(--surface-4)]'
           }`}
         >
-          {isPlaying ? (
-            <span className="text-white text-lg">⏹</span>
-          ) : (
-            <span className="text-black text-lg">▶</span>
-          )}
+          <span className={`text-sm ${isPlaying ? 'text-white' : 'text-[var(--gold)]'}`}>{isPlaying ? '⏹' : '▶'}</span>
         </button>
         <div className="flex-1">
-          <p className="text-sm text-white font-medium">🎤 Discours du Drère</p>
-          <p className="text-xs text-gray-400">&quot;{drereName} a quelque chose à dire...&quot;</p>
+          <p className="text-sm text-[var(--text-primary)] font-medium">Discours du Drère</p>
+          <p className="text-xs text-[var(--text-tertiary)]">{drereName} a quelque chose à dire</p>
         </div>
         {isMe && (
           <button
@@ -240,7 +235,7 @@ export function DrereSpeech({ date, drereUserId, drereName, isMe }: DrereSpeechP
                 audioRef.current = null;
               }
             }}
-            className="text-xs text-gray-500 hover:text-red-400 transition-colors"
+            className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
           >
             Refaire
           </button>
@@ -254,12 +249,12 @@ export function DrereSpeech({ date, drereUserId, drereName, isMe }: DrereSpeechP
     // Check if recording is not supported
     if (!isSupported) {
       return (
-        <div className="mt-3 p-3 bg-black/20 rounded-xl border border-[#fbbf24]/20">
+        <div className="mt-3 p-3 rounded-[10px] bg-[var(--surface-2)] top-light">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">🎤</span>
+            <Mic className="w-5 h-5 text-[var(--gold)]" strokeWidth={1.75} />
             <div className="flex-1">
-              <p className="text-sm text-white font-medium">Tu es le Drère ! 👑</p>
-              <p className="text-xs text-red-400">L&apos;enregistrement n&apos;est pas supporté sur ce navigateur. Essaie avec Chrome ou Safari.</p>
+              <p className="text-sm text-[var(--text-primary)] font-medium">Tu es le Drère</p>
+              <p className="text-xs text-[var(--danger)]">L&apos;enregistrement n&apos;est pas supporté sur ce navigateur. Essaie avec Chrome ou Safari.</p>
             </div>
           </div>
         </div>
@@ -267,47 +262,47 @@ export function DrereSpeech({ date, drereUserId, drereName, isMe }: DrereSpeechP
     }
 
     return (
-      <div className="mt-3 p-3 bg-black/20 rounded-xl border border-[#fbbf24]/20">
+      <div className="mt-3 p-3 rounded-[10px] bg-[var(--surface-2)] top-light">
         {error && (
-          <div className="mb-2 p-2 bg-red-500/20 rounded-lg">
-            <p className="text-xs text-red-400">{error}</p>
+          <div className="mb-2 p-2 rounded-lg bg-[var(--danger)]/15">
+            <p className="text-xs text-[var(--danger)]">{error}</p>
           </div>
         )}
         {isRecording ? (
           <div className="flex items-center gap-3">
             <button
               onClick={stopRecording}
-              className="w-12 h-12 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center animate-pulse"
+              className="w-12 h-12 rounded-full bg-[var(--live)] flex items-center justify-center animate-pulse"
             >
               <span className="text-white text-xl">⏹</span>
             </button>
             <div className="flex-1">
-              <p className="text-sm text-red-400 font-medium">🔴 Enregistrement...</p>
-              <p className="text-xs text-gray-400">{recordingTime}s / {MAX_DURATION}s</p>
+              <p className="text-sm text-[var(--live)] font-medium">Enregistrement…</p>
+              <p className="text-xs text-[var(--text-tertiary)] score">{recordingTime}s / {MAX_DURATION}s</p>
             </div>
-            <div className="w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div className="w-24 h-1.5 bg-[var(--surface-3)] rounded-full overflow-hidden">
               <div
-                className="h-full bg-red-500 transition-all"
+                className="h-full bg-[var(--live)] transition-all"
                 style={{ width: `${(recordingTime / MAX_DURATION) * 100}%` }}
               />
             </div>
           </div>
         ) : isUploading ? (
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 border-2 border-[#fbbf24] border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-gray-400">Sauvegarde du discours...</p>
+            <div className="w-8 h-8 border-2 border-[var(--gold)] border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-[var(--text-secondary)]">Sauvegarde du discours…</p>
           </div>
         ) : (
           <div className="flex items-center gap-3">
             <button
               onClick={startRecording}
-              className="w-12 h-12 rounded-full bg-[#fbbf24] hover:bg-[#f59e0b] flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+              className="w-12 h-12 rounded-full bg-[var(--gold)] hover:opacity-90 flex items-center justify-center transition-all active:scale-95"
             >
-              <span className="text-black text-xl">🎤</span>
+              <Mic className="w-5 h-5 text-black" strokeWidth={2} />
             </button>
             <div className="flex-1">
-              <p className="text-sm text-white font-medium">Tu es le Drère ! 👑</p>
-              <p className="text-xs text-gray-400">Enregistre ton discours de victoire (max {MAX_DURATION}s)</p>
+              <p className="text-sm text-[var(--text-primary)] font-medium">Tu es le Drère</p>
+              <p className="text-xs text-[var(--text-tertiary)]">Enregistre ton discours de victoire (max {MAX_DURATION}s)</p>
             </div>
           </div>
         )}

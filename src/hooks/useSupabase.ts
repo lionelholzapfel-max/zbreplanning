@@ -513,7 +513,7 @@ export function useSupabase() {
       return { success: false, error: error.message };
     }
 
-    toast.success('Lieu proposé !', { icon: '📍' });
+    toast.success('Lieu proposé');
 
     // Notify others
     await notifyAllUsers(
@@ -549,7 +549,7 @@ export function useSupabase() {
     }
 
     if (!hasVoted) {
-      toast.success('Vote enregistré !', { icon: '👍' });
+      toast.success('Vote enregistré');
       await notifyAllUsers(
         'location_vote',
         'Nouveau vote !',
@@ -628,7 +628,7 @@ export function useSupabase() {
       return { success: false, error: error.message, id: null };
     }
 
-    toast.success('Activité créée !', { icon: '🎉' });
+    toast.success('Activité créée');
 
     // Notify all other users
     await notifyAllUsers(
@@ -663,6 +663,40 @@ export function useSupabase() {
     toast.success('Activité supprimée');
     return { success: true };
   }, [supabase, currentUser]);
+
+  // Update activity — allowed for the creator OR anyone who has responded (enforced in the UI;
+  // activities RLS is permissive, the app authorizes via its own JWT).
+  const updateActivity = useCallback(async (activityId: string, activity: {
+    title: string;
+    description: string;
+    date: string;
+    time: string;
+    location: string;
+  }): Promise<WriteResult> => {
+    if (!currentUser) {
+      toast.error('Tu dois être connecté');
+      return { success: false, error: 'Non connecté' };
+    }
+
+    // Goes through a service-role route that checks the caller is creator or responder.
+    try {
+      const res = await fetch(`/api/activities/${activityId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(activity),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || 'Erreur lors de la modification');
+        return { success: false, error: data.error || 'Erreur' };
+      }
+      toast.success('Activité modifiée');
+      return { success: true };
+    } catch (e) {
+      toast.error('Erreur réseau, réessaie');
+      return { success: false, error: e instanceof Error ? e.message : 'Erreur' };
+    }
+  }, [currentUser]);
 
   // Activity Participations
   const getActivityParticipations = useCallback(async (activityId: string): Promise<ActivityParticipation[]> => {
@@ -995,7 +1029,7 @@ export function useSupabase() {
       }
     }
 
-    toast.success('Pronostic enregistré !', { icon: '🎯' });
+    toast.success('Pronostic enregistré');
     return { success: true };
   }, [supabase, currentUser, ensureUserInDb]);
 
@@ -1042,6 +1076,7 @@ export function useSupabase() {
     // Activities
     getActivities,
     createActivity,
+    updateActivity,
     deleteActivity,
     getActivityParticipations,
     setActivityParticipation,
