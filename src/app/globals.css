@@ -53,6 +53,24 @@
   --muted: var(--text-tertiary);
   --success: var(--accent);
   --warning: var(--gold);
+  --glow-warm: transparent; /* off by default; warmed only under .theme-warm */
+}
+
+/* ============================================================================
+   v2.1 « Allumer le stade » — palette CHAUDE, scopée à .theme-warm (pilote home).
+   Le noir reste, la lumière devient ambrée. Les aliases (--bg/--surface/--card…)
+   référencent ces tokens, donc ils se réchauffent automatiquement dans le sous-arbre.
+   ============================================================================ */
+.theme-warm {
+  --canvas: #0C0C09;
+  --surface-1: #131310;
+  --surface-2: #1A1A15;
+  --surface-3: #21211B;
+  --surface-4: #282821;
+  --text-primary: #F5F4EF;   /* ivoire */
+  --text-secondary: #A8A497; /* gris chaud */
+  --text-tertiary: #6E695B;
+  --glow-warm: rgba(232, 185, 62, 0.07); /* les projecteurs */
 }
 
 @theme inline {
