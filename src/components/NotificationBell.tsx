@@ -66,8 +66,11 @@ export default function NotificationBell() {
   const handleToggle = () => {
     const next = !open;
     setOpen(next);
-    // Refetch on open
-    if (next) getNotifications();
+    if (next) {
+      // Opening the panel counts as seen: refresh, then mark everything read
+      // (badge clears, dots go). The list stays, just no longer "unread".
+      getNotifications().finally(() => markAllNotificationsRead());
+    }
   };
 
   const handleTapNotification = async (notif: Notification) => {

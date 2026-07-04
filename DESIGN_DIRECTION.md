@@ -61,3 +61,13 @@ Jamais de photo brute en couleurs. Les avatars utilisateurs restent en couleur
 Emojis dans le chrome. Points d'exclamation. Gradients de texte. Violet.
 Or hors Drère/1er. Photos couleur dans le chrome. Bordures par défaut.
 Deux halos sur une même page. Gris neutres non teintés.
+
+## 8. Température (v2.1)
+Le stade est allumé : le noir reste, la lumière devient chaude.
+- `--canvas: #0C0C09` ; `--surface-1: #131310` ; `--surface-2: #1A1A15` ; `--surface-3: #21211B` ; `--surface-4: #282821` (gamme vert-chaud ambrée)
+- `--text-primary: #F5F4EF` (ivoire) ; secondary/tertiary suivent, teintés chauds
+- `--glow-warm: rgba(232,185,62,0.07)` — lueur ambiante autorisée : UN radial très large en haut de page (les projecteurs). Ne remplace pas le halo héros existant.
+- Photo hero : duotone chaud (ombres `--canvas`, hautes lumières ambrées ~`#E8B93E` à 15%) au lieu du grayscale strict. Grain conservé.
+- Les interdits (§7) et la règle de l'or restent inchangés.
+
+*État : PILOTE sur la home uniquement (classe `.theme-warm`). Les autres pages restent sur v2 le temps du jugement — divergence temporaire assumée.*

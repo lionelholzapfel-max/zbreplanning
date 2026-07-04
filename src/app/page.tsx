@@ -15,6 +15,7 @@ import { fr } from 'date-fns/locale';
 import { FunFactCard } from '@/components/FunFactCard';
 import { Badge, ListRow, Avatar, Spinner } from '@/components/ui';
 import { CountUp } from '@/components/CountUp';
+import { getFlag } from '@/lib/flags';
 
 interface UpcomingActivity extends Activity {
   participations: ActivityParticipation[];
@@ -229,7 +230,13 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[var(--bg)]">
+    <div className="theme-warm relative min-h-screen bg-[var(--bg)]">
+      {/* Stadium floodlights — one very wide warm radial at the top (v2.1). */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-[620px] -z-10"
+        style={{ background: 'radial-gradient(115% 55% at 50% 0%, var(--glow-warm), transparent 72%)' }}
+      />
       <Navbar />
 
       {/* Hero */}
@@ -238,11 +245,13 @@ export default function HomePage() {
           src="/team/group.webp"
           alt="Zbre Team"
           fill
-          className="object-cover object-top grayscale contrast-[1.05]"
+          className="object-cover object-top grayscale sepia-[0.55] saturate-[1.4] contrast-[1.05]"
           priority
         />
         {/* Archive treatment: canvas tint 25% + grain + bottom scrim toward --canvas */}
         <div className="absolute inset-0 bg-[var(--canvas)]/25" />
+        {/* Warm duotone (v2.1): amber lifts the highlights, shadows stay canvas. */}
+        <div className="absolute inset-0 bg-[#E8B93E] opacity-[0.18] mix-blend-soft-light pointer-events-none" />
         <div className="grain absolute inset-0 pointer-events-none" />
         <div className="absolute inset-0 bg-gradient-to-t from-[var(--canvas)] via-[var(--canvas)]/60 to-transparent" />
 
@@ -378,9 +387,11 @@ export default function HomePage() {
                       <span className="score text-[13px] sm:text-[15px] text-[var(--text-secondary)]">{match.time}</span>
                     </div>
                     <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="text-[24px] shrink-0 leading-none">{getFlag(team1)}</span>
                       <span className="flex-1 min-w-0 text-[14px] font-medium text-[var(--text-primary)] truncate">{team1}</span>
                       <span className="shrink-0 text-[14px] text-[var(--text-tertiary)]">—</span>
                       <span className="flex-1 min-w-0 text-[14px] font-medium text-[var(--text-primary)] truncate text-right">{team2}</span>
+                      <span className="text-[24px] shrink-0 leading-none">{getFlag(team2)}</span>
                     </div>
                     {hasPrediction ? (
                       <Badge variant="accent">Enregistré</Badge>
