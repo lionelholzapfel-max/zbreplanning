@@ -436,16 +436,7 @@ export function useSupabase() {
         return { success: false, error: insertError.message };
       }
 
-      // Notify others only for new participations with 'yes' status
-      if (status === 'yes') {
-        await notifyAllUsers(
-          'match_response',
-          'Nouveau spectateur !',
-          `${currentUser.member_name} va regarder le match #${matchId}`,
-          '/world-cup',
-          matchId.toString()
-        );
-      }
+      // (No notification for "va regarder le match" — too noisy, per feedback.)
     }
 
     return { success: true };
