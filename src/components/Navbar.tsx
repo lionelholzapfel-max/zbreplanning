@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
 import { Avatar } from '@/components/ui';
+import NotificationBell from '@/components/NotificationBell';
 import { Home, Trophy, BarChart3, Target, Users, Gamepad2, type LucideIcon } from 'lucide-react';
 
 const navItems: { href: string; label: string; mobileLabel: string; icon: LucideIcon }[] = [
@@ -86,6 +87,10 @@ export default function Navbar() {
               })}
             </div>
 
+            {/* Right side: notifications + user menu */}
+            <div className="flex items-center gap-1">
+            <NotificationBell />
+
             {/* User menu */}
             <div className="relative" ref={menuRef}>
               <button
@@ -116,6 +121,7 @@ export default function Navbar() {
                   </button>
                 </div>
               )}
+            </div>
             </div>
           </div>
         </div>
