@@ -276,7 +276,7 @@ export function useSupabase() {
       .select('*, creator:users!created_by(member_name, member_slug)')
       .eq('user_id', currentUser.id)
       .order('created_at', { ascending: false })
-      .limit(50);
+      .limit(30);
 
     if (error) {
       console.error('[Supabase] Error getting notifications:', error);
@@ -611,36 +611,37 @@ export function useSupabase() {
       return { success: false, error: 'Non connecté', id: null };
     }
 
-    const userResult = await ensureUserInDb(currentUser);
-    if (!userResult.success) {
-      toast.error('Erreur de synchronisation du profil');
-      return { ...userResult, id: null };
+    // Service-role route (normalises empty date/… → NULL; anon insert of '' into
+    // the date column returned 400). Consistent with update/delete.
+    try {
+      const res = await fetch('/api/activities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(activity),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || 'Erreur lors de la création de l\'activité');
+        return { success: false, error: data.error || 'Erreur', id: null };
+      }
+
+      toast.success('Activité créée');
+
+      // Notify all other users
+      await notifyAllUsers(
+        'activity_created',
+        'Nouvelle activité !',
+        `${currentUser.member_name} propose: ${activity.title}`,
+        '/activities',
+        data.id
+      );
+
+      return { success: true, id: data.id };
+    } catch (e) {
+      toast.error('Erreur réseau, réessaie');
+      return { success: false, error: e instanceof Error ? e.message : 'Erreur', id: null };
     }
-
-    const { data, error } = await supabase.from('activities').insert({
-      ...activity,
-      type: 'event',
-      created_by: currentUser.id,
-    }).select('id').single();
-
-    if (error) {
-      toast.error('Erreur lors de la création de l\'activité');
-      return { success: false, error: error.message, id: null };
-    }
-
-    toast.success('Activité créée');
-
-    // Notify all other users
-    await notifyAllUsers(
-      'activity_created',
-      'Nouvelle activité !',
-      `${currentUser.member_name} propose: ${activity.title}`,
-      '/activities',
-      data.id
-    );
-
-    return { success: true, id: data.id };
-  }, [supabase, currentUser, ensureUserInDb, notifyAllUsers]);
+  }, [currentUser, notifyAllUsers]);
 
   // Delete activity
   const deleteActivity = useCallback(async (activityId: string): Promise<WriteResult> => {

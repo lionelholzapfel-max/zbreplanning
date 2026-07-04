@@ -68,10 +68,11 @@ export async function PATCH(
     .from('activities')
     .update({
       title,
-      description: body.description ?? '',
-      date: body.date ?? '',
-      time: body.time ?? '',
-      location: body.location ?? '',
+      // `date` is a real date column — '' is rejected (400). Empty → NULL.
+      description: body.description || null,
+      date: body.date || null,
+      time: body.time || null,
+      location: body.location || null,
     })
     .eq('id', id);
 
