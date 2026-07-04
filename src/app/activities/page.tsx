@@ -22,7 +22,7 @@ const ACTIVITY_TYPES = [
 
 export default function ActivitiesPage() {
   const router = useRouter();
-  const { currentUser, loading: userLoading, getActivities, createActivity, updateActivity, getActivityParticipations, setActivityParticipation } = useSupabase();
+  const { currentUser, loading: userLoading, getActivities, createActivity, updateActivity, deleteActivity, getActivityParticipations, setActivityParticipation } = useSupabase();
 
   const [activities, setActivitiesState] = useState<Activity[]>([]);
   const [participations, setParticipations] = useState<Record<string, ActivityParticipation[]>>({});
@@ -33,6 +33,8 @@ export default function ActivitiesPage() {
   const [mounted, setMounted] = useState(false);
   const [loadingActivity, setLoadingActivity] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<Activity | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoadError(false);
@@ -103,6 +105,17 @@ export default function ActivitiesPage() {
       location: activity.location || '',
     });
     setShowCreateModal(true);
+  };
+
+  const handleDeleteActivity = async () => {
+    if (!confirmDelete) return;
+    setDeleting(true);
+    const res = await deleteActivity(confirmDelete.id);
+    setDeleting(false);
+    if (res.success) {
+      setConfirmDelete(null);
+      loadData();
+    }
   };
 
   const handleParticipation = async (activityId: string, status: 'yes' | 'no' | 'maybe', activityTitle: string, creatorId: string) => {
@@ -231,6 +244,14 @@ export default function ActivitiesPage() {
                           className="px-3 py-2.5 -my-1 text-[13px] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
                         >
                           Modifier
+                        </button>
+                      )}
+                      {activity.created_by === currentUser.id && (
+                        <button
+                          onClick={() => setConfirmDelete(activity)}
+                          className="px-3 py-2.5 -my-1 text-[13px] text-[var(--danger)] hover:opacity-80 transition-opacity"
+                        >
+                          Supprimer
                         </button>
                       )}
                       <div className="inline-flex rounded-[8px] bg-[var(--surface-2)] p-0.5">
@@ -367,6 +388,35 @@ export default function ActivitiesPage() {
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--canvas)]/90 backdrop-blur-sm">
+          <div className="bg-[var(--surface-3)] top-light rounded-[16px] p-6 w-full max-w-sm shadow-2xl">
+            <h2 className="text-[17px] font-medium text-[var(--text-primary)]">Supprimer l’activité ?</h2>
+            <p className="mt-2 text-[14px] text-[var(--text-secondary)]">
+              « {confirmDelete.title} » sera supprimée pour tout le monde. Cette action est définitive.
+            </p>
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(null)}
+                disabled={deleting}
+                className="flex-1 h-11 rounded-[8px] bg-[var(--surface-2)] text-[14px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteActivity}
+                disabled={deleting}
+                className="flex-1 h-11 rounded-[8px] bg-[var(--danger)] text-white text-[14px] font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {deleting ? 'Suppression…' : 'Supprimer'}
+              </button>
+            </div>
           </div>
         </div>
       )}

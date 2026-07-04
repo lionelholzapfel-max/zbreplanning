@@ -649,20 +649,22 @@ export function useSupabase() {
       return { success: false, error: 'Non connecté' };
     }
 
-    const { error } = await supabase
-      .from('activities')
-      .delete()
-      .eq('id', activityId)
-      .eq('created_by', currentUser.id);
-
-    if (error) {
-      toast.error('Erreur lors de la suppression');
-      return { success: false, error: error.message };
+    // Goes through a service-role route that verifies the caller is the creator
+    // and cascades responses + notifications.
+    try {
+      const res = await fetch(`/api/activities/${activityId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || 'Erreur lors de la suppression');
+        return { success: false, error: data.error || 'Erreur' };
+      }
+      toast.success('Activité supprimée');
+      return { success: true };
+    } catch (e) {
+      toast.error('Erreur réseau, réessaie');
+      return { success: false, error: e instanceof Error ? e.message : 'Erreur' };
     }
-
-    toast.success('Activité supprimée');
-    return { success: true };
-  }, [supabase, currentUser]);
+  }, [currentUser]);
 
   // Update activity — allowed for the creator OR anyone who has responded (enforced in the UI;
   // activities RLS is permissive, the app authorizes via its own JWT).
