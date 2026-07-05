@@ -296,6 +296,13 @@ export default function LeaderboardPage() {
   const activePlayers = leaderboard.filter(e => e.matches_predicted > 0);
   const inactivePlayers = leaderboard.filter(e => e.matches_predicted === 0);
 
+  // Best average points per match (match points ÷ matches predicted, global
+  // tournament bonuses excluded so it's a pure per-match average).
+  const bestAverage = activePlayers.reduce<{ avg: number; entry: LeaderboardEntry } | null>((best, e) => {
+    const avg = e.match_points / e.matches_predicted;
+    return best === null || avg > best.avg ? { avg, entry: e } : best;
+  }, null);
+
   // Get ALL drères and mzis (handles ties)
   const dreresToday = leaderboard.filter(e => e.is_drere_today);
   const mzisToday = leaderboard.filter(e => e.is_mzi_today);
@@ -654,6 +661,9 @@ export default function LeaderboardPage() {
           )}
           {mostExactScoresRecord && mostExactScoresRecord.holders.length > 0 && (
             <RecordCard label="Plus de scores exacts" value={mostExactScoresRecord.count} detail="scores au but près" holders={mostExactScoresRecord.holders} />
+          )}
+          {bestAverage && (
+            <RecordCard label="Meilleure moyenne" value={bestAverage.avg.toFixed(1)} detail="pts / match" holders={[bestAverage.entry]} />
           )}
           {stats?.most_optimistic && (
             <RecordCard
