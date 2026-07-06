@@ -7,8 +7,8 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getSessionUser();
 
-    // Only Lionel (admin) can manually trigger
-    if (!user || user.id !== '1') {
+    // Only admins can manually trigger (flag en base — l'id '1' codé en dur désignait Benjamin)
+    if (!user || user.is_admin !== true) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
     }
 

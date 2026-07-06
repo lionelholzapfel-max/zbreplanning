@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
     // Allow if it's a cron job or admin
     const user = await getSessionUser();
     const isCron = authHeader === `Bearer ${cronSecret}`;
-    const isAdmin = user?.id === '1'; // Lionel
+    const isAdmin = user?.is_admin === true; // le flag en base — l'id '1' codé en dur désignait Benjamin, pas Lionel
 
     if (!isCron && !isAdmin) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
