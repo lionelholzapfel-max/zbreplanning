@@ -7,8 +7,8 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getSessionUser();
 
-    // Only Lionel (admin) can manually trigger
-    if (!user || user.id !== '1') {
+    // Only admins can manually trigger (flag en base — l'id '1' codé en dur désignait Benjamin)
+    if (!user || user.is_admin !== true) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
     }
 
@@ -17,32 +17,35 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
-    // Get the Drère of the week
-    const { data: drereData } = await supabase
+    // Get the Drère(s) of the week — une égalité insère une ligne PAR co-Drère,
+    // donc pas de .single() (erreur dès qu'il y a deux lignes).
+    const { data: drereRows } = await supabase
       .from('daily_awards')
       .select('user_id, points_earned')
       .eq('award_date', weekStart)
-      .eq('award_type', 'drere_week')
-      .single();
+      .eq('award_type', 'drere_week');
 
-    if (!drereData) {
+    const coDreres = ((drereRows || []) as Array<{ user_id: string; points_earned: number }>)
+      .map((row) => ({ row, member: MEMBERS.find(m => m.id === row.user_id) }))
+      .filter((x) => x.member)
+      .sort((a, b) => Number(a.member!.id) - Number(b.member!.id));
+
+    if (coDreres.length === 0) {
       return NextResponse.json({ error: 'No Drère found for this week' }, { status: 404 });
     }
 
-    const drereMember = MEMBERS.find(m => m.id === drereData.user_id);
-    if (!drereMember) {
-      return NextResponse.json({ error: 'Member not found' }, { status: 404 });
-    }
+    const drereNames = coDreres.map((x) => x.member!.name.split(' ')[0]);
+    const isDuo = drereNames.length > 1;
 
     // Generate lyrics
-    const lyrics = generateLyrics(drereMember.name.split(' ')[0], drereData.points_earned);
+    const lyrics = generateLyrics(drereNames.join(' & '), coDreres[0].row.points_earned, isDuo);
 
     // Create the song record
     const { data: songRecord, error: insertError } = await supabase
       .from('drere_week_songs')
       .upsert({
         week_start_date: weekStart,
-        user_id: drereData.user_id,
+        user_id: coDreres[0].row.user_id,
         lyrics,
         status: 'completed', // For now, just lyrics
         updated_at: new Date().toISOString(),
@@ -59,8 +62,8 @@ export async function POST(request: NextRequest) {
       song: songRecord,
       lyrics,
       drere: {
-        name: drereMember.name,
-        points: drereData.points_earned,
+        name: drereNames.join(' & '),
+        points: coDreres[0].row.points_earned,
       },
     });
   } catch (error) {
@@ -76,22 +79,23 @@ function getLastMondayDate(): string {
   return monday.toISOString().split('T')[0];
 }
 
-function generateLyrics(drereName: string, points: number): string {
+function generateLyrics(drereName: string, points: number, isDuo: boolean): string {
+  // « Drère » se prononce dréré → écrit « Dréré » dans les paroles.
   const verses = [
-    `🎤 ${drereName.toUpperCase()} - DRÈRE OF THE WEEK 🎤`,
+    `🎤 ${drereName.toUpperCase()} - DRÉRÉ OF THE WEEK 🎤`,
     '',
-    `${drereName} est le boss, le roi de la semaine`,
-    `${points} points au compteur, c'est lui qui mène`,
+    `${drereName} ${isDuo ? 'sont les boss, les rois' : 'est le boss, le roi'} de la semaine`,
+    `${points} points au compteur, ${isDuo ? 'ce sont eux qui mènent' : "c'est lui qui mène"}`,
     `Pendant que les autres galéraient dans leurs pronos`,
-    `Lui il voyait clair, tel un vrai héros`,
+    `${isDuo ? 'Eux ils voyaient clair, tels de vrais héros' : 'Lui il voyait clair, tel un vrai héros'}`,
     '',
     `Score exact par-ci, victoire par-là`,
-    `${drereName} savait déjà comment ça finirait`,
-    `Les autres dormaient, lui il calculait`,
-    `Le football n'a plus de secret, il a tout raflé`,
+    `${drereName} ${isDuo ? 'savaient' : 'savait'} déjà comment ça finirait`,
+    `Les autres dormaient, ${isDuo ? 'eux ils calculaient' : 'lui il calculait'}`,
+    `Le football n'a plus de secret, ${isDuo ? 'ils ont tout raflé' : 'il a tout raflé'}`,
     '',
-    `${drereName} Drère of the Week, personne peut le toucher`,
-    `La couronne sur la tête, c'est lui le vrai winner!`,
+    `${drereName} Dréré of the Week, personne peut ${isDuo ? 'les' : 'le'} toucher`,
+    `${isDuo ? 'Les couronnes sur les têtes, ce sont eux les vrais winners!' : "La couronne sur la tête, c'est lui le vrai winner!"}`,
     `👑 RESPECT 👑`,
   ];
 
