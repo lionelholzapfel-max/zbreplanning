@@ -140,8 +140,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No Drère found for this week' }, { status: 404 });
     }
 
-    // Generate lyrics
+    // Paroles de secours (gabarits) — affichées en attendant, remplacées par
+    // celles écrites par Suno à la complétion ; utilisées si Suno échoue.
     const lyrics = generateLyrics(stats);
+    const brief = buildSongBrief(stats);
 
     // Create or update the song record
     const { data: songRecord, error: insertError } = await supabase
@@ -164,6 +166,7 @@ export async function POST(request: NextRequest) {
     // Fire and forget - don't await, let it run in background
     generateSongWithSuno(
       songRecord.id,
+      brief,
       lyrics,
       stats.drereName,
       stats.musicStyle
@@ -404,6 +407,34 @@ async function getWeekStats(supabase: ReturnType<typeof getSupabaseAdmin>, weekS
   };
 }
 
+/**
+ * Brief pour Suno en mode non-custom (customMode: false) : on donne le CONTEXTE
+ * de la semaine (≤ 500 caractères, limite API) et Suno écrit lui-même des
+ * paroles différentes à chaque fois — puis les chante. Le style musical par
+ * pays est glissé dans le brief (le champ style est interdit en non-custom).
+ */
+function buildSongBrief(stats: WeekStats): string {
+  const { drereName, drerePoints, grosCoup, worstActivePerformers, mziName, isDuo, musicStyle } = stats;
+  const parts: string[] = [];
+  parts.push(`Style musical : ${musicStyle}.`);
+  parts.push(
+    `Chanson de vestiaire 100% en FRANÇAIS pour ${drereName}, « Dréré of the Week » — ${isDuo ? 'les rois' : 'le roi'} de la semaine des pronostics Coupe du Monde 2026 de la Zbre Team (${drerePoints} points).`
+  );
+  if (grosCoup) {
+    parts.push(`Gros coup : ${grosCoup.author} a prédit le score exact ${grosCoup.predictedScore} sur ${grosCoup.matchName}.`);
+  }
+  const roasts: string[] = [];
+  if (worstActivePerformers.length > 0) {
+    roasts.push(worstActivePerformers.slice(0, 2).map((w) => `${w.name} (${w.points} pts)`).join(' et '));
+  }
+  if (mziName) roasts.push(`${mziName} le « Mzi » de la semaine`);
+  if (roasts.length > 0) parts.push(`Chambre gentiment ${roasts.join(', et ')}.`);
+  parts.push(`Écris toujours « Dréré » (prononcé dréré). Ton chambreur entre potes, drôle, jamais méchant.`);
+  let brief = parts.join(' ');
+  if (brief.length > 500) brief = brief.slice(0, 497) + '…';
+  return brief;
+}
+
 function generateLyrics(stats: WeekStats): string {
   const { drereName, drerePoints } = stats;
 
@@ -618,10 +649,35 @@ function generateChampionStatsLyrics(stats: WeekStats): string {
 }
 
 /**
- * Generate song using Suno AI via sunoapi.org
- * Suno produces high-quality music with vocals
+ * Generate song using Suno AI via sunoapi.org.
+ * Voie principale : customMode: false — on envoie le BRIEF (contexte de la
+ * semaine) et Suno écrit lui-même des paroles nouvelles, puis les chante.
+ * Fallback : customMode: true avec nos paroles gabarit si le non-custom échoue.
  */
-async function generateSongWithSuno(songId: string, lyrics: string, drereName: string, musicStyle: string) {
+async function launchSunoTask(apiKey: string, body: Record<string, unknown>): Promise<string> {
+  const generateResponse = await fetch('https://api.sunoapi.org/api/v1/generate', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!generateResponse.ok) {
+    const errorText = await generateResponse.text();
+    throw new Error(`Suno API error: ${generateResponse.status} - ${errorText}`);
+  }
+
+  const generateResult = await generateResponse.json();
+  const taskId = generateResult.data?.taskId || generateResult.taskId;
+  if (!taskId) {
+    throw new Error('No taskId returned from Suno API');
+  }
+  return taskId;
+}
+
+async function generateSongWithSuno(songId: string, brief: string, fallbackLyrics: string, drereName: string, musicStyle: string) {
   const supabase = getSupabaseAdmin();
 
   try {
@@ -645,35 +701,30 @@ async function generateSongWithSuno(songId: string, lyrics: string, drereName: s
       return;
     }
 
-    // Step 1: Create the song generation task via Suno API
-    // Using custom mode with our lyrics
-    const generateResponse = await fetch('https://api.sunoapi.org/api/v1/generate', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        customMode: true,           // Use custom lyrics
-        instrumental: false,        // We want vocals
-        prompt: lyrics,             // Our generated lyrics
-        style: `${musicStyle}, french vocals, sung in French`, // style pays + voix française
+    // Voie principale : Suno écrit les paroles depuis le brief.
+    // (En non-custom, style et title doivent rester vides — le style est
+    // dans le brief. vocalGender : 'm'/'f' selon la doc sunoapi.org.)
+    let taskId: string;
+    try {
+      taskId = await launchSunoTask(apiKey, {
+        customMode: false,
+        instrumental: false,
+        prompt: brief,
+        model: 'V5_5',
+        vocalGender: 'm',
+      });
+    } catch (nonCustomError) {
+      // Fallback : nos paroles gabarit en mode custom (comportement historique)
+      console.error('Suno non-custom failed, falling back to template lyrics:', nonCustomError);
+      taskId = await launchSunoTask(apiKey, {
+        customMode: true,
+        instrumental: false,
+        prompt: fallbackLyrics,
+        style: `${musicStyle}, french vocals, sung in French`,
         title: `${drereName} - Drère of the Week`,
-        model: 'V5_5',              // Latest Suno model
-        vocalGender: 'male',        // Male rapper voice
-      }),
-    });
-
-    if (!generateResponse.ok) {
-      const errorText = await generateResponse.text();
-      throw new Error(`Suno API error: ${generateResponse.status} - ${errorText}`);
-    }
-
-    const generateResult = await generateResponse.json();
-    const taskId = generateResult.data?.taskId || generateResult.taskId;
-
-    if (!taskId) {
-      throw new Error('No taskId returned from Suno API');
+        model: 'V5_5',
+        vocalGender: 'm',
+      });
     }
 
     // Step 2: Poll for completion (max 5 minutes - Suno takes longer)
@@ -706,6 +757,14 @@ async function generateSongWithSuno(songId: string, lyrics: string, drereName: s
           const clip = sunoData[0];
           audioUrl = clip.audioUrl || clip.audio_url;
           imageUrl = clip.imageUrl || clip.image_url;
+          // En non-custom, Suno a écrit les paroles : on remplace le gabarit.
+          const sunoLyrics = clip.prompt || clip.lyric || clip.lyrics;
+          if (typeof sunoLyrics === 'string' && sunoLyrics.trim().length > 0) {
+            await supabase
+              .from('drere_week_songs')
+              .update({ lyrics: sunoLyrics, updated_at: new Date().toISOString() })
+              .eq('id', songId);
+          }
         }
         break;
       } else if (status === 'CREATE_TASK_FAILED' || status === 'GENERATE_AUDIO_FAILED' || status === 'CALLBACK_EXCEPTION') {
