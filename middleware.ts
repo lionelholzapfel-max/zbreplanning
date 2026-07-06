@@ -13,6 +13,9 @@ const PUBLIC_PATHS = [
   '/api/knockout/sync',
   '/api/awards/weekly',
   '/api/knockout/teams', // Public read: resolved knockout teams
+  // Callback sunoapi.org : POST serveur→serveur sans cookie de session.
+  // La route ne fait qu'écrire le résultat d'une tâche identifiée par task_id.
+  '/api/drere-song/callback',
 ];
 
 export async function middleware(request: NextRequest) {
