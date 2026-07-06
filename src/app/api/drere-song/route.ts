@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+// Le poller Suno peut durer plusieurs minutes — étendre la durée de la fonction.
+export const maxDuration = 300;
 import { getSessionUser, getSupabaseAdmin } from '@/lib/auth/session';
 import { MEMBERS } from '@/data/members';
 
@@ -730,6 +733,13 @@ async function generateSongWithSuno(songId: string, brief: string, fallbackLyric
         callBackUrl: `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL || 'zbreplanning.vercel.app'}/api/drere-song/callback`,
       });
     }
+
+    // Persister le task_id : le callback retrouve la chanson même si ce
+    // poller est tué par la plateforme avant la fin de génération.
+    await supabase
+      .from('drere_week_songs')
+      .update({ task_id: taskId, updated_at: new Date().toISOString() })
+      .eq('id', songId);
 
     // Step 2: Poll for completion (max 5 minutes - Suno takes longer)
     let audioUrl: string | null = null;
