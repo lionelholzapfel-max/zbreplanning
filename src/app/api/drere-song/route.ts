@@ -672,7 +672,8 @@ async function launchSunoTask(apiKey: string, body: Record<string, unknown>): Pr
   const generateResult = await generateResponse.json();
   const taskId = generateResult.data?.taskId || generateResult.taskId;
   if (!taskId) {
-    throw new Error('No taskId returned from Suno API');
+    // Le corps contient la vraie raison (crédits, paramètre manquant…)
+    throw new Error(`No taskId returned from Suno API — response: ${JSON.stringify(generateResult).slice(0, 300)}`);
   }
   return taskId;
 }
@@ -706,12 +707,14 @@ async function generateSongWithSuno(songId: string, brief: string, fallbackLyric
     // dans le brief. vocalGender : 'm'/'f' selon la doc sunoapi.org.)
     let taskId: string;
     try {
+      const callBackUrl = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL || 'zbreplanning.vercel.app'}/api/drere-song/callback`;
       taskId = await launchSunoTask(apiKey, {
         customMode: false,
         instrumental: false,
         prompt: brief,
         model: 'V5_5',
         vocalGender: 'm',
+        callBackUrl,
       });
     } catch (nonCustomError) {
       // Fallback : nos paroles gabarit en mode custom (comportement historique)
@@ -724,6 +727,7 @@ async function generateSongWithSuno(songId: string, brief: string, fallbackLyric
         title: `${drereName} - Drère of the Week`,
         model: 'V5_5',
         vocalGender: 'm',
+        callBackUrl: `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL || 'zbreplanning.vercel.app'}/api/drere-song/callback`,
       });
     }
 
