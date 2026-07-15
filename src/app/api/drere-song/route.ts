@@ -187,9 +187,12 @@ export async function POST(request: NextRequest) {
 }
 
 function getLastMondayDate(): string {
+  // L'award drere_week est stocké sous le lundi qui a DÉMARRÉ la semaine
+  // écoulée (le weekLabel de awards/weekly) — pas le lundi le plus récent.
+  // Défaut aligné : lundi le plus récent − 7 jours.
   const now = new Date();
   const day = now.getUTCDay();
-  const diff = day === 0 ? 6 : day - 1; // Days since Monday
+  const diff = (day === 0 ? 6 : day - 1) + 7;
   const monday = new Date(now.getTime() - diff * 86400000);
   return monday.toISOString().split('T')[0];
 }

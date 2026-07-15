@@ -125,6 +125,30 @@ export async function GET(request: NextRequest) {
 
     await supabase.from('daily_awards').insert(weeklyAwards);
 
+    // Chain the Drère of the Week song generation with the SAME weekLabel
+    // (the awards are stored under the Monday that STARTED the ended week —
+    // without this explicit week_start the song route would look one week off).
+    let songTrigger: string;
+    try {
+      const baseUrl = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL || 'zbreplanning.vercel.app'}`;
+      const songResponse = await fetch(`${baseUrl}/api/drere-song`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.CRON_SECRET}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ week_start: weekLabel }),
+      });
+      const songResult = await songResponse.json().catch(() => ({}));
+      songTrigger = songResponse.ok
+        ? (songResult.message || 'started')
+        : `failed (${songResponse.status}): ${songResult.error || 'unknown error'}`;
+    } catch (songError) {
+      // La chanson est du bonus : son échec ne doit pas faire échouer les awards.
+      songTrigger = `failed: ${songError instanceof Error ? songError.message : 'unknown error'}`;
+    }
+    console.log(`[awards/weekly] week=${weekLabel} drere=${drereWeekUsers.join(',')} song=${songTrigger}`);
+
     return NextResponse.json({
       success: true,
       weekLabel,
@@ -133,6 +157,7 @@ export async function GET(request: NextRequest) {
       drereWeekUsers,
       maxPoints,
       allUserPoints: userPoints,
+      songTrigger,
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
