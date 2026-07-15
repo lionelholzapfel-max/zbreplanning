@@ -13,9 +13,11 @@ const PUBLIC_PATHS = [
   '/api/knockout/sync',
   '/api/awards/weekly',
   '/api/knockout/teams', // Public read: resolved knockout teams
-  // Callback sunoapi.org : POST serveur→serveur sans cookie de session.
-  // La route ne fait qu'écrire le résultat d'une tâche identifiée par task_id.
-  '/api/drere-song/callback',
+  // Chanson du Drère : couvre /api/drere-song (POST auto-déclenché par le cron
+  // awards/weekly via CRON_SECRET, GET protégé par session dans la route),
+  // /generate (admin vérifié dans la route) et /callback (POST serveur→serveur
+  // de sunoapi.org, identifié par task_id). Chaque route fait sa propre auth.
+  '/api/drere-song',
 ];
 
 export async function middleware(request: NextRequest) {
