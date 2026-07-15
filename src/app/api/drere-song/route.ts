@@ -4,6 +4,7 @@ import { NextRequest, NextResponse, after } from 'next/server';
 export const maxDuration = 300;
 import { getSessionUser, getSupabaseAdmin } from '@/lib/auth/session';
 import { MEMBERS } from '@/data/members';
+import { getResolvedTeamNames } from '@/lib/team-names';
 
 // Import matches data
 const matchesData = require('@/data/matches.json') as Array<{
@@ -311,11 +312,19 @@ async function getWeekStats(supabase: ReturnType<typeof getSupabaseAdmin>, weekS
         .eq('match_id', bestPrediction.match_id)
         .single();
 
-      const countries = extractCountries(matchInfo.match);
+      // Les matchs à élimination directe stockent des placeholders dans
+      // matches.json (« Vainqueur M91 ») — résoudre les VRAIS noms, sinon
+      // Suno chante littéralement « Vainqueur M91 » (semaine du 6 juil 2026).
+      const resolved = await getResolvedTeamNames(bestPrediction.match_id);
+      const realMatchName = resolved.home && resolved.away
+        ? `${resolved.home} - ${resolved.away}`
+        : matchInfo.match;
+
+      const countries = extractCountries(realMatchName);
       musicStyle = getMusicStyleForCountries(countries);
 
       grosCoup = {
-        matchName: matchInfo.match,
+        matchName: realMatchName,
         predictedScore: predDetails ? `${predDetails.home_score}-${predDetails.away_score}` : '?-?',
         actualScore: resultDetails ? `${resultDetails.home_score}-${resultDetails.away_score}` : '?-?',
         points: bestPrediction.total_points,
@@ -373,10 +382,10 @@ async function getWeekStats(supabase: ReturnType<typeof getSupabaseAdmin>, weekS
     userPoints[log.user_id] = (userPoints[log.user_id] || 0) + log.total_points;
   }
 
-  // Sort by points (ascending = worst first)
+  // Sort by points (ascending = worst first). TOUS les actifs non-Drère :
+  // la chanson clashe tout le monde, pas seulement le fond du classement.
   const sortedWorst = Object.entries(userPoints)
     .sort((a, b) => a[1] - b[1])
-    .slice(0, 3)
     .map(([userId, points]) => ({
       name: MEMBERS.find(m => m.id === userId)?.name.split(' ')[0] || 'Unknown',
       points,
@@ -425,25 +434,39 @@ async function getWeekStats(supabase: ReturnType<typeof getSupabaseAdmin>, weekS
  * de la semaine (≤ 500 caractères, limite API) et Suno écrit lui-même des
  * paroles différentes à chaque fois — puis les chante. Le style musical par
  * pays est glissé dans le brief (le champ style est interdit en non-custom).
+ *
+ * Règles éditoriales (Lionel, 15 juil 2026) : la chanson doit CLASHER
+ * méchamment tout le monde sauf le Drère — vannes de vestiaire qui piquent,
+ * pas de chambrage gentil. Si les 500c débordent, on retire des noms de
+ * perdants (jamais les consignes de ton, qui sont en tête).
  */
 function buildSongBrief(stats: WeekStats): string {
   const { drereName, drerePoints, grosCoup, worstActivePerformers, mziName, isDuo, musicStyle } = stats;
-  const parts: string[] = [];
-  parts.push(`Style musical : ${musicStyle}.`);
-  parts.push(
-    `Chanson de vestiaire 100% en FRANÇAIS pour ${drereName}, « Dréré of the Week » — ${isDuo ? 'les rois' : 'le roi'} de la semaine des pronostics Coupe du Monde 2026 de la Zbre Team (${drerePoints} points).`
-  );
-  if (grosCoup) {
-    parts.push(`Gros coup : ${grosCoup.author} a prédit le score exact ${grosCoup.predictedScore} sur ${grosCoup.matchName}.`);
+
+  const build = (loserCount: number): string => {
+    const parts: string[] = [];
+    parts.push(`Style musical : ${musicStyle}.`);
+    parts.push(
+      `Chanson clash 100% en FRANÇAIS pour ${drereName}, « Dréré of the Week » des pronos Coupe du Monde de la Zbre Team (${drerePoints} pts). Glorifie-${isDuo ? 'les' : 'le'}, et DÉMONTE tous les autres : clash de vestiaire sans pitié, vannes méchantes et drôles, moqueries nominatives.`
+    );
+    if (grosCoup) {
+      parts.push(`Gros coup : ${grosCoup.author} a mis le score exact ${grosCoup.predictedScore} sur ${grosCoup.matchName}.`);
+    }
+    const losers = worstActivePerformers.slice(0, loserCount)
+      .map((w) => `${w.name} ${w.points}pt${w.points > 1 ? 's' : ''}`)
+      .join(', ');
+    if (losers) parts.push(`Les losers à clasher un par un : ${losers}.`);
+    if (mziName) parts.push(`${mziName} est le « Mzi » (le pire) : humilie-le.`);
+    parts.push(`Écris toujours « Dréré ».`);
+    return parts.join(' ');
+  };
+
+  let loserCount = worstActivePerformers.length;
+  let brief = build(loserCount);
+  while (brief.length > 500 && loserCount > 2) {
+    loserCount--;
+    brief = build(loserCount);
   }
-  const roasts: string[] = [];
-  if (worstActivePerformers.length > 0) {
-    roasts.push(worstActivePerformers.slice(0, 2).map((w) => `${w.name} (${w.points} pts)`).join(' et '));
-  }
-  if (mziName) roasts.push(`${mziName} le « Mzi » de la semaine`);
-  if (roasts.length > 0) parts.push(`Chambre gentiment ${roasts.join(', et ')}.`);
-  parts.push(`Écris toujours « Dréré » (prononcé dréré). Ton chambreur entre potes, drôle, jamais méchant.`);
-  let brief = parts.join(' ');
   if (brief.length > 500) brief = brief.slice(0, 497) + '…';
   return brief;
 }
