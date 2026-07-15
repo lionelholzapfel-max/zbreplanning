@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 
 // Le poller Suno peut durer plusieurs minutes — étendre la durée de la fonction.
 export const maxDuration = 300;
@@ -165,18 +165,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Erreur création' }, { status: 500 });
     }
 
-    // Trigger Suno AI generation (async - will be updated when complete)
-    // Fire and forget - don't await, let it run in background
-    generateSongWithSuno(
+    // Lancer la tâche Suno AVANT de répondre : en fire-and-forget total, Vercel
+    // gèle la lambda dès la réponse envoyée et le lancement n'aboutit jamais
+    // (chanson bloquée en 'generating' sans task_id — semaine du 6 juil 2026).
+    const taskId = await launchSongGeneration(
       songRecord.id,
       brief,
       lyrics,
       stats.drereName,
       stats.musicStyle
-    ).catch(err => console.error('Suno generation error:', err));
+    );
+
+    // Le poller tourne après la réponse via after() (Vercel garde la fonction
+    // en vie) ; si la plateforme le tue quand même, le callback Suno finalise.
+    if (taskId) {
+      after(() => pollSunoCompletion(songRecord.id, taskId));
+    }
 
     return NextResponse.json({
-      message: 'Song generation started with Suno AI',
+      message: taskId ? 'Song generation started with Suno AI' : 'Song saved with lyrics only',
       song: songRecord,
       lyrics,
       musicStyle: stats.musicStyle,
@@ -684,7 +691,12 @@ async function launchSunoTask(apiKey: string, body: Record<string, unknown>): Pr
   return taskId;
 }
 
-async function generateSongWithSuno(songId: string, brief: string, fallbackLyrics: string, drereName: string, musicStyle: string) {
+/**
+ * Lance la génération Suno et persiste le task_id — AWAITÉ par le handler
+ * avant d'envoyer la réponse, pour garantir que la tâche existe côté Suno.
+ * Retourne le taskId, ou null si Suno est indisponible (paroles seules).
+ */
+async function launchSongGeneration(songId: string, brief: string, fallbackLyrics: string, drereName: string, musicStyle: string): Promise<string | null> {
   const supabase = getSupabaseAdmin();
 
   try {
@@ -705,7 +717,7 @@ async function generateSongWithSuno(songId: string, brief: string, fallbackLyric
           updated_at: new Date().toISOString()
         })
         .eq('id', songId);
-      return;
+      return null;
     }
 
     // Voie principale : Suno écrit les paroles depuis le brief.
@@ -737,14 +749,39 @@ async function generateSongWithSuno(songId: string, brief: string, fallbackLyric
       });
     }
 
-    // Persister le task_id : le callback retrouve la chanson même si ce
+    // Persister le task_id : le callback retrouve la chanson même si le
     // poller est tué par la plateforme avant la fin de génération.
     await supabase
       .from('drere_week_songs')
       .update({ task_id: taskId, updated_at: new Date().toISOString() })
       .eq('id', songId);
 
-    // Step 2: Poll for completion (max 5 minutes - Suno takes longer)
+    return taskId;
+  } catch (error) {
+    await supabase
+      .from('drere_week_songs')
+      .update({
+        status: 'completed', // Still mark as completed so lyrics are visible
+        error_message: error instanceof Error ? error.message : 'Suno launch failed',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', songId);
+    return null;
+  }
+}
+
+/**
+ * Poll la tâche Suno jusqu'à complétion — tourne APRÈS la réponse (after()).
+ * Redondant avec le callback Suno : le premier des deux qui aboutit écrit
+ * le résultat, l'autre ne fait qu'un update équivalent.
+ */
+async function pollSunoCompletion(songId: string, taskId: string) {
+  const supabase = getSupabaseAdmin();
+  const apiKey = process.env.SUNO_API_KEY;
+  if (!apiKey) return;
+
+  try {
+    // Poll for completion (max 5 minutes - Suno takes longer)
     let audioUrl: string | null = null;
     let imageUrl: string | null = null;
     const maxAttempts = 60; // 60 * 5s = 5 minutes
