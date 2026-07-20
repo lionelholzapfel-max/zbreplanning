@@ -21,6 +21,7 @@ const EvolutionChart = dynamic(
 import { WallOfShame } from '@/components/WallOfShame';
 import { DrereSpeech } from '@/components/DrereSpeech';
 import { DrereWeekSong } from '@/components/DrereWeekSong';
+import { ChampionSong } from '@/components/ChampionSong';
 import { CountUp } from '@/components/CountUp';
 import { PageHeader, Avatar, RecordCard, EmptyState } from '@/components/ui';
 import { MEMBERS } from '@/data/members';
@@ -405,6 +406,7 @@ export default function LeaderboardPage() {
               </p>
             </div>
           </div>
+          <ChampionSong championName={champion.member_name.split(' ')[0]} />
         </section>
       )}
 
