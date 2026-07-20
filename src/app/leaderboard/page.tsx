@@ -296,6 +296,12 @@ export default function LeaderboardPage() {
   const activePlayers = leaderboard.filter(e => e.matches_predicted > 0);
   const inactivePlayers = leaderboard.filter(e => e.matches_predicted === 0);
 
+  // Tournament is complete once every match has a result — the leaderboard is final
+  // and the champion gets his coronation hero.
+  const TOTAL_TOURNAMENT_MATCHES = 104;
+  const tournamentOver = totalMatchesWithResults >= TOTAL_TOURNAMENT_MATCHES;
+  const champion = tournamentOver ? activePlayers[0] : undefined;
+
   // Best average points per match (match points ÷ matches predicted, global
   // tournament bonuses excluded so it's a pure per-match average).
   const bestAverage = activePlayers.reduce<{ avg: number; entry: LeaderboardEntry } | null>((best, e) => {
@@ -372,6 +378,32 @@ export default function LeaderboardPage() {
           <div className="flex items-center justify-between gap-3 rounded-[10px] bg-[var(--surface-2)] border border-[var(--danger)]/30 px-4 py-3">
             <p className="text-[13px] text-[var(--text-secondary)]">Impossible de charger — vérifie ta connexion.</p>
             <button onClick={() => loadData()} className="shrink-0 h-8 px-3 rounded-[8px] bg-[var(--surface-3)] text-[13px] text-[var(--text-primary)] hover:bg-[var(--surface-4)] transition-colors">Réessayer</button>
+          </div>
+        </section>
+      )}
+
+      {/* Champion du tournoi — coronation hero */}
+      {champion && (
+        <section data-shot="champion" className="max-w-4xl mx-auto px-4 pt-4 pb-6">
+          <div className="relative overflow-hidden rounded-[10px] top-light">
+            <Image
+              src="/champion-throne.webp"
+              alt={`${champion.member_name} — Drère du Tournoi`}
+              width={1200}
+              height={1607}
+              priority
+              className="w-full h-[420px] sm:h-[520px] object-cover object-[center_22%]"
+            />
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent pt-24 pb-6 px-6 text-center">
+              <p className="eyebrow text-[var(--gold)]">🏆 Drère du Tournoi</p>
+              <p className="display text-[32px] sm:text-[42px] text-white mt-1">
+                {champion.member_name.split(' ')[0]}
+              </p>
+              <p className="mt-1">
+                <span className="score text-[30px] text-[var(--gold)]">{champion.total_points}</span>
+                <span className="ml-1.5 text-[13px] text-white/70">pts</span>
+              </p>
+            </div>
           </div>
         </section>
       )}
