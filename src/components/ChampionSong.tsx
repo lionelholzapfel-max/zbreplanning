@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 // Hymne du Drère du Tournoi — generated once with Suno (flamenco), stored in
 // the public drere-speeches bucket. Static: the tournament is over, this
 // song will never change.
-const AUDIO_URL =
+export const CHAMPION_ANTHEM_URL =
   'https://wsimtsbtiijcyvgzavlp.supabase.co/storage/v1/object/public/drere-speeches/songs/drere-du-tournoi-kevin.mp3';
 
 const LYRICS = `[Couplet 1]
@@ -89,7 +89,7 @@ export function ChampionSong({ championName }: { championName: string }) {
 
   const togglePlay = () => {
     if (!audioRef.current) {
-      audioRef.current = new Audio(AUDIO_URL);
+      audioRef.current = new Audio(CHAMPION_ANTHEM_URL);
       audioRef.current.onended = () => setIsPlaying(false);
       audioRef.current.onerror = () => setIsPlaying(false);
     }

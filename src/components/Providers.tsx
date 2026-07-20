@@ -2,12 +2,14 @@
 
 import { Toaster } from 'sonner';
 import DrereCelebration from './DrereCelebration';
+import ChampionCelebration from './ChampionCelebration';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <>
       {children}
       <DrereCelebration />
+      <ChampionCelebration />
       <Toaster
         position="top-center"
         toastOptions={{
