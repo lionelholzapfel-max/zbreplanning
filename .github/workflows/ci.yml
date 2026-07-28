@@ -1,0 +1,41 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# Périmètre volontairement réduit : lint (48 erreurs préexistantes), tests unitaires,
+# build et e2e nécessitent le projet Supabase de test (en pause) + des secrets GitHub.
+# Suivi : issue "CI — activer unit/build/e2e"
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      # --omit=dev : ne bloque que sur les deps de production — les CVE des outils de dev ne tournent pas en prod
+      - run: npm audit --omit=dev --audit-level=high
+
+  secrets-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # historique complet : TruffleHog scanne les commits, pas juste l'état actuel
+          fetch-depth: 0
+      - uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --results=verified,unknown
