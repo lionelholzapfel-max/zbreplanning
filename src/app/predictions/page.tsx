@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
+import CdmSubnav from '@/components/CdmSubnav';
 import { MEMBERS } from '@/data/members';
 import { useSupabase, PredictionType, Prediction } from '@/hooks/useSupabase';
 import { toast } from 'sonner';
@@ -430,6 +431,7 @@ export default function PredictionsPage() {
   return (
     <div className="min-h-screen bg-[var(--canvas)]">
       <Navbar />
+      <CdmSubnav />
 
       {/* Header */}
       <section className="max-w-7xl mx-auto px-4 pt-8">

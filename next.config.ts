@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
 
+
   async headers() {
     return [
       // Fresh HTML/API by default to avoid stale content.

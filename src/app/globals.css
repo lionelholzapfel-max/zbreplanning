@@ -243,3 +243,144 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* ==========================================================================
+   FPL theme — scoped sub-direction for the Fantasy Premier League pages.
+   Inspired by a friend's "WC Challenge" site: near-black canvas, condensed
+   uppercase Oswald, one identity colour per manager (--c) used as a left
+   rule, a short red underline under section titles, gold for the leader.
+   ========================================================================== */
+.theme-fpl {
+  --f-bg: #0a0a0b;
+  --f-bg-soft: #101218;
+  --f-surface: #15171d;
+  --f-surface-2: #1b1e26;
+  --f-surface-3: #21252f;
+  --f-line: #262a34;
+  --f-line-soft: #1d212a;
+  --f-text: #f5f6f8;
+  --f-muted: #8b919c;
+  --f-muted-2: #6a707b;
+  --f-red: #e2231a;
+  --f-blue: #2f6dff;
+  --f-green: #28c060;
+  --f-down: #ec4444;
+  --f-gold: #f4c430;
+  background: var(--f-bg);
+  color: var(--f-text);
+  font-size: 15px;
+  line-height: 1.45;
+  min-height: 100vh;
+}
+.theme-fpl .f-display {
+  font-family: var(--font-oswald), var(--font-inter), sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.theme-fpl .f-anton {
+  font-family: var(--font-anton), var(--font-oswald), sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  line-height: 0.92;
+}
+.theme-fpl .f-num {
+  font-family: var(--font-oswald), sans-serif;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.theme-fpl .f-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--f-muted);
+}
+.theme-fpl .f-card {
+  background: var(--f-surface);
+  border: 1px solid var(--f-line);
+  border-radius: 6px;
+}
+.theme-fpl .f-rule {
+  border-left: 4px solid var(--c, var(--f-muted));
+}
+.theme-fpl .f-rule-top {
+  border-top: 4px solid var(--c, var(--f-muted));
+}
+/* Section title with the red 64px underline */
+.theme-fpl .f-head {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  margin-bottom: 14px;
+  border-bottom: 2px solid var(--f-line);
+}
+.theme-fpl .f-head::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 64px;
+  height: 2px;
+  background: var(--f-red);
+}
+.theme-fpl .f-head h2 {
+  font-family: var(--font-oswald), sans-serif;
+  text-transform: uppercase;
+  font-weight: 600;
+  font-size: 1.35rem;
+  letter-spacing: 0.02em;
+}
+.theme-fpl .f-champ {
+  position: relative;
+  border: 1px solid rgba(244, 196, 48, 0.35);
+  border-radius: 10px;
+  background:
+    radial-gradient(120% 140% at 50% -20%, rgba(244, 196, 48, 0.16), transparent 60%),
+    linear-gradient(180deg, #14140f 0%, var(--f-surface) 70%);
+  box-shadow: 0 0 0 1px rgba(244, 196, 48, 0.06), 0 18px 44px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+.theme-fpl .f-champ::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--f-gold), transparent);
+}
+.theme-fpl .f-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 4px 12px 4px 4px;
+  background: var(--f-surface-2);
+  border: 1px solid var(--f-line);
+}
+.theme-fpl .f-glow {
+  background: radial-gradient(60% 60% at 50% 40%, color-mix(in srgb, var(--c) 55%, transparent), transparent 70%);
+  filter: blur(38px);
+  opacity: 0.55;
+}
+.theme-fpl .f-hatch {
+  background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.025) 0 2px, transparent 2px 9px);
+}
+.theme-fpl a.f-link {
+  color: var(--f-blue);
+  font-weight: 600;
+}
+.theme-fpl a.f-link:hover {
+  text-decoration: underline;
+}
+@keyframes f-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.theme-fpl .f-in {
+  animation: f-fade-in 0.4s ease both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme-fpl .f-in { animation: none; }
+}

@@ -18,6 +18,10 @@ const PUBLIC_PATHS = [
   // /generate (admin vérifié dans la route) et /callback (POST serveur→serveur
   // de sunoapi.org, identifié par task_id). Chaque route fait sa propre auth.
   '/api/drere-song',
+  // FPL: daily Vercel cron (route checks Bearer CRON_SECRET; POST = admin
+  // session checked in the route) and the Suno callback (opaque task_id).
+  '/api/fpl/cron',
+  '/api/fpl/song/callback',
 ];
 
 export async function middleware(request: NextRequest) {

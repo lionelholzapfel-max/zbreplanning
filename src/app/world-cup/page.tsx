@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
+import CdmSubnav from '@/components/CdmSubnav';
 import matches from '@/data/matches.json';
 import { useSupabase, MatchParticipation, WatchLocation } from '@/hooks/useSupabase';
 import { useTeamOverrides } from '@/hooks/useTeamOverrides';
@@ -816,6 +817,7 @@ export default function WorldCupPage() {
   return (
     <div className="min-h-screen bg-[var(--canvas)]">
       <Navbar />
+      <CdmSubnav />
 
       {/* Header */}
       <section className="max-w-7xl mx-auto px-4 pt-8">

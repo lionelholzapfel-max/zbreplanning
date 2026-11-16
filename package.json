@@ -17,6 +17,7 @@
     "design:shots": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/design-shots.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.104.1",
     "bcryptjs": "^3.0.3",
@@ -28,7 +29,9 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^3.8.1",
-    "sonner": "^2.0.7"
+    "server-only": "^0.0.1",
+    "sonner": "^2.0.7",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",

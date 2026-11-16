@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Space_Grotesk } from "next/font/google";
+import { Inter, Space_Grotesk, Oswald, Anton } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
 
@@ -13,6 +13,18 @@ const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   weight: ["500", "600"],
   variable: "--font-space-grotesk",
+});
+
+// FPL pages (.theme-fpl): condensed uppercase display + giant ring names.
+const oswald = Oswald({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-oswald",
+});
+const anton = Anton({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-anton",
 });
 
 export const metadata: Metadata = {
@@ -30,7 +42,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className={`${inter.variable} ${spaceGrotesk.variable} dark`}>
+    <html lang="fr" className={`${inter.variable} ${spaceGrotesk.variable} ${oswald.variable} ${anton.variable} dark`}>
       <head>
         <script
           dangerouslySetInnerHTML={{
