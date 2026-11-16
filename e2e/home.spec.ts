@@ -4,10 +4,12 @@ import { quickLogin } from './helpers';
 // Helper to login before each test
 test.beforeEach(async ({ page }) => {
   await quickLogin(page, '1');
-  // quickLogin already navigates to '/' and waits for nav
+  // Since the FPL home (16 nov 2026), the team / World Cup home lives at /cdm.
+  await page.goto('/cdm');
+  await expect(page.locator('nav').first()).toBeVisible({ timeout: 15000 });
 });
 
-test.describe('Home Page', () => {
+test.describe('World Cup home (/cdm)', () => {
   test('should display team title', async ({ page }) => {
     await expect(page.locator('text=La Zbre Team').first()).toBeVisible({ timeout: 10000 });
   });
