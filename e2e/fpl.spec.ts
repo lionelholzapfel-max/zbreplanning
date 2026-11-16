@@ -15,6 +15,12 @@ test.describe('FPL — not logged in', () => {
     expect(res.headers()['content-type'] ?? '').not.toContain('image');
   });
 
+  test('the stored Drère song is never served without a session', async ({ request }) => {
+    const res = await request.get('/api/fpl/song/10', { maxRedirects: 0 });
+    expect([307, 401]).toContain(res.status());
+    expect(res.headers()['content-type'] ?? '').not.toContain('audio');
+  });
+
   test('cron endpoint refuses calls without the secret', async ({ request }) => {
     const res = await request.get('/api/fpl/cron');
     expect(res.status()).toBe(401);
@@ -36,6 +42,10 @@ test.describe('FPL — logged in as Lionel', () => {
     await page.goto('/');
     await page.waitForTimeout(1200);
     await expect(page.getByRole('dialog').filter({ hasText: 'Drère de la semaine' })).toHaveCount(0);
+    // the champion overlay marked itself as seen: the GW reveal comes on the next visit
+    expect(await page.evaluate(() => localStorage.getItem('champion-celebration-seen'))).not.toBeNull();
+    await page.reload();
+    await expect(page.getByRole('dialog').filter({ hasText: 'Drère de la semaine' })).toBeVisible({ timeout: 10000 });
   });
 
   test('home shows the league, the leader, the 4 managers and the review', async ({ page }) => {
@@ -70,6 +80,20 @@ test.describe('FPL — logged in as Lionel', () => {
     expect(res.headers()['cache-control']).toContain('private');
     const unknown = await page.request.get('/api/fpl/photo/__proto__?v=face');
     expect(unknown.status()).toBe(404);
+  });
+
+  test('the stored Drère song streams to members, with byte ranges for Safari', async ({ page }) => {
+    const full = await page.request.get('/api/fpl/song/10');
+    expect(full.status()).toBe(200);
+    expect(full.headers()['content-type']).toBe('audio/mpeg');
+    expect(full.headers()['accept-ranges']).toBe('bytes');
+    expect(full.headers()['cache-control']).toContain('private');
+    const part = await page.request.get('/api/fpl/song/10', { headers: { Range: 'bytes=0-99' } });
+    expect(part.status()).toBe(206);
+    expect((await part.body()).byteLength).toBe(100);
+    expect(part.headers()['content-range']).toMatch(/^bytes 0-99\/\d+$/);
+    expect((await page.request.get('/api/fpl/song/11')).status()).toBe(404);
+    expect((await page.request.get('/api/fpl/song/abc')).status()).toBe(404);
   });
 
   test('stats page renders charts with faces and every section', async ({ page }) => {

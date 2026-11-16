@@ -59,6 +59,8 @@ export interface ReviewRow {
   cost_usd: number;
   song_status: 'none' | 'generating' | 'completed' | 'failed';
   song_audio_url: string | null;
+  /** our private copy of the mp3 (Suno URLs are temporary) */
+  song_storage_path: string | null;
   song_cover_url: string | null;
   song_title: string | null;
   song_lyrics: string | null;
@@ -371,7 +373,7 @@ export async function getReviews(season = FPL_SEASON): Promise<ReviewRow[]> {
   const { data, error } = await getSupabaseAdmin()
     .from('fpl_gw_reviews')
     .select(
-      'season, gw, status, review, facts, drere_slugs, mzi_slugs, cost_usd, song_status, song_audio_url, song_cover_url, song_title, song_lyrics, created_at',
+      'season, gw, status, review, facts, drere_slugs, mzi_slugs, cost_usd, song_status, song_audio_url, song_storage_path, song_cover_url, song_title, song_lyrics, created_at',
     )
     .eq('season', season)
     .order('gw', { ascending: false });

@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/auth/session';
+import { persistSong } from '@/lib/fpl/song-store';
+
+// Downloading + storing the mp3 happens inside the callback.
+export const maxDuration = 120;
 
 /**
  * sunoapi.org callback for the FPL "Drère de la GW" song. Implicit auth: the
@@ -48,6 +52,16 @@ export async function POST(request: Request) {
         .eq('season', row.season)
         .eq('gw', row.gw);
       console.log(`[fpl] song GW${row.gw} completed`);
+      // Suno's URL is temporary: keep our own copy (several callbacks may arrive; upsert).
+      const stored = await persistSong(row.season, row.gw, clip.audio_url);
+      if (stored) {
+        const { error } = await supabase
+          .from('fpl_gw_reviews')
+          .update({ song_storage_path: stored, updated_at: new Date().toISOString() })
+          .eq('season', row.season)
+          .eq('gw', row.gw);
+        if (error) console.error(`[fpl] song GW${row.gw} stored but path not saved: ${error.message}`);
+      }
     }
   } catch (e) {
     console.error('[fpl] song callback error:', e);
