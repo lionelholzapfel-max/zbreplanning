@@ -2,7 +2,10 @@
 import Navbar from '@/components/Navbar';
 import { getLeague } from '@/lib/fpl/data';
 import { FPL_LEAGUE_NAME, MANAGERS, MANAGER_BY_SLUG, photoUrl, type ManagerSlug } from '@/lib/fpl/config';
-import { Delta, Face, Name, Stars, cssColor, fmtRank, ordinal } from '@/components/fpl/ui';
+import { Delta, Face, Name, Stars, cssColor, fmtRank, ordinal, dec } from '@/components/fpl/ui';
+
+// Behind login and fed by live FPL data (cached 5 min in data.ts): never prerender.
+export const dynamic = 'force-dynamic';
 
 export const metadata = { title: `Managers — ${FPL_LEAGUE_NAME}` };
 
@@ -120,7 +123,7 @@ export default async function ManagersPage() {
                       {[
                         { l: 'Total', v: st.total },
                         { l: 'Rang mondial', v: fmtRank(st.overallRank) },
-                        { l: 'Moy./GW', v: st.avg.toFixed(1) },
+                        { l: 'Moy./GW', v: dec(st.avg) },
                         { l: 'Drère', v: `${st.drereCount}×` },
                         { l: 'Mzi', v: `${st.mziCount}×` },
                         { l: 'Meilleure GW', v: st.best ? `${st.best.pts}` : '—' },

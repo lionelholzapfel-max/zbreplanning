@@ -42,11 +42,8 @@ export const MANAGERS: FplManager[] = [
       'Quand Ramzi est derrière au classement, ce n’est pas une crise : c’est une remontada en préparation.',
     ],
     starNotes: [
-      'Titre n°1',
-      'Titre n°2',
-      'Titre n°3',
-      'Titre n°4',
-      'Titre n°5 — le Real ne s’arrête jamais',
+      'Cinq titres : plus que les trois autres réunis',
+      'Des résultats au sommet, saison après saison',
     ],
   },
   {
@@ -96,7 +93,7 @@ export const MANAGERS: FplManager[] = [
     tagline: 'A choqué son monde l’année où Leicester a été champion.',
     bio: [
       "La saison où Leicester a gagné la Premier League, Edu a fait pareil en FPL : personne ne l'avait vu venir, il a tout dominé.",
-      'Cette année, il est bien parti pour faire une très grosse saison. Les autres commencent à regarder derrière eux.',
+      'Cette année, il est bien parti pour faire une très grosse saison. Les trois autres ont compris le danger.',
     ],
     starNotes: ['Étoile n°1 — la saison Leicester, le choc total'],
   },

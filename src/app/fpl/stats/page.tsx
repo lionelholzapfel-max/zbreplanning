@@ -5,9 +5,12 @@ import { seasonSpendUsd, SEASON_BUDGET_USD } from '@/lib/fpl/review';
 import { gapSeries, gwPointsSeries, overallRankSeries, positionsSeries } from '@/lib/fpl/series';
 import { FPL_LEAGUE_NAME, MANAGER_BY_SLUG, type ManagerSlug } from '@/lib/fpl/config';
 import type { TransferImpact } from '@/lib/fpl/stats';
-import { Delta, Face, Name, SectionHead, Tile, cssColor, fmtRank, ordinal } from '@/components/fpl/ui';
+import { Delta, Face, Name, SectionHead, Tile, cssColor, fmtRank, ordinal, dec } from '@/components/fpl/ui';
 import { FaceLineChart, GwPointsBars } from '@/components/fpl/charts';
 import { Expandable } from '@/components/fpl/interactive';
+
+// Behind login and fed by live FPL data (cached 5 min in data.ts): never prerender.
+export const dynamic = 'force-dynamic';
 
 export const metadata = { title: `Stats — ${FPL_LEAGUE_NAME}` };
 
@@ -82,7 +85,7 @@ export default async function FplStatsPage() {
                   <Face slug={m.slug} size={36} />
                 </div>
                 <div className="text-xs text-[var(--f-muted)] mt-1">
-                  {m.slug === stats.leader.slug ? 'Leader' : `${m.total - stats.leader.total} du leader`} · moy. {m.avg.toFixed(1)}/GW
+                  {m.slug === stats.leader.slug ? 'Leader' : `${m.total - stats.leader.total} du leader`} · moy. {dec(m.avg)}/GW
                 </div>
               </Tile>
             ))}
@@ -94,7 +97,7 @@ export default async function FplStatsPage() {
             </div>
             <div className="f-card p-3 md:p-4">
               <div className="f-label mb-2">Position dans la ligue</div>
-              <FaceLineChart data={positionsSeries(stats)} invert domain={[1, 4]} ticks={[1, 2, 3, 4]} valueFormatter={(v) => ordinal(v)} />
+              <FaceLineChart data={positionsSeries(stats)} invert domain={[1, 4]} ticks={[1, 2, 3, 4]} format="ordinal" />
             </div>
           </div>
           <div className="f-card p-3 md:p-4 mt-3">
@@ -109,7 +112,7 @@ export default async function FplStatsPage() {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <Tile label="Le plus en forme (3 dernières GW)" slug={inForm.slug}>
               <Name slug={inForm.slug} className="f-display text-xl" />
-              <div className="f-num text-2xl">{inForm.form3.toFixed(1)} <span className="text-sm text-[var(--f-muted)]">pts/GW</span></div>
+              <div className="f-num text-2xl">{dec(inForm.form3)} <span className="text-sm text-[var(--f-muted)]">pts/GW</span></div>
             </Tile>
             <Tile label="Le roi du banc" slug={benchKing.slug}>
               <Name slug={benchKing.slug} className="f-display text-xl" />
@@ -121,11 +124,11 @@ export default async function FplStatsPage() {
             </Tile>
             <Tile label="Monsieur Régularité" slug={consistent.slug}>
               <Name slug={consistent.slug} className="f-display text-xl" />
-              <div className="f-num text-2xl">±{consistent.stdev.toFixed(1)} <span className="text-sm text-[var(--f-muted)]">écart-type</span></div>
+              <div className="f-num text-2xl">±{dec(consistent.stdev)} <span className="text-sm text-[var(--f-muted)]">écart-type</span></div>
             </Tile>
             <Tile label="Les montagnes russes" slug={chaos.slug}>
               <Name slug={chaos.slug} className="f-display text-xl" />
-              <div className="f-num text-2xl">±{chaos.stdev.toFixed(1)} <span className="text-sm text-[var(--f-muted)]">écart-type</span></div>
+              <div className="f-num text-2xl">±{dec(chaos.stdev)} <span className="text-sm text-[var(--f-muted)]">écart-type</span></div>
             </Tile>
             <Tile label="Le meilleur mercato" slug={transferGuru.slug}>
               <Name slug={transferGuru.slug} className="f-display text-xl" />
@@ -238,7 +241,7 @@ export default async function FplStatsPage() {
                   {m.chipStatus.map((c) => {
                     const used = m.chips.find((u) => u.name === c.name && u.gw === c.usedGw);
                     const styles: Record<string, string> = {
-                      used: 'opacity-55 line-through',
+                      used: 'opacity-60',
                       available: 'border-[var(--f-green)] text-white',
                       expired: 'opacity-35 line-through',
                       upcoming: 'opacity-70',
@@ -249,7 +252,7 @@ export default async function FplStatsPage() {
                         className={`text-xs rounded border border-[var(--f-line)] px-2 py-1.5 ${styles[c.status]}`}
                         title={c.window}
                       >
-                        <span className="font-semibold">{c.label}</span>{' '}
+                        <span className="font-semibold">{c.status === 'used' ? '✓ ' : ''}{c.label}</span>{' '}
                         <span className="text-[var(--f-muted)] no-underline">
                           {c.status === 'used' ? `GW${c.usedGw}${used ? ` · ${used.pts} pts` : ''}` : c.status === 'available' ? 'dispo' : c.status === 'upcoming' ? `dès GW${c.start}` : 'perdu'}
                         </span>
@@ -360,14 +363,14 @@ export default async function FplStatsPage() {
         <section className="mb-10">
           <SectionHead title="Face au monde" right="Rang mondial FPL (échelle logarithmique)" />
           <div className="f-card p-3 md:p-4">
-            <FaceLineChart data={overallRankSeries(stats)} invert log valueFormatter={(v) => fmtRank(v)} />
+            <FaceLineChart data={overallRankSeries(stats)} invert log format="rank" />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
             {ms.map((m) => (
               <Tile key={m.slug} label={MANAGER_BY_SLUG[m.slug].firstName} slug={m.slug}>
                 <div className="f-num text-2xl">{fmtRank(m.overallRank)}</div>
                 <div className="text-xs text-[var(--f-muted)]">
-                  Valeur {m.teamValue?.toFixed(1)} M · banque {m.bank?.toFixed(1)} M
+                  Valeur {dec(m.teamValue)} M · banque {dec(m.bank)} M
                 </div>
                 <div className="text-xs text-[var(--f-muted)]">
                   Meilleure GW {m.best?.pts} (GW{m.best?.gw}) · pire {m.worst?.pts} (GW{m.worst?.gw})

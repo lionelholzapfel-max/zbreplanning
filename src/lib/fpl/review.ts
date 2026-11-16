@@ -10,6 +10,7 @@ import { getSupabaseAdmin } from '@/lib/auth/session';
 import { FPL_LEAGUE_NAME, FPL_SEASON, MANAGERS, MANAGER_BY_SLUG, type ManagerSlug } from './config';
 import { gameweekFacts, type GameweekFacts, type LeagueStats } from './stats';
 import type { LeagueSnapshot } from './snapshot';
+import { buildSongBrief } from './song-brief';
 
 export const REVIEW_MODEL = 'claude-opus-5-5';
 // Claude Opus 5.5 list prices (USD per token).
@@ -118,27 +119,6 @@ export async function writeReview(facts: GameweekFacts) {
 // ---------------------------------------------------------------------------
 // Suno — the Drère of the GW gets a song (sunoapi.org, same flow as the World
 // Cup "Drère of the Week"). The loser gets the fixed /sounds/mzi.m4a instead.
-
-const SONG_STYLES = ['hip-hop français énergique', 'hymne rock de stade', 'variété française kitsch', 'chant de supporters', 'électro festive'];
-
-export function buildSongBrief(facts: GameweekFacts): string {
-  const drere = facts.managers.filter((m) => facts.drere.includes(m.slug));
-  const names = drere.map((m) => m.who).join(' et ');
-  const style = SONG_STYLES[facts.gameweek % SONG_STYLES.length];
-  const losers = facts.managers.filter((m) => !facts.drere.includes(m.slug));
-  const d0 = drere[0];
-  const parts = [
-    `Style musical : ${style}.`,
-    `Chanson 100% en FRANÇAIS pour ${names}, « Drère » de la GW${facts.gameweek} de la Fantasy Premier League entre potes (${d0?.netPoints ?? '?'} pts).`,
-    d0?.captain ? `Son capitaine ${d0.captain.name} a fait ${d0.captain.rawPts} pts.` : '',
-    d0?.topScorers?.[0] ? `Son héros : ${d0.topScorers[0].name} (${d0.topScorers[0].pts} pts).` : '',
-    `Glorifie-le, et chambre les autres sans pitié : ${losers.map((l) => `${l.who} ${l.netPoints ?? '?'} pts`).join(', ')}.`,
-    `Écris toujours « Drère ».`,
-  ].filter(Boolean);
-  let brief = parts.join(' ');
-  if (brief.length > 500) brief = brief.slice(0, 497) + '…';
-  return brief;
-}
 
 function appBaseUrl(): string {
   return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL || 'zbreplanning.vercel.app'}`;

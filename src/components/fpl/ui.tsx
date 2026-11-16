@@ -122,3 +122,8 @@ export function fmtBrussels(iso: string, withDay = true): string {
     : { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Brussels' };
   return new Intl.DateTimeFormat('fr-BE', opts).format(d);
 }
+
+/** One decimal, French style: 66,6 */
+export function dec(v: number | null | undefined, digits = 1): string {
+  return v === null || v === undefined ? '—' : v.toFixed(digits).replace('.', ',');
+}

@@ -21,6 +21,11 @@ const nextConfig: NextConfig = {
         source: '/:all*(png|jpg|jpeg|gif|webp|svg|ico|mp3|woff|woff2)',
         headers: [{ key: 'Cache-Control', value: IMMUTABLE }],
       },
+      // FPL portraits: behind login, so browser-only cache (never a shared/CDN cache).
+      {
+        source: '/api/fpl/photo/:slug',
+        headers: [{ key: 'Cache-Control', value: 'private, max-age=86400' }],
+      },
     ];
   },
 };

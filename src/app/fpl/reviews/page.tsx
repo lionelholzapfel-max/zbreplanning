@@ -6,6 +6,9 @@ import { gameweekFacts } from '@/lib/fpl/stats';
 import { FPL_LEAGUE_NAME } from '@/lib/fpl/config';
 import { ReviewSection } from '@/components/fpl/ReviewSection';
 
+// Behind login and fed by live FPL data (cached 5 min in data.ts): never prerender.
+export const dynamic = 'force-dynamic';
+
 export const metadata = { title: `Reviews — ${FPL_LEAGUE_NAME}` };
 
 export default async function ReviewsPage() {

@@ -21,6 +21,9 @@ import { Countdown, GwCelebration } from '@/components/fpl/interactive';
 import { FaceLineChart } from '@/components/fpl/charts';
 import { ReviewSection } from '@/components/fpl/ReviewSection';
 
+// Behind login and fed by live FPL data (cached 5 min in data.ts): never prerender.
+export const dynamic = 'force-dynamic';
+
 export const metadata = { title: `${FPL_LEAGUE_NAME} — ZbrePlanning` };
 
 function FplError({ message }: { message: string }) {
@@ -221,7 +224,7 @@ export default async function FplHome() {
           <SectionHead title="La course" right={<Link href="/fpl/stats" className="f-link">Toutes les stats</Link>} />
           <div className="f-card p-3 md:p-5">
             <div className="f-label mb-2">Position dans la ligue, GW par GW</div>
-            <FaceLineChart data={positionsSeries(stats)} invert domain={[1, 4]} ticks={[1, 2, 3, 4]} valueFormatter={(v) => ordinal(v)} />
+            <FaceLineChart data={positionsSeries(stats)} invert domain={[1, 4]} ticks={[1, 2, 3, 4]} format="ordinal" />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
             {stats.managers.map((m) => (

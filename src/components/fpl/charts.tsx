@@ -38,14 +38,16 @@ interface DotProps {
   index?: number;
 }
 
-function faceDot(slug: ManagerSlug, lastIndex: number, uid: string, size = 30) {
+function faceDot(slug: ManagerSlug, lastIndex: number, uid: string, dx = 0, size = 30) {
   const color = MANAGER_BY_SLUG[slug].color;
   const FaceDot = (props: DotProps) => {
-    const { cx, cy, index } = props;
+    const { cy, index } = props;
+    let { cx } = props;
     if (cx === undefined || cy === undefined || index !== lastIndex) {
       return <g key={`${slug}-${index}`} />;
     }
     const r = size / 2;
+    cx += dx;
     const clipId = `${uid}-${slug}`;
     return (
       <g key={`${slug}-face`}>
@@ -70,6 +72,35 @@ function faceDot(slug: ManagerSlug, lastIndex: number, uid: string, size = 30) {
   return FaceDot;
 }
 
+const FORMATTERS: Record<string, (v: number) => string> = {
+  number: (v) => String(v),
+  ordinal: (v) => (v === 1 ? '1er' : `${v}e`),
+  rank: (v) => (v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1).replace('.', ',')} M` : v >= 1000 ? `${Math.round(v / 1000)} k` : String(v)),
+};
+
+/**
+ * Faces sitting on (almost) the same final value would hide each other: shift
+ * the later ones sideways. "Close" = nearer than one face height on screen.
+ */
+function staggerOffsets(data: SeriesPoint[], log: boolean, plotHeight: number): Partial<Record<ManagerSlug, number>> {
+  const last = data.at(-1);
+  if (!last) return {};
+  const t = (v: number) => (log ? Math.log10(Math.max(v, 1)) : v);
+  const all = data.flatMap((p) => MANAGERS.map((m) => p[m.slug])).filter((v): v is number => typeof v === 'number').map(t);
+  const range = Math.max(...all) - Math.min(...all) || 1;
+  const ends = MANAGERS.map((m) => ({ slug: m.slug, v: last[m.slug] }))
+    .filter((e): e is { slug: ManagerSlug; v: number } => typeof e.v === 'number')
+    .sort((a, b) => t(a.v) - t(b.v));
+  const out: Partial<Record<ManagerSlug, number>> = {};
+  let group = 0;
+  for (let i = 0; i < ends.length; i++) {
+    const close = i > 0 && Math.abs(t(ends[i].v) - t(ends[i - 1].v)) / range < 34 / plotHeight;
+    group = close ? group + 1 : 0;
+    out[ends[i].slug] = group === 0 ? 0 : group % 2 ? -26 : 26 * (group / 2);
+  }
+  return out;
+}
+
 function nameOf(slug: string) {
   return MANAGER_BY_SLUG[slug as ManagerSlug]?.firstName ?? slug;
 }
@@ -87,7 +118,7 @@ export function FaceLineChart({
   unit = '',
   log = false,
   zeroLine = false,
-  valueFormatter,
+  format = 'number',
 }: {
   data: SeriesPoint[];
   height?: number;
@@ -97,18 +128,21 @@ export function FaceLineChart({
   unit?: string;
   log?: boolean;
   zeroLine?: boolean;
-  valueFormatter?: (v: number) => string;
+  /** formatting is chosen by name: functions can't cross the server/client boundary */
+  format?: 'number' | 'ordinal' | 'rank';
 }) {
   const uid = useId().replace(/:/g, '');
   const lastIndex = data.length - 1;
-  const fmt = valueFormatter ?? ((v: number) => `${v}${unit}`);
+  const offsets = staggerOffsets(data, log, Math.max(height - 70, 80));
+  const fmt = FORMATTERS[format] ?? ((v: number) => `${v}${unit}`);
   return (
     <div style={{ width: '100%', height }}>
-      <ResponsiveContainer>
-        <LineChart data={data} margin={{ top: 20, right: 30, bottom: 4, left: 0 }}>
+      <ResponsiveContainer initialDimension={{ width: 600, height }}>
+        <LineChart data={data} margin={{ top: 20, right: 40, bottom: 4, left: 0 }}>
           <CartesianGrid stroke={GRID} vertical={false} />
           <XAxis
             dataKey="gw"
+            padding={{ left: 6, right: 22 }}
             tickFormatter={(gw) => `GW${gw}`}
             stroke={AXIS}
             tick={{ fontSize: 11 }}
@@ -121,6 +155,7 @@ export function FaceLineChart({
             ticks={ticks}
             scale={log ? 'log' : 'auto'}
             allowDataOverflow={false}
+            padding={{ top: 14, bottom: 14 }}
             stroke={AXIS}
             tick={{ fontSize: 11 }}
             tickLine={false}
@@ -143,7 +178,7 @@ export function FaceLineChart({
               name={m.slug}
               stroke={m.color}
               strokeWidth={2.25}
-              dot={faceDot(m.slug, lastIndex, uid)}
+              dot={faceDot(m.slug, lastIndex, uid, offsets[m.slug] ?? 0)}
               activeDot={{ r: 4, stroke: m.color, fill: '#0a0a0b' }}
               isAnimationActive={false}
               connectNulls
@@ -159,7 +194,7 @@ export function FaceLineChart({
 export function GwPointsBars({ data, height = 260 }: { data: SeriesPoint[]; height?: number }) {
   return (
     <div style={{ width: '100%', height }}>
-      <ResponsiveContainer>
+      <ResponsiveContainer initialDimension={{ width: 600, height }}>
         <BarChart data={data} margin={{ top: 8, right: 8, bottom: 4, left: 0 }} barGap={1} barCategoryGap="18%">
           <CartesianGrid stroke={GRID} vertical={false} />
           <XAxis dataKey="gw" tickFormatter={(gw) => `${gw}`} stroke={AXIS} tick={{ fontSize: 11 }} tickLine={false} axisLine={{ stroke: GRID }} />
