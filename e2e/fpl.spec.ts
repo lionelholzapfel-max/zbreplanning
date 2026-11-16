@@ -15,6 +15,12 @@ test.describe('FPL — not logged in', () => {
     expect(res.headers()['content-type'] ?? '').not.toContain('image');
   });
 
+  test('the stored Drère song is never served without a session', async ({ request }) => {
+    const res = await request.get('/api/fpl/song/10', { maxRedirects: 0 });
+    expect([307, 401]).toContain(res.status());
+    expect(res.headers()['content-type'] ?? '').not.toContain('audio');
+  });
+
   test('cron endpoint refuses calls without the secret', async ({ request }) => {
     const res = await request.get('/api/fpl/cron');
     expect(res.status()).toBe(401);
@@ -31,7 +37,19 @@ test.describe('FPL — logged in as Lionel', () => {
     await quickLogin(page, '7');
   });
 
+  test('the World Cup champion announcement goes first, the GW reveal waits for the next visit', async ({ page }) => {
+    await page.evaluate(() => localStorage.removeItem('champion-celebration-seen'));
+    await page.goto('/');
+    await page.waitForTimeout(1200);
+    await expect(page.getByRole('dialog').filter({ hasText: 'Drère de la semaine' })).toHaveCount(0);
+    // the champion overlay marked itself as seen: the GW reveal comes on the next visit
+    expect(await page.evaluate(() => localStorage.getItem('champion-celebration-seen'))).not.toBeNull();
+    await page.reload();
+    await expect(page.getByRole('dialog').filter({ hasText: 'Drère de la semaine' })).toBeVisible({ timeout: 10000 });
+  });
+
   test('home shows the league, the leader, the 4 managers and the review', async ({ page }) => {
+    await page.evaluate(() => localStorage.setItem('champion-celebration-seen', '2026'));
     await page.goto('/');
     // first visit of the GW: the Drère reveal shows once, then never again
     const dialog = page.getByRole('dialog');
@@ -62,6 +80,20 @@ test.describe('FPL — logged in as Lionel', () => {
     expect(res.headers()['cache-control']).toContain('private');
     const unknown = await page.request.get('/api/fpl/photo/__proto__?v=face');
     expect(unknown.status()).toBe(404);
+  });
+
+  test('the stored Drère song reaches members through a short-lived link that supports byte ranges', async ({ page }) => {
+    const hop = await page.request.get('/api/fpl/song/10', { maxRedirects: 0 });
+    expect(hop.status()).toBe(302);
+    expect(hop.headers()['cache-control']).toContain('no-store');
+    const link = hop.headers()['location'];
+    expect(link).toMatch(/\/storage\/v1\/object\/sign\/fpl-private\/songs\/.+\?token=/);
+    const part = await page.request.get(link, { headers: { Range: 'bytes=0-99' } });
+    expect(part.status()).toBe(206);
+    expect((await part.body()).byteLength).toBe(100);
+    expect(part.headers()['content-type']).toContain('audio/mpeg');
+    expect((await page.request.get('/api/fpl/song/11', { maxRedirects: 0 })).status()).toBe(404);
+    expect((await page.request.get('/api/fpl/song/abc', { maxRedirects: 0 })).status()).toBe(404);
   });
 
   test('stats page renders charts with faces and every section', async ({ page }) => {

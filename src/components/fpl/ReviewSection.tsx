@@ -58,6 +58,8 @@ function AwardCard({
 }
 
 function songFor(row: ReviewRow | null): { src: string; label: string } | null {
+  // Our stored copy first (Suno's URL is temporary), behind the login.
+  if (row?.song_status === 'completed' && row.song_storage_path) return { src: `/api/fpl/song/${row.gw}`, label: 'Sa chanson' };
   if (row?.song_status === 'completed' && row.song_audio_url) return { src: row.song_audio_url, label: 'Sa chanson' };
   return null;
 }
