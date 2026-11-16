@@ -78,7 +78,17 @@ export function GwCelebration({
   const [open, setOpen] = useState(false);
   useEffect(() => {
     // Small delay so the page paints first, then the reveal.
+    // The one-time World Cup champion announcement (global, in Providers) wins
+    // the first visit: read its flag now, before it marks itself as seen, and
+    // keep the FPL reveal for the next visit instead of stacking two overlays.
+    let championFirst = false;
+    try {
+      championFirst = !localStorage.getItem('champion-celebration-seen');
+    } catch {
+      // storage blocked: handled below
+    }
     const t = setTimeout(() => {
+      if (championFirst) return;
       try {
         if (!localStorage.getItem(key)) setOpen(true);
       } catch {

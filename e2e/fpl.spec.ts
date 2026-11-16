@@ -31,7 +31,15 @@ test.describe('FPL — logged in as Lionel', () => {
     await quickLogin(page, '7');
   });
 
+  test('the World Cup champion announcement goes first, the GW reveal waits for the next visit', async ({ page }) => {
+    await page.evaluate(() => localStorage.removeItem('champion-celebration-seen'));
+    await page.goto('/');
+    await page.waitForTimeout(1200);
+    await expect(page.getByRole('dialog').filter({ hasText: 'Drère de la semaine' })).toHaveCount(0);
+  });
+
   test('home shows the league, the leader, the 4 managers and the review', async ({ page }) => {
+    await page.evaluate(() => localStorage.setItem('champion-celebration-seen', '2026'));
     await page.goto('/');
     // first visit of the GW: the Drère reveal shows once, then never again
     const dialog = page.getByRole('dialog');

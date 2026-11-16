@@ -26,6 +26,7 @@ export default async function ManagersPage() {
   return (
     <div className="theme-fpl pb-24 md:pb-10">
       <Navbar />
+      <h1 className="sr-only">Les managers</h1>
       <nav className="sticky top-14 z-40 bg-[#0a0a0b]/90 backdrop-blur border-b border-[var(--f-line)]" aria-label="Managers">
         <div className="max-w-[1080px] mx-auto px-4 flex gap-1 overflow-x-auto">
           {order.map((slug) => (
