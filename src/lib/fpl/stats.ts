@@ -219,10 +219,25 @@ function leaguePositions(snap: LeagueSnapshot): Record<number, Record<ManagerSlu
 
 function transferImpacts(snap: LeagueSnapshot, m: ManagerSnapshot): TransferImpact[] {
   const lastGw = snap.playedGws.at(-1) ?? 0;
-  return m.transfers
+  // Within one deadline, chained moves collapse to their net effect:
+  // A->B then B->C is really A->C, and A->B then B->A is nothing at all.
+  const sameGwEarlier = (t: (typeof m.transfers)[number], playerIn: number) =>
+    m.transfers.find((o) => o.event === t.event && o.element_in === playerIn && o.time < t.time);
+  const netTransfers = m.transfers
     .filter((t) => t.event <= lastGw)
     // bought and sold again before the same deadline: never played for us
     .filter((t) => !m.transfers.some((o) => o.element_out === t.element_in && o.event === t.event && o.time > t.time))
+    .map((t) => {
+      let out = t.element_out;
+      const seen = new Set<number>();
+      for (let prev = sameGwEarlier(t, out); prev && !seen.has(prev.element_out); prev = sameGwEarlier(prev, out)) {
+        seen.add(out);
+        out = prev.element_out;
+      }
+      return { ...t, element_out: out };
+    })
+    .filter((t) => t.element_out !== t.element_in);
+  return netTransfers
     .map((t) => {
       const freeHit = m.chips.some((c) => c.name === 'freehit' && c.event === t.event);
       // The incoming player counts until he is sold again (or the last GW).

@@ -275,6 +275,29 @@ describe('review-driven rules', () => {
   });
 });
 
+describe('same-GW transfer chains', () => {
+  function withGw3(moves: [number, number, string][]) {
+    const snap = league();
+    snap.live['3'] = live({ 3: 1, 16: 9, 17: 5, 18: 2 });
+    snap.playedGws = [1, 2, 3];
+    snap.events[2] = { ...snap.events[2], finished: true, data_checked: true };
+    const ramzi = snap.managers[0];
+    ramzi.history.push(hist(3, 10, 46));
+    ramzi.transfers = moves.map(([out, inn, time]) => ({ element_in: inn, element_in_cost: 50, element_out: out, element_out_cost: 50, event: 3, time }));
+    return computeLeagueStats(snap).bySlug.ramzi.transfers;
+  }
+
+  it('A->B then B->C counts as A->C', () => {
+    const t = withGw3([[3, 17, '2026-08-28T01:00:00Z'], [17, 18, '2026-08-28T02:00:00Z']]);
+    expect(t).toHaveLength(1);
+    expect([t[0].out.id, t[0].in.id]).toEqual([3, 18]);
+  });
+
+  it('A->B then B->A leaves nothing', () => {
+    expect(withGw3([[3, 17, '2026-08-28T01:00:00Z'], [17, 3, '2026-08-28T02:00:00Z']])).toEqual([]);
+  });
+});
+
 describe('snapshotAtGw', () => {
   it('hides everything that happened after the reviewed GW', () => {
     const cut = snapshotAtGw(league(), 1);

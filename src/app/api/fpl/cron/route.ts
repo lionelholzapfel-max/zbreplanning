@@ -33,7 +33,8 @@ export async function GET(request: NextRequest) {
 
 const ManualSchema = z.object({
   gw: z.number().int().min(1).max(38).optional(),
-  withSong: z.boolean().optional(),
+  // a paid Suno song only when explicitly asked for
+  withSong: z.boolean().default(false),
 });
 
 // POST — manual trigger by an admin (same idempotent pipeline, same budget cap).

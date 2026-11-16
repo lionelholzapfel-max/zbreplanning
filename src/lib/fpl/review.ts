@@ -361,9 +361,9 @@ async function nextGwToReview(snap: LeagueSnapshot): Promise<number | null> {
   const done = new Set((data ?? []).map((r) => r.gw as number));
   const previous = latest - 1;
   const previousChecked = snap.events.some((e) => e.id === previous && e.finished && e.data_checked);
-  // Only catch up if the season's reviews had already started before it.
-  const startedBefore = [...done].some((g) => g < previous);
-  if (done.has(latest) && previousChecked && !done.has(previous) && startedBefore) return previous;
+  // Only catch up a gap of exactly one week inside an unbroken run of reviews.
+  const continuousBefore = done.has(previous - 1);
+  if (done.has(latest) && previousChecked && !done.has(previous) && continuousBefore) return previous;
   return latest;
 }
 

@@ -75,17 +75,17 @@ const { FPL_SEASON } = await import('./config');
 const { default: Anthropic } = await import('@anthropic-ai/sdk');
 
 // --- a 3-GW league where GW1..3 are validated -------------------------------
-function snapWith(checked: number[]) {
-  const gws = [1, 2, 3];
+function snapWith(checked: number[], n = 3) {
+  const gws = Array.from({ length: n }, (_, i) => i + 1);
   const hist = (e: number) => ({
     event: e, points: 50, total_points: 50 * e, rank: null, overall_rank: 1, bank: 0, value: 1000,
     event_transfers: 0, event_transfers_cost: 0, points_on_bench: 0,
   });
   return {
-    fetchedAt: '', chipWindows: [], playedGws: gws, lastFinishedGw: 3, currentGw: 3, currentGwFinished: true, nextEvent: null,
+    fetchedAt: '', chipWindows: [], playedGws: gws, lastFinishedGw: n, currentGw: n, currentGwFinished: true, nextEvent: null,
     events: gws.map((id) => ({
       id, name: `GW${id}`, deadline_time: '2026-08-01T10:00:00Z', finished: true, data_checked: checked.includes(id),
-      is_current: id === 3, is_next: false, average_entry_score: 50, highest_score: 90,
+      is_current: id === n, is_next: false, average_entry_score: 50, highest_score: 90,
     })),
     players: {}, live: {},
     managers: (['ramzi', 'lionel', 'greg', 'edu'] as const).map((slug, i) => ({
@@ -147,16 +147,45 @@ describe('runReviewPipeline — money guards', () => {
     expect(parse).not.toHaveBeenCalled();
   });
 
-  it('catches up at most the GW just before the latest, without a song, never further back', async () => {
+  it('never back-fills the season after a manual run on an old GW', async () => {
     parse.mockResolvedValue(okResponse);
-    await runReviewPipeline(snapWith([1, 2, 3]), { gw: 1, withSong: false }); // manual test on GW1
-    await runReviewPipeline(snapWith([1, 2, 3])); // cron: latest = GW3
-    await runReviewPipeline(snapWith([1, 2, 3])); // cron: GW2 just before latest was missed → caught up, no song
-    await runReviewPipeline(snapWith([1, 2, 3])); // cron: nothing left
-    expect(table.map((r) => r.gw).sort()).toEqual([1, 2, 3]);
-    expect(parse).toHaveBeenCalledTimes(3);
-    // Only GW3 (the week that just ended) asked Suno for a song.
+    const all = [1, 2, 3, 4, 5];
+    await runReviewPipeline(snapWith(all, 5), { gw: 1, withSong: false }); // manual test on GW1
+    for (let i = 0; i < 4; i++) await runReviewPipeline(snapWith(all, 5)); // daily cron
+    expect(table.map((r) => r.gw).sort()).toEqual([1, 5]);
+    expect(parse).toHaveBeenCalledTimes(2);
+  });
+
+  it('catches up one missed week inside an unbroken run, without a song', async () => {
+    parse.mockResolvedValue(okResponse);
+    for (const gw of [1, 2, 3]) table.push({ season: FPL_SEASON, gw, status: 'ready', attempts: 1, cost_usd: 0 });
+    await runReviewPipeline(snapWith([1, 2, 3, 4, 5], 5)); // GW5 (latest), with its song
+    await runReviewPipeline(snapWith([1, 2, 3, 4, 5], 5)); // GW4 was missed → caught up, no song
+    await runReviewPipeline(snapWith([1, 2, 3, 4, 5], 5)); // nothing left
+    expect(table.map((r) => r.gw).sort()).toEqual([1, 2, 3, 4, 5]);
+    expect(parse).toHaveBeenCalledTimes(2);
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+  });
+
+  it('bills a killed attempt at worst case when retrying a stuck row', async () => {
+    parse.mockResolvedValue(okResponse);
+    const old = new Date(Date.now() - 16 * 60_000).toISOString();
+    table.push({ season: FPL_SEASON, gw: 3, status: 'generating', attempts: 1, cost_usd: 0, updated_at: old });
+    const res = await runReviewPipeline(snapWith([1, 2, 3]), { withSong: false });
+    expect(res.action).toBe('generated');
+    expect(Number(table[0].cost_usd)).toBeCloseTo(0.4 + OK_COST);
+    expect(table[0].attempts).toBe(2);
+  });
+
+  it('a Suno failure leaves the stored review ready (no second paid review)', async () => {
+    parse.mockResolvedValue(okResponse);
+    vi.mocked(fetch).mockRejectedValue(new Error('suno down'));
+    const res = await runReviewPipeline(snapWith([1, 2, 3]));
+    expect(res.action).toBe('generated');
+    expect(table[0].status).toBe('ready');
+    expect(table[0].song_status).toBe('failed');
+    await runReviewPipeline(snapWith([1, 2, 3]));
+    expect(parse).toHaveBeenCalledTimes(1);
   });
 
   it('does not review a GW whose points FPL has not validated yet', async () => {
