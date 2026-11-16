@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
+import CdmSubnav from '@/components/CdmSubnav';
 
 // recharts is heavy (~390 KB) and the chart sits below the fold → load it lazily.
 // The placeholder matches EvolutionChart's own loading box (p-6 + h-64 = ~304px)
@@ -266,6 +267,7 @@ export default function LeaderboardPage() {
     return (
       <div className="min-h-screen bg-[var(--canvas)]">
         <Navbar />
+        <CdmSubnav />
         <div className="max-w-4xl mx-auto px-4 pt-8 space-y-6">
           {/* Podium skeleton */}
           <div className="flex items-end justify-center gap-4">
@@ -368,6 +370,7 @@ export default function LeaderboardPage() {
   return (
     <div className="min-h-screen bg-[var(--canvas)]">
       <Navbar />
+      <CdmSubnav />
 
       {/* Header */}
       <section className="max-w-4xl mx-auto px-4 pt-8">

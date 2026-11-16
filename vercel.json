@@ -1,3 +1,5 @@
 {
-  "crons": []
+  "crons": [
+    { "path": "/api/fpl/cron", "schedule": "0 10 * * *" }
+  ]
 }

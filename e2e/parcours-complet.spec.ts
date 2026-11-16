@@ -103,18 +103,18 @@ test.describe('Mobile Screenshots @mobile', () => {
     // Screenshot: Accueil
     await expect(page.locator('nav').first()).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(1000); // Let animations settle
-    await page.screenshot({ path: 'screenshots/mobile-accueil.png', fullPage: true });
+    await page.screenshot({ path: 'test-results/screenshots/mobile-accueil.png', fullPage: true });
 
     // Screenshot: World Cup
     await page.goto('/world-cup');
     await expect(page.locator('button:has-text("Je regarde")').first()).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(1000);
-    await page.screenshot({ path: 'screenshots/mobile-world-cup.png', fullPage: false });
+    await page.screenshot({ path: 'test-results/screenshots/mobile-world-cup.png', fullPage: false });
 
     // Screenshot: Leaderboard - wait for page content, not nav text
     await page.goto('/leaderboard');
     // Wait for the leaderboard page to load - look for member avatars or point scores
     await page.waitForTimeout(2000); // Let page fully load
-    await page.screenshot({ path: 'screenshots/mobile-leaderboard.png', fullPage: true });
+    await page.screenshot({ path: 'test-results/screenshots/mobile-leaderboard.png', fullPage: true });
   });
 });

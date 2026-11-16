@@ -1,581 +1,268 @@
-'use client';
-
-import { Fragment, useEffect, useState, useCallback, useMemo } from 'react';
-import Image from 'next/image';
+// FPL home — the Ziarclays Zbremiership (4 friends' Fantasy Premier League).
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Trophy, CalendarRange, ArrowRight, MapPin } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowRight } from 'lucide-react';
 import Navbar from '@/components/Navbar';
-import { MEMBERS } from '@/data/members';
-import matches from '@/data/matches.json';
-import { useSupabase, Activity, ActivityParticipation } from '@/hooks/useSupabase';
-import { useTeamOverrides } from '@/hooks/useTeamOverrides';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import { FunFactCard } from '@/components/FunFactCard';
-import { Badge, ListRow, Avatar, Spinner } from '@/components/ui';
-import { CountUp } from '@/components/CountUp';
-import { getFlag } from '@/lib/flags';
+import { getSessionUser } from '@/lib/auth/session';
+import { getLeague } from '@/lib/fpl/data';
+import { snapshotAtGw } from '@/lib/fpl/snapshot';
+import { getReviews, latestCheckedGw } from '@/lib/fpl/review';
+import { computeLeagueStats, gameweekFacts } from '@/lib/fpl/stats';
+import { positionsSeries } from '@/lib/fpl/series';
+import {
+  FPL_LEAGUE_NAME,
+  FPL_SEASON,
+  MANAGER_BY_SLUG,
+  ibanJoke,
+  managerForMember,
+  photoUrl,
+  type ManagerSlug,
+} from '@/lib/fpl/config';
+import { Face, SectionHead, Stars, cssColor, fmtBrussels, fmtRank, ordinal } from '@/components/fpl/ui';
+import { Countdown, GwCelebration } from '@/components/fpl/interactive';
+import { FaceLineChart } from '@/components/fpl/charts';
+import { ReviewSection } from '@/components/fpl/ReviewSection';
 
-interface UpcomingActivity extends Activity {
-  participations: ActivityParticipation[];
-  yesCount: number;
-  totalResponses: number;
-  isConfirmed: boolean;
-  myStatus: 'yes' | 'no' | 'maybe' | null;
+// Behind login and fed by live FPL data (cached 5 min in data.ts): never prerender.
+export const dynamic = 'force-dynamic';
+
+export const metadata = { title: `${FPL_LEAGUE_NAME} — ZbrePlanning` };
+
+function FplError({ message }: { message: string }) {
+  return (
+    <div className="theme-fpl">
+      <Navbar />
+      <main className="max-w-[1080px] mx-auto px-4 py-16 text-center">
+        <h1 className="f-display text-3xl font-bold">FPL ne répond pas</h1>
+        <p className="mt-3 text-[var(--f-muted)]">
+          Le site officiel de la Fantasy Premier League est indisponible (souvent pendant les mises à jour du
+          mardi). Réessaie dans quelques minutes.
+        </p>
+        <p className="mt-6 text-xs text-[var(--f-muted-2)]">{message}</p>
+      </main>
+    </div>
+  );
 }
 
-interface UpcomingMatch {
-  matchId: number;
-  status: 'yes' | 'maybe';
-  yesCount: number;
-  totalResponses: number;
-  isConfirmed: boolean;
-}
+export default async function FplHome() {
+  const user = await getSessionUser();
+  const me = managerForMember(user?.member_slug)?.slug;
 
-interface Match {
-  id: number;
-  date: string;
-  dateDisplay: string;
-  time: string;
-  match: string;
-  stadium: string;
-  city: string;
-  phase: string;
-  group: string;
-}
-
-
-// Compact a French date string ("4 juillet" → "4 juil.") for tight mobile rows.
-const MONTH_ABBR: Record<string, string> = {
-  janvier: 'janv.', février: 'févr.', mars: 'mars', avril: 'avr.', mai: 'mai', juin: 'juin',
-  juillet: 'juil.', août: 'août', septembre: 'sept.', octobre: 'oct.', novembre: 'nov.', décembre: 'déc.',
-};
-function compactDate(s: string): string {
-  return s.replace(/janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre/i,
-    (m) => MONTH_ABBR[m.toLowerCase()] ?? m);
-}
-
-export default function HomePage() {
-  const [mounted, setMounted] = useState(false);
-  const [stats, setStats] = useState({ matchesJoined: 0, activitiesCreated: 0 });
-  const [upcomingActivities, setUpcomingActivities] = useState<UpcomingActivity[]>([]);
-  const [myUpcomingMatches, setMyUpcomingMatches] = useState<UpcomingMatch[]>([]);
-  const [myPredictions, setMyPredictions] = useState<Set<number>>(new Set());
-  const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-  const [loadError, setLoadError] = useState(false);
-  const router = useRouter();
-  const { currentUser, loading, getUserStats, getUpcomingActivities, getMyUpcomingMatches } = useSupabase();
-  const { getTeamNames } = useTeamOverrides();
-
-  // Load user's predictions (single API call instead of 20+)
-  const loadPredictions = useCallback(async () => {
-    try {
-      const res = await fetch('/api/predictions/my-scores');
-      if (res.ok) {
-        const data = await res.json();
-        setMyPredictions(new Set(data.matchIds || []));
-      }
-    } catch (err) {
-      console.error('Error loading predictions:', err);
-    }
-  }, []);
-
-  const loadData = useCallback(async () => {
-    try {
-      setLoadError(false);
-      const [userStats, activities, myMatches] = await Promise.all([
-        getUserStats(),
-        getUpcomingActivities(),
-        getMyUpcomingMatches(),
-        loadPredictions(),
-      ]);
-      setStats(userStats);
-      setUpcomingActivities(activities);
-      setMyUpcomingMatches(myMatches);
-    } catch (err) {
-      console.error('Error loading home data:', err);
-      setLoadError(true);
-    }
-  }, [getUserStats, getUpcomingActivities, getMyUpcomingMatches, loadPredictions]);
-
-  useEffect(() => {
-    if (!loading && !currentUser) {
-      router.push('/login');
-      return;
-    }
-
-    if (currentUser) {
-      loadData();
-      setTimeout(() => setMounted(true), 100);
-    }
-  }, [currentUser, loading, router, loadData]);
-
-  // Get next match for countdown
-  const nextMatch = useMemo(() => {
-    const now = new Date();
-    const upcoming = (matches as Match[])
-      .map(m => {
-        const [year, month, day] = m.date.split('-').map(Number);
-        const [hours, minutes] = m.time.split(':').map(Number);
-        return { ...m, dateObj: new Date(year, month - 1, day, hours, minutes) };
-      })
-      .filter(m => m.dateObj > now)
-      .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
-    return upcoming[0] || null;
-  }, []);
-
-  // Countdown timer effect
-  useEffect(() => {
-    if (!nextMatch) return;
-
-    const updateCountdown = () => {
-      const now = new Date();
-      const diff = nextMatch.dateObj.getTime() - now.getTime();
-
-      if (diff <= 0) {
-        setCountdown({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-        return;
-      }
-
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-      setCountdown({ days, hours, minutes, seconds });
-    };
-
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 1000);
-    return () => clearInterval(interval);
-  }, [nextMatch]);
-
-  // Helper to get match data from ID
-  const getMatchData = (matchId: number): Match | undefined => {
-    return (matches as Match[]).find(m => m.id === matchId);
-  };
-
-  // Parse match teams
-  const parseMatch = (matchStr: string) => {
-    const parts = matchStr.split(' - ');
-    return parts.length === 2 ? { team1: parts[0].trim(), team2: parts[1].trim() } : { team1: matchStr, team2: '' };
-  };
-
-  // Resolve knockout placeholders ("Vainqueur M73") to real team names via overrides.
-  // Placeholders remain only for genuinely undetermined matches.
-  const resolveTeams = (matchId: number, matchStr: string) => {
-    const def = parseMatch(matchStr);
-    const r = getTeamNames(matchId, def.team1, def.team2);
-    return { team1: r.home, team2: r.away };
-  };
-
-  // Get next upcoming matches (sorted by date)
-  const nextMatches = useMemo(() => {
-    const now = new Date();
-    return (matches as Match[])
-      .filter(m => {
-        const [year, month, day] = m.date.split('-').map(Number);
-        const [hours, minutes] = m.time.split(':').map(Number);
-        const matchDate = new Date(year, month - 1, day, hours, minutes);
-        return matchDate > now;
-      })
-      .sort((a, b) => {
-        const [yearA, monthA, dayA] = a.date.split('-').map(Number);
-        const [hoursA, minutesA] = a.time.split(':').map(Number);
-        const dateA = new Date(yearA, monthA - 1, dayA, hoursA, minutesA);
-
-        const [yearB, monthB, dayB] = b.date.split('-').map(Number);
-        const [hoursB, minutesB] = b.time.split(':').map(Number);
-        const dateB = new Date(yearB, monthB - 1, dayB, hoursB, minutesB);
-
-        return dateA.getTime() - dateB.getTime();
-      })
-      .slice(0, 6);
-  }, []);
-
-  // Count matches needing predictions
-  const toPredictCount = useMemo(() => {
-    const now = new Date();
-    return (matches as Match[]).filter(m => {
-      const [year, month, day] = m.date.split('-').map(Number);
-      const [hours, minutes] = m.time.split(':').map(Number);
-      const matchDate = new Date(year, month - 1, day, hours, minutes);
-      return matchDate > now && !myPredictions.has(m.id);
-    }).length;
-  }, [myPredictions]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
-        <Spinner size={32} />
-      </div>
-    );
+  let league;
+  try {
+    league = await getLeague();
+  } catch (e) {
+    console.error('[fpl] home: league load failed', e);
+    return <FplError message={e instanceof Error ? e.message : 'unknown error'} />;
   }
+  const { snap, stats } = league;
+  const reviews = await getReviews();
 
-  if (!currentUser) return null;
+  const lastGw = stats.gws.at(-1);
+  if (lastGw === undefined) return <FplError message="Aucune gameweek jouée pour l’instant." />;
 
-  const statCards = [
-    { value: MEMBERS.length, label: 'Membres', accent: false },
-    { value: toPredictCount, label: 'À pronostiquer', accent: true },
-    { value: matches.length, label: 'Matchs', accent: false },
-    { value: 48, label: 'Équipes', accent: false },
-  ];
+  // The "week" shown = latest GW whose points FPL has validated (bonus and
+  // corrections included); a live or not-yet-checked GW stays in the ticker.
+  const reviewGw = latestCheckedGw(snap) ?? lastGw;
+  const frozen = snapshotAtGw(snap, reviewGw);
+  const facts = gameweekFacts(frozen, computeLeagueStats(frozen), reviewGw);
+  const weekValidated = snap.events.some((e) => e.id === reviewGw && e.finished && e.data_checked);
+  const reviewRow = reviews.find((r) => r.gw === reviewGw) ?? null;
 
-  const countdownUnits = [
-    { value: countdown.days, label: 'jours', pad: 0 },
-    { value: countdown.hours, label: 'heures', pad: 2 },
-    { value: countdown.minutes, label: 'min', pad: 2 },
-    { value: countdown.seconds, label: 'sec', pad: 2 },
-  ];
+  const liveGw = snap.currentGw !== null && !snap.currentGwFinished ? snap.currentGw : null;
+  const leader = stats.leader;
+  const second = stats.managers[1];
+  const leaderM = MANAGER_BY_SLUG[leader.slug];
+  const gap = second ? leader.total - second.total : 0;
+  const next = snap.nextEvent;
+
+  const tickerGw = liveGw ?? reviewGw;
+  const ticker = [...stats.managers]
+    .map((m) => ({ m, row: m.rows.find((r) => r.gw === tickerGw) }))
+    .sort((a, b) => (b.row?.net ?? 0) - (a.row?.net ?? 0));
 
   return (
-    <div className="theme-warm relative min-h-screen bg-[var(--bg)]">
-      {/* Stadium floodlights — one very wide warm radial at the top (v2.1). */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[620px] -z-10"
-        style={{ background: 'radial-gradient(115% 55% at 50% 0%, var(--glow-warm), transparent 72%)' }}
-      />
+    <div className="theme-fpl pb-24 md:pb-10">
       <Navbar />
 
       {/* Hero */}
-      <section data-shot="hero" className="relative h-[420px] overflow-hidden">
-        <Image
-          src="/team/group.webp"
-          alt="Zbre Team"
-          fill
-          className="object-cover object-top grayscale sepia-[0.55] saturate-[1.4] contrast-[1.05]"
-          priority
-        />
-        {/* Archive treatment: canvas tint 25% + grain + bottom scrim toward --canvas */}
-        <div className="absolute inset-0 bg-[var(--canvas)]/25" />
-        {/* Warm duotone (v2.1): amber lifts the highlights, shadows stay canvas. */}
-        <div className="absolute inset-0 bg-[#E8B93E] opacity-[0.18] mix-blend-soft-light pointer-events-none" />
-        <div className="grain absolute inset-0 pointer-events-none" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[var(--canvas)] via-[var(--canvas)]/60 to-transparent" />
-
-        <div
-          className={`absolute inset-x-0 bottom-0 px-4 pb-10 transition-all duration-500 ${
-            mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
-          }`}
-        >
-          <div className="max-w-5xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-[var(--surface)]/80 backdrop-blur-sm border border-[var(--hairline)] text-xs text-[var(--text-secondary)] mb-3">
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
-              {MEMBERS.length} membres · En ligne
-            </div>
-
-            <h1 className="display text-[44px] sm:text-[52px] text-[var(--text-primary)] leading-[1.05]">
-              La Zbre Team
-            </h1>
-
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Link
-                href="/world-cup"
-                className="inline-flex h-11 sm:h-9 items-center justify-center rounded-[6px] px-4 text-sm font-medium bg-[var(--accent)] text-[#0A0A0B] transition-opacity duration-150 ease-out hover:opacity-90"
-              >
-                Coupe du Monde
-              </Link>
-              <Link
-                href="/activities"
-                className="inline-flex h-11 sm:h-9 items-center justify-center rounded-[6px] px-4 text-sm font-medium bg-[var(--surface)] text-[var(--text-primary)] border border-[var(--hairline-strong)] transition-colors duration-150 ease-out hover:bg-[var(--surface-raised)]"
-              >
-                Activités
-              </Link>
-            </div>
+      <header className="relative overflow-hidden border-b border-[var(--f-line)]">
+        <div className="absolute inset-0 f-hatch" aria-hidden="true" />
+        <div className="absolute inset-0 grid grid-cols-4 opacity-[0.22]" aria-hidden="true">
+          {stats.managers.map((m) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={m.slug} src={photoUrl(m.slug, 'full')} alt="" className="w-full h-full object-cover object-top" />
+          ))}
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0b]/60 via-[#0a0a0b]/70 to-[#0a0a0b]" aria-hidden="true" />
+        <div className="relative max-w-[1080px] mx-auto px-4 pt-10 pb-8 md:pt-16 md:pb-12">
+          <div className="f-label !text-[var(--f-red)] tracking-[0.3em]">Fantasy Premier League · {FPL_SEASON}</div>
+          <h1 className="f-anton text-[clamp(2.6rem,9vw,6rem)] mt-2">{FPL_LEAGUE_NAME}</h1>
+          <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+            {liveGw ? (
+              <span className="inline-flex items-center gap-2 f-display font-semibold">
+                <span className="w-2 h-2 rounded-full bg-[var(--f-red)] animate-pulse" aria-hidden="true" />
+                GW{liveGw} en cours — points en direct
+              </span>
+            ) : null}
+            {next ? (
+              <span className="f-display">
+                <span className="text-[var(--f-muted)]">Deadline GW{next.id} · </span>
+                {fmtBrussels(next.deadline_time)}
+                <span className="text-[var(--f-muted)]"> · </span>
+                <Countdown iso={next.deadline_time} />
+              </span>
+            ) : null}
           </div>
         </div>
-      </section>
+      </header>
 
-      {loadError && (
-        <section className="max-w-5xl mx-auto px-4 pt-8">
-          <div className="flex items-center justify-between gap-3 rounded-[10px] bg-[var(--surface-2)] border border-[var(--danger)]/30 px-4 py-3">
-            <p className="text-[13px] text-[var(--text-secondary)]">Impossible de charger — vérifie ta connexion.</p>
-            <button onClick={() => loadData()} className="shrink-0 h-8 px-3 rounded-[8px] bg-[var(--surface-3)] text-[13px] text-[var(--text-primary)] hover:bg-[var(--surface-4)] transition-colors">Réessayer</button>
+      {/* Ticker */}
+      <div className="border-b border-[var(--f-line)] bg-[var(--f-bg-soft)]">
+        <div className="max-w-[1080px] mx-auto px-4 flex items-stretch overflow-x-auto">
+          <div className="f-label flex items-center pr-4 mr-2 border-r border-[var(--f-line)] shrink-0">
+            {liveGw ? `Live GW${liveGw}` : `GW${tickerGw}`}
           </div>
-        </section>
-      )}
-
-      {/* Stats nues — directement sur --canvas, le chiffre EST l'icône (§3) */}
-      <section data-shot="stats" className="max-w-5xl mx-auto px-4 pt-16">
-        <div className="grid grid-cols-2 gap-6 sm:flex sm:flex-wrap sm:items-start sm:gap-x-14 sm:gap-y-8">
-          {statCards.map(({ value, label, accent }) => (
-            <div key={label} className="flex flex-col">
-              <span className={`score text-[40px] ${accent ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}>
-                {value}
-              </span>
-              <span className="eyebrow mt-2">{label}</span>
+          {ticker.map(({ m, row }) => (
+            <div key={m.slug} className="flex items-center gap-2.5 px-3 py-3 shrink-0 border-r border-[var(--f-line-soft)]" style={cssColor(m.slug)}>
+              <Face slug={m.slug} size={28} />
+              <div>
+                <div className="text-xs font-semibold" style={{ color: MANAGER_BY_SLUG[m.slug].color }}>
+                  {MANAGER_BY_SLUG[m.slug].firstName}
+                </div>
+                <div className="f-num text-lg leading-none">{row?.net ?? '—'}</div>
+              </div>
             </div>
           ))}
         </div>
-      </section>
+      </div>
 
-      {/* Fun fact */}
-      <section className="max-w-5xl mx-auto px-4 pt-8">
-        <FunFactCard />
-      </section>
-
-      {/* Next match — PILOTE "Tableau d'affichage" (surface-1, liseré, halo, .score count-up) */}
-      {nextMatch && (
-        <section className="max-w-5xl mx-auto px-4 pt-8">
-          <Link href="/world-cup" className="block">
-            <div data-shot="next-match" className="relative overflow-hidden rounded-[10px] bg-[var(--surface-1)] top-light p-6 transition-colors duration-150 hover:bg-[var(--surface-2)]">
-              <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-8">
-                <div className="min-w-0">
-                  <p className="eyebrow">Prochain match</p>
-                  <h3 className="mt-3 text-[18px] font-medium text-[var(--text-primary)] truncate">
-                    {(() => {
-                      const { team1, team2 } = resolveTeams(nextMatch.id, nextMatch.match);
-                      return `${team1} — ${team2}`;
-                    })()}
-                  </h3>
-                  <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                    {nextMatch.dateDisplay} à {nextMatch.time}
-                  </p>
-                </div>
-
-                <div className="halo relative flex items-start gap-2 sm:gap-4 shrink-0">
-                  {countdownUnits.map((u, i) => (
-                    <Fragment key={u.label}>
-                      <div className="relative z-10 flex flex-col items-center">
-                        <CountUp value={u.value} pad={u.pad} className="score text-[40px] sm:text-[56px] text-[var(--text-primary)]" />
-                        <span className="mt-2.5 text-[11px] uppercase tracking-[0.08em] text-[var(--text-tertiary)]">{u.label}</span>
-                      </div>
-                      {i < countdownUnits.length - 1 && (
-                        <span className="score text-[28px] sm:text-[40px] text-[var(--text-tertiary)] relative z-10 self-start mt-[6px]">:</span>
-                      )}
-                    </Fragment>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Link>
-        </section>
-      )}
-
-      {/* Upcoming matches */}
-      {nextMatches.length > 0 && (
-        <section className="max-w-5xl mx-auto px-4 pt-12">
-          {/* Header: desktop = title + badge left, action right (one row). Mobile (<sm):
-              title on its own line, badge + action wrap to the line below. */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-4">
-            <h2 className="display text-[22px] text-[var(--text-primary)] w-full sm:w-auto">Prochains matchs</h2>
-            {toPredictCount > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[11px] uppercase tracking-[0.04em] bg-[var(--surface-raised)] border border-[var(--hairline)]">
-                <span className="stat text-[var(--accent)]">{toPredictCount}</span>
-                <span className="text-[var(--text-tertiary)]">à pronostiquer</span>
+      <main className="max-w-[1080px] mx-auto px-4 pt-8">
+        {/* Leader */}
+        <section className="f-champ p-6 md:p-8 mb-10 text-center f-in">
+          <div className="f-label !text-[var(--f-gold)]">Classement après la GW{lastGw}</div>
+          <div className="mt-3 flex justify-center">
+            <Face slug={leader.slug} size={96} />
+          </div>
+          <h2 className="f-display text-4xl md:text-6xl font-bold mt-4 leading-none">
+            {leaderM.firstName} <span className="text-[var(--f-gold)]">— en tête</span>
+          </h2>
+          <div className="mt-2 text-[var(--f-muted)]">
+            <span className="f-num text-[var(--f-gold)] text-xl">{leader.total} pts</span>
+            {second ? <span> · {gap === 0 ? 'à égalité avec' : `${gap} pt${gap > 1 ? 's' : ''} devant`} {MANAGER_BY_SLUG[second.slug].firstName}</span> : null}
+          </div>
+          <p className="mt-4 text-lg md:text-xl font-semibold">
+            « {reviewRow?.review?.ibanJoke ?? ibanJoke(leaderM.firstName, lastGw)} »
+          </p>
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            {stats.managers.map((m) => (
+              <span key={m.slug} className="f-pill" style={m.slug === leader.slug ? { borderColor: 'rgba(244,196,48,.5)' } : undefined}>
+                <Face slug={m.slug} size={26} />
+                <span className="text-sm">
+                  <span className="text-[var(--f-muted)]">{ordinal(m.leaguePos)}</span> {MANAGER_BY_SLUG[m.slug].firstName}
+                </span>
+                <span className="f-num">{m.total}</span>
               </span>
-            )}
-            <Link href="/world-cup" className="ml-auto text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
-              Voir tous →
+            ))}
+          </div>
+        </section>
+
+        {/* Review of the week */}
+        <ReviewSection row={reviewRow} facts={facts} />
+
+        {/* Managers */}
+        <section className="mb-10">
+          <SectionHead title="Les managers" right={<Link href="/fpl/managers" className="f-link">Les fiches complètes</Link>} />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {stats.managers.map((m) => {
+              const cfg = MANAGER_BY_SLUG[m.slug];
+              const prevPos = m.rows.at(-2)?.leaguePos;
+              const move = prevPos ? prevPos - m.leaguePos : 0;
+              return (
+                <Link
+                  key={m.slug}
+                  href={`/fpl/managers#${m.slug}`}
+                  className="f-card f-rule-top overflow-hidden group transition-transform duration-150 hover:-translate-y-0.5"
+                  style={cssColor(m.slug)}
+                >
+                  <div className="relative aspect-[3/4] bg-[var(--f-surface-2)]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={photoUrl(m.slug, 'full')} alt={cfg.fullName} loading="lazy" className="absolute inset-0 w-full h-full object-cover object-top" />
+                    <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/90 to-transparent" />
+                    <div className="absolute top-2 left-2 f-anton text-5xl text-white/90 drop-shadow">{m.leaguePos}</div>
+                    {me === m.slug ? (
+                      <span className="absolute top-2 right-2 f-label !text-black bg-[var(--f-gold)] px-1.5 py-0.5 rounded">Toi</span>
+                    ) : null}
+                    <div className="absolute bottom-2 left-3 right-3">
+                      <Stars count={cfg.stars} size={14} />
+                      <div className="f-display text-xl font-bold leading-tight">{cfg.firstName}</div>
+                      <div className="text-xs text-[#c9ccd3] truncate">{m.teamName}</div>
+                    </div>
+                  </div>
+                  <div className="p-3 grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <div className="f-label">Total</div>
+                      <div className="f-num text-xl">{m.total}</div>
+                    </div>
+                    <div>
+                      <div className="f-label">GW{m.last?.gw}</div>
+                      <div className="f-num text-xl flex items-center gap-1">
+                        {m.last?.net ?? '—'}
+                        {move > 0 ? <ArrowUp className="w-4 h-4 text-[var(--f-green)]" aria-label="monte" /> : null}
+                        {move < 0 ? <ArrowDown className="w-4 h-4 text-[var(--f-down)]" aria-label="descend" /> : null}
+                      </div>
+                    </div>
+                    <div className="col-span-2 text-xs text-[var(--f-muted)]">
+                      Rang mondial {fmtRank(m.overallRank)} ·{' '}
+                      {m.chipsLeftNow.length ? `chips : ${m.chipsLeftNow.join(', ')}` : 'plus de chips avant la GW20'}
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Race */}
+        <section className="mb-10">
+          <SectionHead title="La course" right={<Link href="/fpl/stats" className="f-link">Toutes les stats</Link>} />
+          <div className="f-card p-3 md:p-5">
+            <div className="f-label mb-2">Position dans la ligue, GW par GW</div>
+            <FaceLineChart data={positionsSeries(stats)} invert domain={[1, 4]} ticks={[1, 2, 3, 4]} format="ordinal" />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+            {stats.managers.map((m) => (
+              <div key={m.slug} className="f-card f-rule p-3" style={cssColor(m.slug)}>
+                <div className="f-label">{MANAGER_BY_SLUG[m.slug].firstName}</div>
+                <div className="text-sm mt-1">
+                  <span className="f-num text-lg">{m.drereCount}</span> <span className="text-[var(--f-muted)]">× Drère</span>
+                  <span className="mx-1.5 text-[var(--f-line)]">|</span>
+                  <span className="f-num text-lg">{m.mziCount}</span> <span className="text-[var(--f-muted)]">× Mzi</span>
+                </div>
+                <div className="text-xs text-[var(--f-muted)] mt-1">{m.weeksTop} semaine{m.weeksTop > 1 ? 's' : ''} en tête</div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 text-right">
+            <Link href="/fpl/reviews" className="inline-flex items-center gap-1 f-link min-h-[44px]">
+              Toutes les reviews <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
-
-          <div data-shot="matches">
-            {nextMatches.map((match) => {
-              const { team1, team2 } = resolveTeams(match.id, match.match);
-              const hasPrediction = myPredictions.has(match.id);
-              return (
-                <Link key={`next-${match.id}`} href="/world-cup" className="block group">
-                  <ListRow interactive>
-                    <div className="flex flex-row sm:flex-col items-baseline sm:items-start gap-1.5 sm:gap-0 shrink-0 pr-3 w-auto sm:w-16">
-                      <span className="text-xs text-[var(--text-tertiary)] tabular-nums whitespace-nowrap">
-                        <span className="sm:hidden">{compactDate(match.dateDisplay)}</span>
-                        <span className="hidden sm:inline">{match.dateDisplay}</span>
-                      </span>
-                      <span className="score text-[13px] sm:text-[15px] text-[var(--text-secondary)]">{match.time}</span>
-                    </div>
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <span className="text-[24px] shrink-0 leading-none">{getFlag(team1)}</span>
-                      <span className="flex-1 min-w-0 text-[14px] font-medium text-[var(--text-primary)] truncate">{team1}</span>
-                      <span className="shrink-0 text-[14px] text-[var(--text-tertiary)]">—</span>
-                      <span className="flex-1 min-w-0 text-[14px] font-medium text-[var(--text-primary)] truncate text-right">{team2}</span>
-                      <span className="text-[24px] shrink-0 leading-none">{getFlag(team2)}</span>
-                    </div>
-                    {hasPrediction ? (
-                      <Badge variant="accent">Enregistré</Badge>
-                    ) : (
-                      <span className="text-sm text-[var(--text-secondary)] group-hover:text-[var(--accent)] transition-colors duration-150 shrink-0">
-                        Pronostiquer →
-                      </span>
-                    )}
-                  </ListRow>
-                </Link>
-              );
-            })}
-          </div>
         </section>
-      )}
 
-      {/* My upcoming events */}
-      {(myUpcomingMatches.length > 0 || upcomingActivities.length > 0) && (
-        <section className="max-w-5xl mx-auto px-4 pt-12">
-          <h2 className="display text-[22px] text-[var(--text-primary)] mb-4">
-            Mes prochains rendez-vous
-          </h2>
+        <p className="text-xs text-[var(--f-muted-2)] pb-4">
+          Données Fantasy Premier League, mises à jour toutes les 5 minutes (dernière : {fmtBrussels(snap.fetchedAt, false)}).
+        </p>
+      </main>
 
-          <div className="rounded-[10px] bg-[var(--surface-1)] top-light overflow-hidden">
-            {myUpcomingMatches.slice(0, 3).map((um) => {
-              const matchData = getMatchData(um.matchId);
-              if (!matchData) return null;
-              const { team1, team2 } = resolveTeams(matchData.id, matchData.match);
-              const pct = Math.round((um.totalResponses / MEMBERS.length) * 100);
-              return (
-                <Link key={`match-${um.matchId}`} href="/world-cup" className="block">
-                  <ListRow interactive className="py-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="eyebrow">Match</p>
-                      <p className="mt-1 text-[15px] font-medium text-[var(--text-primary)] truncate">
-                        {team1} <span className="text-[var(--text-tertiary)]">—</span> {team2}
-                      </p>
-                      <p className="text-xs text-[var(--text-secondary)] mt-0.5">{matchData.dateDisplay}</p>
-                      <div className="mt-2 flex items-center gap-2">
-                        <div className="w-40 h-0.5 bg-[var(--hairline)] rounded-full overflow-hidden">
-                          <div className="h-full bg-[var(--accent)]" style={{ width: `${pct}%` }} />
-                        </div>
-                        <span className="text-xs text-[var(--text-tertiary)]">{um.totalResponses}/{MEMBERS.length} ont répondu</span>
-                      </div>
-                    </div>
-                    <Badge variant={um.status === 'yes' ? 'accent' : 'neutral'}>
-                      {um.status === 'yes' ? 'Oui' : 'Peut-être'}
-                    </Badge>
-                  </ListRow>
-                </Link>
-              );
-            })}
-
-            {upcomingActivities.slice(0, 3).map((activity) => {
-              const pct = Math.round((activity.totalResponses / MEMBERS.length) * 100);
-              const statusLabel =
-                activity.myStatus === 'yes' ? 'Oui'
-                : activity.myStatus === 'maybe' ? 'Peut-être'
-                : activity.myStatus === 'no' ? 'Non'
-                : 'Sans réponse';
-              return (
-                <Link key={`activity-${activity.id}`} href="/activities" className="block">
-                  <ListRow interactive className="py-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="eyebrow">Activité</p>
-                      <p className="mt-1 text-[15px] font-medium text-[var(--text-primary)] truncate">{activity.title}</p>
-                      <p className="text-xs text-[var(--text-secondary)] mt-0.5 flex items-center gap-1.5">
-                        {activity.location && (
-                          <span className="inline-flex items-center gap-1">
-                            <MapPin className="w-3 h-3" strokeWidth={1.75} />
-                            {activity.location}
-                          </span>
-                        )}
-                        {activity.date && (
-                          <span>{format(new Date(activity.date), 'EEE d MMM', { locale: fr })}</span>
-                        )}
-                      </p>
-                      <div className="mt-2 flex items-center gap-2">
-                        <div className="w-40 h-0.5 bg-[var(--hairline)] rounded-full overflow-hidden">
-                          <div className="h-full bg-[var(--accent)]" style={{ width: `${pct}%` }} />
-                        </div>
-                        <span className="text-xs text-[var(--text-tertiary)]">{activity.totalResponses}/{MEMBERS.length} ont répondu</span>
-                      </div>
-                    </div>
-                    <Badge variant={activity.myStatus === 'yes' ? 'accent' : 'neutral'}>{statusLabel}</Badge>
-                  </ListRow>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* Navigation cards */}
-      <section className="max-w-5xl mx-auto px-4 pt-12">
-        <div className="grid md:grid-cols-2 gap-3">
-          <Link href="/world-cup" className="block group">
-            <div className="rounded-[10px] bg-[var(--surface-1)] top-light p-6 h-full transition-colors duration-150 ease-out hover:bg-[var(--surface-2)]">
-              <div className="flex items-center gap-2.5">
-                <Trophy className="w-[18px] h-[18px] text-[var(--text-secondary)]" strokeWidth={1.75} />
-                <h2 className="text-base font-semibold text-[var(--text-primary)]">Coupe du Monde 2026</h2>
-              </div>
-              <p className="mt-1.5 text-sm text-[var(--text-secondary)]">
-                USA · Mexique · Canada — 104 matchs. Pronostique et regarde-les avec la team.
-              </p>
-              <span className="mt-4 inline-flex items-center gap-1 text-sm text-[var(--text-secondary)] group-hover:text-[var(--accent)] transition-colors duration-150">
-                Voir les matchs <ArrowRight className="w-4 h-4" strokeWidth={1.75} />
-              </span>
-            </div>
-          </Link>
-
-          <Link href="/activities" className="block group">
-            <div className="rounded-[10px] bg-[var(--surface-1)] top-light p-6 h-full transition-colors duration-150 ease-out hover:bg-[var(--surface-2)]">
-              <div className="flex items-center gap-2.5">
-                <CalendarRange className="w-[18px] h-[18px] text-[var(--text-secondary)]" strokeWidth={1.75} />
-                <h2 className="text-base font-semibold text-[var(--text-primary)]">Activités</h2>
-              </div>
-              <p className="mt-1.5 text-sm text-[var(--text-secondary)]">
-                Propose une soirée, un resto, une sortie.
-              </p>
-              <span className="mt-4 inline-flex items-center gap-1 text-sm text-[var(--text-secondary)] group-hover:text-[var(--accent)] transition-colors duration-150">
-                Voir les activités <ArrowRight className="w-4 h-4" strokeWidth={1.75} />
-              </span>
-            </div>
-          </Link>
-        </div>
-      </section>
-
-      {/* Team */}
-      <section className="max-w-5xl mx-auto px-4 pt-12">
-        <h2 className="display text-[22px] text-[var(--text-primary)] mb-4">La team</h2>
-        <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 gap-4">
-          {MEMBERS.map((member) => {
-            const isMe = currentUser.member_slug === member.slug;
-            return (
-              <div key={member.id} className="min-w-0 text-center">
-                <Avatar slug={member.slug} name={member.name} size={72} ring={isMe ? 'accent' : 'none'} className="mx-auto" />
-                <p className={`mt-2 text-[11px] sm:text-sm truncate ${isMe ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'}`}>
-                  {member.name.split(' ')[0]}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Personal stats */}
-      <section className="max-w-5xl mx-auto px-4 pt-12">
-        <div className="rounded-[10px] bg-[var(--surface-1)] top-light p-5">
-          <div className="flex items-center justify-between gap-6 flex-wrap">
-            <div className="flex items-center gap-3">
-              <Avatar slug={currentUser.member_slug} name={currentUser.member_name} size={40} />
-              <div>
-                <p className="text-base font-semibold text-[var(--text-primary)]">{currentUser.member_name.split(' ')[0]}</p>
-                <p className="text-[13px] text-[var(--text-secondary)]">Ton activité récente</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-8">
-              <div>
-                <p className="score text-2xl text-[var(--text-primary)]">{myPredictions.size}</p>
-                <p className="eyebrow mt-1">Pronos</p>
-              </div>
-              <div>
-                <p className="score text-2xl text-[var(--text-primary)]">{stats.matchesJoined}</p>
-                <p className="eyebrow mt-1">Matchs</p>
-              </div>
-              <div>
-                <p className="score text-2xl text-[var(--text-primary)]">{stats.activitiesCreated}</p>
-                <p className="eyebrow mt-1">Activités</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-[var(--hairline)] mt-16">
-        <div className="max-w-5xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <span className="font-medium text-[var(--text-primary)]">ZbrePlanning</span>
-          <p className="text-sm text-[var(--text-tertiary)]">
-            Made with ❤️ pour la team · Bruxelles 🇧🇪
-          </p>
-        </div>
-      </footer>
+      {weekValidated ? (
+      <GwCelebration
+        gw={reviewGw}
+        drere={facts.drere as ManagerSlug[]}
+        mzi={facts.mzi as ManagerSlug[]}
+        drerePts={facts.managers.find((m) => m.slug === facts.drere[0])?.netPoints ?? null}
+        mziPts={facts.managers.find((m) => m.slug === facts.mzi[0])?.netPoints ?? null}
+      />
+      ) : null}
     </div>
   );
 }

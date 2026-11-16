@@ -14,24 +14,24 @@ test.describe('Visual Audit - UX Contract Compliance', () => {
   test('01 - Login page states', async ({ page }) => {
     await page.goto('/login');
     await expect(page.locator('text=Qui es-tu ?')).toBeVisible({ timeout: 10000 });
-    await page.screenshot({ path: 'screenshots/audit/01-login-initial.png', fullPage: true });
+    await page.screenshot({ path: 'test-results/screenshots/audit/01-login-initial.png', fullPage: true });
 
     // Click on a member to see PIN screen
     await page.locator('button').first().click();
     await page.waitForTimeout(1000);
-    await page.screenshot({ path: 'screenshots/audit/01-login-pin.png', fullPage: true });
+    await page.screenshot({ path: 'test-results/screenshots/audit/01-login-pin.png', fullPage: true });
   });
 
   test('02 - Home page states', async ({ page }) => {
     await quickLogin(page, '1');
     await expect(page.locator('nav').first()).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(1000);
-    await page.screenshot({ path: 'screenshots/audit/02-home-initial.png', fullPage: true });
+    await page.screenshot({ path: 'test-results/screenshots/audit/02-home-initial.png', fullPage: true });
 
     // Scroll to see more sections
     await page.evaluate(() => window.scrollTo(0, 1000));
     await page.waitForTimeout(500);
-    await page.screenshot({ path: 'screenshots/audit/02-home-scrolled.png', fullPage: false });
+    await page.screenshot({ path: 'test-results/screenshots/audit/02-home-scrolled.png', fullPage: false });
   });
 
   test('03 - World Cup page - Clean slate mobile', async ({ page }) => {
@@ -44,19 +44,19 @@ test.describe('Visual Audit - UX Contract Compliance', () => {
     await page.waitForTimeout(1000);
 
     // Screenshot showing clean slate (no others' predictions visible by default)
-    await page.screenshot({ path: 'screenshots/audit/03-worldcup-clean-slate.png', fullPage: false });
+    await page.screenshot({ path: 'test-results/screenshots/audit/03-worldcup-clean-slate.png', fullPage: false });
 
     // Verify score inputs are visible without expanding
     const scoreInput = page.locator('input[inputmode="numeric"]').first();
     const isVisible = await scoreInput.isVisible().catch(() => false);
     if (isVisible) {
-      await page.screenshot({ path: 'screenshots/audit/03-worldcup-score-inputs-visible.png', fullPage: false });
+      await page.screenshot({ path: 'test-results/screenshots/audit/03-worldcup-score-inputs-visible.png', fullPage: false });
     }
 
     // Verify participation segmented is present (v2: "Je regarde" / "Peut-être" / "Non")
     const ouiButton = page.locator('button:has-text("Je regarde")').first();
     await expect(ouiButton).toBeVisible({ timeout: 5000 });
-    await page.screenshot({ path: 'screenshots/audit/03-worldcup-participation-buttons.png', fullPage: false });
+    await page.screenshot({ path: 'test-results/screenshots/audit/03-worldcup-participation-buttons.png', fullPage: false });
   });
 
   test('04 - World Cup page - Expanded details', async ({ page }) => {
@@ -72,7 +72,7 @@ test.describe('Visual Audit - UX Contract Compliance', () => {
     if (await detailsBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await detailsBtn.click();
       await page.waitForTimeout(1000);
-      await page.screenshot({ path: 'screenshots/audit/04-worldcup-expanded.png', fullPage: false });
+      await page.screenshot({ path: 'test-results/screenshots/audit/04-worldcup-expanded.png', fullPage: false });
     }
   });
 
@@ -82,7 +82,7 @@ test.describe('Visual Audit - UX Contract Compliance', () => {
     // v2: page title is "Classement" (there is no "Leaderboard"/"Points" literal text)
     await expect(page.getByRole('heading', { name: 'Classement' })).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(1000);
-    await page.screenshot({ path: 'screenshots/audit/05-leaderboard.png', fullPage: true });
+    await page.screenshot({ path: 'test-results/screenshots/audit/05-leaderboard.png', fullPage: true });
   });
 
   test('06 - Activities page', async ({ page }) => {
@@ -90,7 +90,7 @@ test.describe('Visual Audit - UX Contract Compliance', () => {
     await page.goto('/activities');
     await expect(page.getByRole('heading', { name: 'Activités' })).toBeVisible({ timeout: 30000 });
     await page.waitForTimeout(1000);
-    await page.screenshot({ path: 'screenshots/audit/06-activities.png', fullPage: true });
+    await page.screenshot({ path: 'test-results/screenshots/audit/06-activities.png', fullPage: true });
   });
 
   test('07 - World Cup filters', async ({ page }) => {
@@ -103,7 +103,7 @@ test.describe('Visual Audit - UX Contract Compliance', () => {
     if (await phaseBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await phaseBtn.click();
       await page.waitForTimeout(500);
-      await page.screenshot({ path: 'screenshots/audit/07-worldcup-phase-filter.png', fullPage: false });
+      await page.screenshot({ path: 'test-results/screenshots/audit/07-worldcup-phase-filter.png', fullPage: false });
     }
   });
 });

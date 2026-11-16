@@ -17,6 +17,7 @@
     "design:shots": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/design-shots.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.104.1",
     "bcryptjs": "^3.0.3",
@@ -24,11 +25,13 @@
     "date-fns": "^4.1.0",
     "jose": "^6.2.3",
     "lucide-react": "^1.11.0",
-    "next": "^16.2.12",
+    "next": "16.4.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^3.8.1",
-    "sonner": "^2.0.7"
+    "server-only": "^0.0.1",
+    "sonner": "^2.0.7",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
@@ -42,13 +45,13 @@
     "babel-plugin-react-compiler": "1.0.0",
     "dotenv": "^17.4.2",
     "eslint": "^9",
-    "eslint-config-next": "16.2.4",
+    "eslint-config-next": "16.4.4",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.8"
   },
   "overrides": {
     "postcss": "8.5.24",
-    "sharp": "0.35.0"
+    "sharp": "0.35.5"
   }
 }

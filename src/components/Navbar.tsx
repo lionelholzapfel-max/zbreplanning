@@ -7,16 +7,25 @@ import { useEffect, useState, useRef } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
 import { Avatar } from '@/components/ui';
 import NotificationBell from '@/components/NotificationBell';
-import { Home, Trophy, BarChart3, Target, Users, Gamepad2, type LucideIcon } from 'lucide-react';
+import { Home, Trophy, BarChart3, Users, Gamepad2, Swords, type LucideIcon } from 'lucide-react';
 
 const navItems: { href: string; label: string; mobileLabel: string; icon: LucideIcon }[] = [
-  { href: '/', label: 'Accueil', mobileLabel: 'Accueil', icon: Home },
-  { href: '/world-cup', label: 'Coupe du Monde', mobileLabel: 'Matchs', icon: Trophy },
-  { href: '/leaderboard', label: 'Classement', mobileLabel: 'Classement', icon: BarChart3 },
-  { href: '/predictions', label: 'Pronostics', mobileLabel: 'Pronos', icon: Target },
+  { href: '/', label: 'FPL', mobileLabel: 'FPL', icon: Home },
+  { href: '/fpl/stats', label: 'Stats FPL', mobileLabel: 'Stats', icon: BarChart3 },
+  { href: '/fpl/managers', label: 'Managers', mobileLabel: 'Managers', icon: Swords },
+  { href: '/cdm', label: 'Coupe du Monde', mobileLabel: 'CDM', icon: Trophy },
   { href: '/activities', label: 'Activités', mobileLabel: 'Sorties', icon: Users },
   { href: '/games', label: 'Zbrétoile', mobileLabel: 'Jeux', icon: Gamepad2 },
 ];
+
+// The World Cup pages now live under the "Coupe du Monde" tab.
+const CDM_PATHS = ['/cdm', '/world-cup', '/leaderboard', '/predictions', '/calendar'];
+
+function isActive(href: string, pathname: string): boolean {
+  if (href === '/') return pathname === '/';
+  if (href === '/cdm') return CDM_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -70,7 +79,7 @@ export default function Navbar() {
             {/* Desktop nav */}
             <div className="hidden md:flex items-center h-full">
               {navItems.map((item) => {
-                const active = pathname === item.href;
+                const active = isActive(item.href, pathname);
                 return (
                   <Link
                     key={item.href}
@@ -131,7 +140,7 @@ export default function Navbar() {
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 bg-[var(--bg)]/90 backdrop-blur border-t border-[var(--hairline)] pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-stretch">
           {navItems.map((item) => {
-            const active = pathname === item.href;
+            const active = isActive(item.href, pathname);
             const Icon = item.icon;
             return (
               <Link
