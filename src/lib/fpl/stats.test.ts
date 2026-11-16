@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { chipStatuses, computeLeagueStats, gameweekFacts } from './stats';
 import { buildSongBrief } from './song-brief';
 import { ibanJoke } from './config';
+import { snapshotAtGw } from './snapshot';
 import type { LeagueSnapshot, ManagerSnapshot } from './snapshot';
 import type { FplHistoryGw, FplPicks } from './schemas';
 
@@ -239,5 +240,48 @@ describe('ibanJoke', () => {
     expect(ibanJoke('Edu', 0)).toBe('Edu, je peux avoir ton IBAN ?');
     expect(ibanJoke('Edu', 1)).not.toBe(ibanJoke('Edu', 0));
     expect(ibanJoke('Edu', -3)).toContain('Edu');
+  });
+});
+
+describe('review-driven rules', () => {
+  it('stops counting a transfer when the player is sold again', () => {
+    const snap = league();
+    snap.live['3'] = live({ 16: 20, 4: 1 });
+    snap.playedGws = [1, 2, 3];
+    snap.events[2] = { ...snap.events[2], finished: true, data_checked: true };
+    const ramzi = snap.managers[0];
+    ramzi.history.push(hist(3, 10, 46));
+    ramzi.picks['3'] = picks([1, 2, 4, ...SQUAD.slice(3)], 1);
+    // P16 bought in GW2, sold for P4 in GW3: his 20 pts in GW3 are not Ramzi's.
+    ramzi.transfers.push({ element_in: 4, element_in_cost: 50, element_out: 16, element_out_cost: 50, event: 3, time: '2026-08-28T00:00:00Z' });
+    const t = computeLeagueStats(snap).bySlug.ramzi.transfers.find((x) => x.in.id === 16)!;
+    expect(t.inPts).toBe(6);
+    expect(t.span).toBe(1);
+  });
+
+  it('awards no Drère / Mzi for a GW still being played', () => {
+    const snap = league();
+    snap.events[1] = { ...snap.events[1], finished: false, data_checked: false };
+    const stats = computeLeagueStats(snap);
+    expect(stats.gwWinners[2]).toBeUndefined();
+    expect(stats.bySlug.lionel.drereCount).toBe(1);
+  });
+
+  it('never picks a Bench Boost substitute as the ideal captain', () => {
+    const snap = league();
+    snap.live['1'] = live({ 1: 10, 2: 2, 12: 30 });
+    const lionel = computeLeagueStats(snap).bySlug.lionel.rows.find((r) => r.gw === 1)!;
+    expect(lionel.bestCaptain?.id).toBe(1);
+  });
+});
+
+describe('snapshotAtGw', () => {
+  it('hides everything that happened after the reviewed GW', () => {
+    const cut = snapshotAtGw(league(), 1);
+    expect(cut.playedGws).toEqual([1]);
+    expect(cut.managers[0].transfers).toEqual([]);
+    expect(Object.keys(cut.live)).toEqual(['1']);
+    const facts = gameweekFacts(cut, computeLeagueStats(cut), 1);
+    expect(facts.managers.find((m) => m.slug === 'ramzi')?.seasonTotal).toBe(20);
   });
 });

@@ -2,7 +2,8 @@
 import Navbar from '@/components/Navbar';
 import { getLeague } from '@/lib/fpl/data';
 import { getReviews } from '@/lib/fpl/review';
-import { gameweekFacts } from '@/lib/fpl/stats';
+import { computeLeagueStats, gameweekFacts } from '@/lib/fpl/stats';
+import { snapshotAtGw } from '@/lib/fpl/snapshot';
 import { FPL_LEAGUE_NAME } from '@/lib/fpl/config';
 import { ReviewSection } from '@/components/fpl/ReviewSection';
 
@@ -34,7 +35,10 @@ export default async function ReviewsPage() {
               <ReviewSection
                 key={gw}
                 row={reviews.find((r) => r.gw === gw) ?? null}
-                facts={gameweekFacts(league.snap, league.stats, gw)}
+                facts={(() => {
+                  const frozen = snapshotAtGw(league.snap, gw);
+                  return gameweekFacts(frozen, computeLeagueStats(frozen), gw);
+                })()}
               />
             ))
           : null}

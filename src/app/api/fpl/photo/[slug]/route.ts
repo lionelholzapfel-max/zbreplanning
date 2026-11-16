@@ -6,19 +6,21 @@ import { MANAGER_BY_SLUG } from '@/lib/fpl/config';
 // so they live in a PRIVATE Supabase Storage bucket and are only streamed to a
 // logged-in member through this route.
 const BUCKET = 'fpl-private';
+// Errors must never be cached, or a portrait stays broken after re-login.
+const NO_STORE = { 'Cache-Control': 'no-store' };
 
 export async function GET(request: NextRequest, ctx: { params: Promise<{ slug: string }> }) {
   const user = await getSessionUser();
-  if (!user) return new NextResponse('Unauthorized', { status: 401 });
+  if (!user) return new NextResponse('Unauthorized', { status: 401, headers: NO_STORE });
 
   const { slug } = await ctx.params;
-  if (!Object.prototype.hasOwnProperty.call(MANAGER_BY_SLUG, slug)) return new NextResponse('Not found', { status: 404 });
+  if (!Object.prototype.hasOwnProperty.call(MANAGER_BY_SLUG, slug)) return new NextResponse('Not found', { status: 404, headers: NO_STORE });
   const variant = request.nextUrl.searchParams.get('v') === 'full' ? 'full' : 'face';
 
   const { data, error } = await getSupabaseAdmin().storage.from(BUCKET).download(`portraits/${slug}-${variant}.webp`);
   if (error || !data) {
     console.error(`[fpl] photo ${slug}-${variant} unavailable:`, error?.message);
-    return new NextResponse('Not found', { status: 404 });
+    return new NextResponse('Not found', { status: 404, headers: NO_STORE });
   }
   return new NextResponse(await data.arrayBuffer(), {
     headers: {

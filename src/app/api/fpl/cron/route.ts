@@ -3,7 +3,6 @@ import { revalidateTag } from 'next/cache';
 import { z } from 'zod';
 import { getSessionUser } from '@/lib/auth/session';
 import { buildSnapshot } from '@/lib/fpl/snapshot';
-import { computeLeagueStats } from '@/lib/fpl/stats';
 import { runReviewPipeline } from '@/lib/fpl/review';
 
 // The review call can take a while (Claude writes ~1-2k words of JSON).
@@ -12,8 +11,7 @@ export const maxDuration = 300;
 async function run(opts: { gw?: number; withSong?: boolean }) {
   // Always work on fresh data here, and refresh the cached site data too.
   const snap = await buildSnapshot();
-  const stats = computeLeagueStats(snap);
-  const result = await runReviewPipeline(snap, stats, opts);
+  const result = await runReviewPipeline(snap, opts);
   revalidateTag('fpl', 'max');
   console.log('[fpl] cron result:', JSON.stringify(result));
   return result;

@@ -198,3 +198,31 @@ export async function buildSnapshot(): Promise<LeagueSnapshot> {
     managers,
   };
 }
+
+/**
+ * The league as it stood at the end of `gw`: later gameweeks (possibly live)
+ * are cut, so a review of GW N never sees points scored in GW N+1.
+ */
+export function snapshotAtGw(snap: LeagueSnapshot, gw: number): LeagueSnapshot {
+  const upTo = <T>(rec: Record<string, T>) => Object.fromEntries(Object.entries(rec).filter(([k]) => Number(k) <= gw));
+  return {
+    ...snap,
+    playedGws: snap.playedGws.filter((g) => g <= gw),
+    lastFinishedGw: gw,
+    currentGw: gw,
+    currentGwFinished: true,
+    nextEvent: snap.events.find((e) => e.id === gw + 1) ?? null,
+    live: upTo(snap.live),
+    managers: snap.managers.map((m) => {
+      const history = m.history.filter((h) => h.event <= gw);
+      return {
+        ...m,
+        history,
+        overallRank: history.at(-1)?.overall_rank ?? m.overallRank,
+        transfers: m.transfers.filter((t) => t.event <= gw),
+        chips: m.chips.filter((c) => c.event <= gw),
+        picks: upTo(m.picks),
+      };
+    }),
+  };
+}

@@ -223,7 +223,11 @@ function transferImpacts(snap: LeagueSnapshot, m: ManagerSnapshot): TransferImpa
     .filter((t) => t.event <= lastGw)
     .map((t) => {
       const freeHit = m.chips.some((c) => c.name === 'freehit' && c.event === t.event);
-      const to = freeHit ? t.event : lastGw;
+      // The incoming player counts until he is sold again (or the last GW).
+      const soldAt = m.transfers
+        .filter((o) => o.element_out === t.element_in && (o.event > t.event || (o.event === t.event && o.time > t.time)))
+        .reduce<number | null>((min, o) => (min === null || o.event < min ? o.event : min), null);
+      const to = freeHit ? t.event : soldAt !== null ? Math.max(t.event, soldAt - 1) : lastGw;
       const inPts = ptsBetween(snap, t.element_in, t.event, to);
       const outPts = ptsBetween(snap, t.element_out, t.event, to);
       return {
@@ -245,10 +249,13 @@ export function computeLeagueStats(snap: LeagueSnapshot): LeagueStats {
   const positions = leaguePositions(snap);
   const lastGw = gws.at(-1);
 
-  // GW winners / losers on net points (hits count against you).
+  // GW winners / losers on net points (hits count against you). Only finished
+  // gameweeks award a Drère / Mzi: a live GW is not a title yet.
+  const finished = new Set(snap.events.filter((e) => e.finished).map((e) => e.id));
   const gwWinners: Record<number, ManagerSlug[]> = {};
   const gwLosers: Record<number, ManagerSlug[]> = {};
   for (const gw of gws) {
+    if (!finished.has(gw)) continue;
     const nets = snap.managers
       .map((m) => {
         const h = m.history.find((x) => x.event === gw);
@@ -277,7 +284,8 @@ export function computeLeagueStats(snap: LeagueSnapshot): LeagueStats {
       .filter((h) => gws.includes(h.event))
       .map((h) => {
         const details = pickDetails(snap, m, h.event);
-        const xi = details.filter((d) => !d.bench);
+        // Starting XI only (with Bench Boost the bench also scores, but a sub can't be captain).
+        const xi = details.filter((d) => d.position <= 11);
         const captain = details.find((d) => d.multiplier >= 2) ?? null;
         const bestCaptain = xi.length ? xi.reduce((a, b) => (b.pts > a.pts ? b : a)) : null;
         const chip = m.picks[String(h.event)]?.active_chip ?? null;

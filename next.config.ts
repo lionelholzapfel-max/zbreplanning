@@ -11,7 +11,8 @@ const nextConfig: NextConfig = {
     return [
       // Fresh HTML/API by default to avoid stale content.
       {
-        source: '/:path*',
+        // (FPL portraits excluded: their route sets its own per-response policy)
+        source: '/((?!api/fpl/photo/).*)',
         headers: [{ key: 'Cache-Control', value: 'no-store, must-revalidate' }],
       },
       // Static assets (avatars, sounds, flags…) are immutable per URL — cache them
@@ -20,11 +21,6 @@ const nextConfig: NextConfig = {
       {
         source: '/:all*(png|jpg|jpeg|gif|webp|svg|ico|mp3|woff|woff2)',
         headers: [{ key: 'Cache-Control', value: IMMUTABLE }],
-      },
-      // FPL portraits: behind login, so browser-only cache (never a shared/CDN cache).
-      {
-        source: '/api/fpl/photo/:slug',
-        headers: [{ key: 'Cache-Control', value: 'private, max-age=86400' }],
       },
     ];
   },

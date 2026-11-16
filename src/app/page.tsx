@@ -4,8 +4,9 @@ import { ArrowDown, ArrowUp, ArrowRight } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import { getSessionUser } from '@/lib/auth/session';
 import { getLeague } from '@/lib/fpl/data';
-import { getReviews } from '@/lib/fpl/review';
-import { gameweekFacts } from '@/lib/fpl/stats';
+import { snapshotAtGw } from '@/lib/fpl/snapshot';
+import { getReviews, latestCheckedGw } from '@/lib/fpl/review';
+import { computeLeagueStats, gameweekFacts } from '@/lib/fpl/stats';
 import { positionsSeries } from '@/lib/fpl/series';
 import {
   FPL_LEAGUE_NAME,
@@ -59,10 +60,12 @@ export default async function FplHome() {
   const lastGw = stats.gws.at(-1);
   if (lastGw === undefined) return <FplError message="Aucune gameweek jouée pour l’instant." />;
 
-  // The "week" shown = latest GW FPL has finished (live GW shown in the ticker).
-  const finishedGws = snap.events.filter((e) => e.finished).map((e) => e.id);
-  const reviewGw = finishedGws.length ? Math.max(...finishedGws) : lastGw;
-  const facts = gameweekFacts(snap, stats, reviewGw);
+  // The "week" shown = latest GW whose points FPL has validated (bonus and
+  // corrections included); a live or not-yet-checked GW stays in the ticker.
+  const reviewGw = latestCheckedGw(snap) ?? lastGw;
+  const frozen = snapshotAtGw(snap, reviewGw);
+  const facts = gameweekFacts(frozen, computeLeagueStats(frozen), reviewGw);
+  const weekValidated = snap.events.some((e) => e.id === reviewGw && e.finished && e.data_checked);
   const reviewRow = reviews.find((r) => r.gw === reviewGw) ?? null;
 
   const liveGw = snap.currentGw !== null && !snap.currentGwFinished ? snap.currentGw : null;
@@ -251,6 +254,7 @@ export default async function FplHome() {
         </p>
       </main>
 
+      {weekValidated ? (
       <GwCelebration
         gw={reviewGw}
         drere={facts.drere as ManagerSlug[]}
@@ -258,6 +262,7 @@ export default async function FplHome() {
         drerePts={facts.managers.find((m) => m.slug === facts.drere[0])?.netPoints ?? null}
         mziPts={facts.managers.find((m) => m.slug === facts.mzi[0])?.netPoints ?? null}
       />
+      ) : null}
     </div>
   );
 }

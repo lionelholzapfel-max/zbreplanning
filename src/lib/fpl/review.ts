@@ -8,8 +8,8 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import { getSupabaseAdmin } from '@/lib/auth/session';
 import { FPL_LEAGUE_NAME, FPL_SEASON, MANAGERS, MANAGER_BY_SLUG, type ManagerSlug } from './config';
-import { gameweekFacts, type GameweekFacts, type LeagueStats } from './stats';
-import type { LeagueSnapshot } from './snapshot';
+import { computeLeagueStats, gameweekFacts, type GameweekFacts } from './stats';
+import { snapshotAtGw, type LeagueSnapshot } from './snapshot';
 import { buildSongBrief } from './song-brief';
 
 export const REVIEW_MODEL = 'claude-opus-5-5';
@@ -91,8 +91,25 @@ Règles strictes :
 - Phrases courtes, punchlines. Pas de liste de chiffres sans commentaire.`;
 }
 
+/** A failed attempt that was still billed: carries what it cost. */
+class PaidAttemptError extends Error {
+  constructor(
+    message: string,
+    readonly costUsd: number,
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * Cost booked for an attempt that died without a usage report (timeout,
+ * network error after the request left): assume the worst plausible bill.
+ */
+const UNKNOWN_ATTEMPT_COST_USD = 0.25;
+
 export async function writeReview(facts: GameweekFacts) {
-  const client = new Anthropic();
+  // No hidden SDK retries: every paid attempt is one of ours, counted in the DB.
+  const client = new Anthropic({ maxRetries: 0, timeout: 240_000 });
   const response = await client.messages.parse({
     model: REVIEW_MODEL,
     max_tokens: 16000,
@@ -105,14 +122,14 @@ export async function writeReview(facts: GameweekFacts) {
       },
     ],
   });
-  if (response.stop_reason === 'refusal') {
-    throw new Error(`Claude refused: ${response.stop_details?.category ?? 'unknown'}`);
-  }
-  if (!response.parsed_output) {
-    throw new Error(`Claude returned no parsable review (stop_reason=${response.stop_reason})`);
-  }
   const usage = response.usage;
   const cost = usage.input_tokens * PRICE_IN + usage.output_tokens * PRICE_OUT;
+  if (response.stop_reason === 'refusal') {
+    throw new PaidAttemptError(`Claude refused: ${response.stop_details?.category ?? 'unknown'}`, cost);
+  }
+  if (!response.parsed_output) {
+    throw new PaidAttemptError(`Claude returned no parsable review (stop_reason=${response.stop_reason})`, cost);
+  }
   return { review: response.parsed_output, usage, cost };
 }
 
@@ -153,11 +170,15 @@ export async function launchSong(season: string, gw: number, brief: string): Pro
     if (!res.ok || !taskId) {
       throw new Error(`Suno launch failed: HTTP ${res.status} ${JSON.stringify(body).slice(0, 300)}`);
     }
-    await supabase
+    const { error: saveError } = await supabase
       .from('fpl_gw_reviews')
       .update({ song_status: 'generating', song_task_id: taskId, song_error: null, updated_at: new Date().toISOString() })
       .eq('season', season)
       .eq('gw', gw);
+    if (saveError) {
+      // The song is paid and will be generated, but the callback won't find the row.
+      console.error(`[fpl] SONG ORPHANED for GW${gw}: task ${taskId} not saved (${saveError.message}), attach it by hand`);
+    }
     console.log(`[fpl] song launched for GW${gw}: task ${taskId}`);
     return taskId;
   } catch (e) {
@@ -197,21 +218,22 @@ export type PipelineResult =
  */
 export async function runReviewPipeline(
   snap: LeagueSnapshot,
-  stats: LeagueStats,
   opts: { gw?: number; withSong?: boolean } = {},
 ): Promise<PipelineResult> {
   const supabase = getSupabaseAdmin();
-  const gw = opts.gw ?? latestCheckedGw(snap);
+  const gw = opts.gw ?? (await nextGwToReview(snap));
   if (!gw) return { action: 'skipped', reason: 'no validated gameweek yet' };
-  if (!stats.gws.includes(gw)) return { action: 'skipped', reason: `GW${gw} not in league data`, gw };
+  if (!snap.playedGws.includes(gw)) return { action: 'skipped', reason: `GW${gw} not in league data`, gw };
 
   const spent = await seasonSpendUsd();
   if (spent >= SEASON_BUDGET_USD) {
-    console.warn(`[fpl] BUDGET CAP reached: $${spent.toFixed(2)} >= $${SEASON_BUDGET_USD} — GW${gw} review NOT generated`);
+    console.warn(`[fpl] BUDGET CAP reached: $${spent.toFixed(2)} >= $${SEASON_BUDGET_USD}, GW${gw} review NOT generated`);
     return { action: 'skipped', reason: `season budget reached ($${spent.toFixed(2)})`, gw };
   }
 
-  const facts = gameweekFacts(snap, stats, gw);
+  // Facts as they stood at the end of the GW (never points from a later, live GW).
+  const frozen = snapshotAtGw(snap, gw);
+  const facts = gameweekFacts(frozen, computeLeagueStats(frozen), gw);
 
   // Lock: the primary key (season, gw) guarantees a single row per GW. A failed
   // or stuck (crashed function) attempt may be retried, at most MAX_ATTEMPTS.
@@ -249,9 +271,15 @@ export async function runReviewPipeline(
     console.log(`[fpl] retrying GW${gw} review (attempt ${existing.attempts + 1}/${MAX_ATTEMPTS})`);
   }
 
+  // What earlier failed attempts of this GW already cost (kept in the budget).
+  const { data: before } = await supabase.from('fpl_gw_reviews').select('cost_usd').eq('season', FPL_SEASON).eq('gw', gw).single();
+  const priorCost = Number(before?.cost_usd ?? 0);
+
+  let attemptCost = UNKNOWN_ATTEMPT_COST_USD;
   try {
     const { review, usage, cost } = await writeReview(facts);
-    await supabase
+    attemptCost = cost;
+    const { error: saveError } = await supabase
       .from('fpl_gw_reviews')
       .update({
         status: 'ready',
@@ -259,26 +287,54 @@ export async function runReviewPipeline(
         model: REVIEW_MODEL,
         input_tokens: usage.input_tokens,
         output_tokens: usage.output_tokens,
-        cost_usd: cost,
+        cost_usd: priorCost + cost,
         updated_at: new Date().toISOString(),
       })
       .eq('season', FPL_SEASON)
       .eq('gw', gw);
+    // Never launch a (paid) song for a review we could not store.
+    if (saveError) throw new Error(`review written but not saved: ${saveError.message}`);
     console.log(
       `[fpl] review GW${gw} written: in=${usage.input_tokens} out=${usage.output_tokens} cost=$${cost.toFixed(4)} (season $${(spent + cost).toFixed(2)}/${SEASON_BUDGET_USD})`,
     );
     const songTaskId = opts.withSong === false ? null : await launchSong(FPL_SEASON, gw, buildSongBrief(facts));
     return { action: 'generated', gw, costUsd: cost, songTaskId };
   } catch (e) {
+    if (e instanceof PaidAttemptError) attemptCost = e.costUsd;
     const msg = e instanceof Error ? e.message : String(e);
-    console.error(`[fpl] review GW${gw} failed: ${msg}`);
-    await supabase
+    console.error(`[fpl] review GW${gw} failed (attempt cost ~$${attemptCost.toFixed(3)}): ${msg}`);
+    const { error: failError } = await supabase
       .from('fpl_gw_reviews')
-      .update({ status: 'failed', error_message: msg.slice(0, 1000), updated_at: new Date().toISOString() })
+      .update({
+        status: 'failed',
+        error_message: msg.slice(0, 1000),
+        cost_usd: priorCost + attemptCost,
+        updated_at: new Date().toISOString(),
+      })
       .eq('season', FPL_SEASON)
       .eq('gw', gw);
+    if (failError) console.error(`[fpl] cannot record failure of GW${gw}: ${failError.message}`);
     return { action: 'failed', gw, error: msg };
   }
+}
+
+/**
+ * The GW the cron should handle: the most recent validated GW without a review
+ * (so a GW missed by a failing cron is caught up), never older than the first
+ * GW ever reviewed (no paid back-fill of the season). Falls back to the latest
+ * validated GW, which lets a failed one be retried.
+ */
+async function nextGwToReview(snap: LeagueSnapshot): Promise<number | null> {
+  const latest = latestCheckedGw(snap);
+  if (!latest) return null;
+  const { data, error } = await getSupabaseAdmin().from('fpl_gw_reviews').select('gw').eq('season', FPL_SEASON);
+  if (error) throw new Error(`[fpl] cannot read reviewed GWs: ${error.message}`);
+  const done = new Set((data ?? []).map((r) => r.gw as number));
+  if (!done.size) return latest;
+  const first = Math.min(...done);
+  const checked = snap.events.filter((e) => e.finished && e.data_checked && e.id >= first).map((e) => e.id);
+  const missing = checked.filter((g) => !done.has(g));
+  return missing.length ? Math.max(...missing) : latest;
 }
 
 export async function getReviews(season = FPL_SEASON): Promise<ReviewRow[]> {
