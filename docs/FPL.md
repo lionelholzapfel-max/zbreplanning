@@ -10,7 +10,7 @@ La Coupe du Monde vit sous `/cdm` (+ `/world-cup`, `/leaderboard`, `/predictions
 | Récupérer classement, équipes, transferts, points | code (API publique FPL, sans clé) | `src/lib/fpl/snapshot.ts`, cache 5 min (`data.ts`) |
 | Tous les chiffres (Drère, Mzi, capitaines, banc, chips, transferts, H2H) | code, déterministe | `src/lib/fpl/stats.ts` (testé : `stats.test.ts`) |
 | Texte drôle de la review | Claude (`claude-opus-5-5`), à partir des chiffres du code uniquement | `src/lib/fpl/review.ts` |
-| Chanson du Drère | Suno (sunoapi.org), retour par `/api/fpl/song/callback` | `review.ts` → `launchSong` |
+| Chanson du Drère | Suno (sunoapi.org), retour par `/api/fpl/song/callback` ; le mp3 est copié dans `fpl-private/songs/` (le lien Suno expire) et servi par `/api/fpl/song/[gw]` (membres seuls, lien signé 10 min) | `review.ts` → `launchSong`, `song-store.ts` |
 | Son du Mzi | fichier fixe `/sounds/mzi.m4a` | — |
 
 ## Mise à jour automatique
@@ -28,7 +28,8 @@ La Coupe du Monde vit sous `/cdm` (+ `/world-cup`, `/leaderboard`, `/predictions
 - Au plus 3 tentatives par GW ; chaque tentative, même ratée, est comptée dans `cost_usd`.
 - Plafond saison : 5 $ de reviews Claude (≈ 0,08 $ par GW mesuré → ≈ 3 $ sur la saison). Au-delà : plus de review, log `BUDGET CAP`.
 - Pas de retry caché du SDK (`maxRetries: 0`).
-- La chanson ne part que si la review est bien enregistrée. Coût Suno : **hors** de ce plafond (crédits Suno).
+- La chanson ne part que si la review est bien enregistrée. Coût Suno : **hors** de ce plafond (crédits Suno, estimé ≈ 0,05 € par chanson, à mesurer).
+- Scripts manuels : `fpl-launch-song.mts <gw>` (PAYANT, go explicite de Lionel), `fpl-store-song.mts <gw>` (gratuit, recopie une chanson déjà générée).
 
 ## Confidentialité
 
