@@ -11,8 +11,8 @@ const nextConfig: NextConfig = {
     return [
       // Fresh HTML/API by default to avoid stale content.
       {
-        // (FPL portraits and stored songs excluded: their routes set their own per-response policy)
-        source: '/((?!api/fpl/photo/|api/fpl/song/\\d).*)',
+        // (FPL portraits excluded: their route sets its own per-response policy)
+        source: '/((?!api/fpl/photo/).*)',
         headers: [{ key: 'Cache-Control', value: 'no-store, must-revalidate' }],
       },
       // Static assets (avatars, sounds, flags…) are immutable per URL — cache them

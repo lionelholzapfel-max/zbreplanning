@@ -82,18 +82,18 @@ test.describe('FPL — logged in as Lionel', () => {
     expect(unknown.status()).toBe(404);
   });
 
-  test('the stored Drère song streams to members, with byte ranges for Safari', async ({ page }) => {
-    const full = await page.request.get('/api/fpl/song/10');
-    expect(full.status()).toBe(200);
-    expect(full.headers()['content-type']).toBe('audio/mpeg');
-    expect(full.headers()['accept-ranges']).toBe('bytes');
-    expect(full.headers()['cache-control']).toContain('private');
-    const part = await page.request.get('/api/fpl/song/10', { headers: { Range: 'bytes=0-99' } });
+  test('the stored Drère song reaches members through a short-lived link that supports byte ranges', async ({ page }) => {
+    const hop = await page.request.get('/api/fpl/song/10', { maxRedirects: 0 });
+    expect(hop.status()).toBe(302);
+    expect(hop.headers()['cache-control']).toContain('no-store');
+    const link = hop.headers()['location'];
+    expect(link).toMatch(/\/storage\/v1\/object\/sign\/fpl-private\/songs\/.+\?token=/);
+    const part = await page.request.get(link, { headers: { Range: 'bytes=0-99' } });
     expect(part.status()).toBe(206);
     expect((await part.body()).byteLength).toBe(100);
-    expect(part.headers()['content-range']).toMatch(/^bytes 0-99\/\d+$/);
-    expect((await page.request.get('/api/fpl/song/11')).status()).toBe(404);
-    expect((await page.request.get('/api/fpl/song/abc')).status()).toBe(404);
+    expect(part.headers()['content-type']).toContain('audio/mpeg');
+    expect((await page.request.get('/api/fpl/song/11', { maxRedirects: 0 })).status()).toBe(404);
+    expect((await page.request.get('/api/fpl/song/abc', { maxRedirects: 0 })).status()).toBe(404);
   });
 
   test('stats page renders charts with faces and every section', async ({ page }) => {

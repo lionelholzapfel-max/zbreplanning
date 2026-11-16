@@ -1,15 +1,17 @@
-import { NextResponse, type NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getSessionUser, getSupabaseAdmin } from '@/lib/auth/session';
 import { FPL_SEASON } from '@/lib/fpl/config';
 import { SONG_BUCKET } from '@/lib/fpl/song-store';
 
 const NO_STORE = { 'Cache-Control': 'no-store' };
+const LINK_TTL_SECONDS = 600;
 
 /**
- * Streams the stored Drère song of a GW to a logged-in member. Supports byte
- * ranges: Safari (iPhone) refuses to play audio from a server without them.
+ * Members only: redirects to a short-lived signed link to the stored Drère song.
+ * Storage serves the file itself (byte ranges for Safari, no 4.5 MB function
+ * response limit), and the link expires 10 minutes after it was handed out.
  */
-export async function GET(request: NextRequest, ctx: { params: Promise<{ gw: string }> }) {
+export async function GET(_request: Request, ctx: { params: Promise<{ gw: string }> }) {
   if (!(await getSessionUser())) return new NextResponse('Unauthorized', { status: 401, headers: NO_STORE });
 
   const gw = Number((await ctx.params).gw);
@@ -24,31 +26,10 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ gw: str
     .maybeSingle();
   if (!row?.song_storage_path) return new NextResponse('Not found', { status: 404, headers: NO_STORE });
 
-  const { data, error } = await supabase.storage.from(SONG_BUCKET).download(row.song_storage_path);
-  if (error || !data) {
-    console.error(`[fpl] song GW${gw} unavailable:`, error?.message);
+  const { data, error } = await supabase.storage.from(SONG_BUCKET).createSignedUrl(row.song_storage_path, LINK_TTL_SECONDS);
+  if (error || !data?.signedUrl) {
+    console.error(`[fpl] song GW${gw} link failed:`, error?.message);
     return new NextResponse('Not found', { status: 404, headers: NO_STORE });
   }
-  const bytes = new Uint8Array(await data.arrayBuffer());
-  const size = bytes.byteLength;
-  const base = {
-    'Content-Type': 'audio/mpeg',
-    'Accept-Ranges': 'bytes',
-    'Cache-Control': 'private, max-age=86400',
-  };
-
-  const range = /^bytes=(\d*)-(\d*)$/.exec(request.headers.get('range') ?? '');
-  if (range && (range[1] || range[2])) {
-    // "bytes=a-b", "bytes=a-" or the suffix form "bytes=-n" (last n bytes)
-    const start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]));
-    const end = range[1] && range[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
-    if (start >= size || start > end) {
-      return new NextResponse(null, { status: 416, headers: { ...NO_STORE, 'Content-Range': `bytes */${size}` } });
-    }
-    return new NextResponse(bytes.slice(start, end + 1), {
-      status: 206,
-      headers: { ...base, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': String(end - start + 1) },
-    });
-  }
-  return new NextResponse(bytes, { headers: { ...base, 'Content-Length': String(size) } });
+  return NextResponse.redirect(data.signedUrl, { status: 302, headers: NO_STORE });
 }

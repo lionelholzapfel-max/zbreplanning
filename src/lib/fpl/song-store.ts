@@ -14,8 +14,11 @@ export function songPath(season: string, gw: number): string {
 export async function persistSong(season: string, gw: number, audioUrl: string): Promise<string | null> {
   try {
     if (!audioUrl.startsWith('https://')) throw new Error('audio URL is not https');
-    const res = await fetch(audioUrl, { signal: AbortSignal.timeout(60_000) });
+    // no redirects: a hop could leave https or the host the callback named
+    const res = await fetch(audioUrl, { redirect: 'error', signal: AbortSignal.timeout(60_000) });
     if (!res.ok) throw new Error(`download HTTP ${res.status}`);
+    const announced = Number(res.headers.get('content-length') ?? 0);
+    if (announced > MAX_BYTES) throw new Error(`announced size ${announced} too large`);
     const bytes = new Uint8Array(await res.arrayBuffer());
     if (bytes.byteLength === 0 || bytes.byteLength > MAX_BYTES) throw new Error(`unexpected size ${bytes.byteLength}`);
     const path = songPath(season, gw);
