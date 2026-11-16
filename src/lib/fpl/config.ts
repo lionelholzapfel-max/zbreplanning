@@ -57,7 +57,7 @@ export const MANAGERS: FplManager[] = [
     ringName: 'L’Étoile Contestée',
     tagline: 'Deux étoiles. Une contestée. Zéro remords.',
     bio: [
-      "Première étoile contestée : selon les autres, il n'y avait pas assez de bons joueurs. On était trois, dont Ramzi et Grégory. Question honnête : les Coupes du monde de Grégory, elles sont contestées aussi ?",
+      "Première étoile contestée : selon les autres, il n'y avait pas assez de bons joueurs. On était trois, dont Ramzi et Grégory. Question honnête : les Coupes du monde de l'Uruguay, elles sont contestées aussi ?",
       'Deuxième étoile : le Covid a failli la lui voler, mais il est revenu et a battu Grégory. Celle-là, personne ne la conteste.',
     ],
     starNotes: [
