@@ -7,7 +7,7 @@
  * Run with: npx vitest src/lib/matches.test.ts
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import {
   getMatchById,
   getMatchKickoff,
@@ -94,10 +94,15 @@ describe('Match Timezone Handling', () => {
 
   describe('isPredictionLocked - Lock Detection', () => {
     it('should return false for match far in the future', () => {
-      // Match 104 (Finale) is on 2026-07-19
-      const isLocked = isPredictionLocked(104);
-      // Since we're running this test before 2026, it should not be locked
-      expect(isLocked).toBe(false);
+      // Match 104 (Finale) is on 2026-07-19: pin "now" before it, so the test
+      // does not depend on the day it runs.
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-06-01T12:00:00Z'));
+      try {
+        expect(isPredictionLocked(104)).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('should return true for nonexistent match (safety)', () => {
