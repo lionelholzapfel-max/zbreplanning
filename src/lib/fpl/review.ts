@@ -101,18 +101,28 @@ class PaidAttemptError extends Error {
   }
 }
 
+const MAX_OUTPUT_TOKENS = 16_000;
 /**
  * Cost booked for an attempt that died without a usage report (timeout,
- * network error after the request left): assume the worst plausible bill.
+ * network error after the request left, function killed): assume the worst
+ * plausible bill, i.e. the full output limit plus a generous prompt.
  */
-const UNKNOWN_ATTEMPT_COST_USD = 0.25;
+const UNKNOWN_ATTEMPT_COST_USD = MAX_OUTPUT_TOKENS * PRICE_OUT + 20_000 * PRICE_IN;
+
+/** What a failed writeReview() call cost us. */
+function failedAttemptCost(e: unknown): number {
+  if (e instanceof PaidAttemptError) return e.costUsd;
+  // The API answered with an error status (overloaded, bad request…): not billed.
+  if (e instanceof Anthropic.APIError && typeof e.status === 'number') return 0;
+  return UNKNOWN_ATTEMPT_COST_USD;
+}
 
 export async function writeReview(facts: GameweekFacts) {
   // No hidden SDK retries: every paid attempt is one of ours, counted in the DB.
   const client = new Anthropic({ maxRetries: 0, timeout: 240_000 });
   const response = await client.messages.parse({
     model: REVIEW_MODEL,
-    max_tokens: 16000,
+    max_tokens: MAX_OUTPUT_TOKENS,
     output_config: { effort: 'medium', format: zodOutputFormat(ReviewSchema) },
     system: systemPrompt(),
     messages: [
@@ -222,6 +232,8 @@ export async function runReviewPipeline(
 ): Promise<PipelineResult> {
   const supabase = getSupabaseAdmin();
   const gw = opts.gw ?? (await nextGwToReview(snap));
+  // A catch-up review gets no song (the song celebrates the week that just ended).
+  if (opts.gw === undefined && gw !== latestCheckedGw(snap)) opts = { ...opts, withSong: false };
   if (!gw) return { action: 'skipped', reason: 'no validated gameweek yet' };
   if (!snap.playedGws.includes(gw)) return { action: 'skipped', reason: `GW${gw} not in league data`, gw };
 
@@ -234,6 +246,9 @@ export async function runReviewPipeline(
   // Facts as they stood at the end of the GW (never points from a later, live GW).
   const frozen = snapshotAtGw(snap, gw);
   const facts = gameweekFacts(frozen, computeLeagueStats(frozen), gw);
+
+  // What earlier failed attempts of this GW already cost (kept in the budget).
+  let priorCost = 0;
 
   // Lock: the primary key (season, gw) guarantees a single row per GW. A failed
   // or stuck (crashed function) attempt may be retried, at most MAX_ATTEMPTS.
@@ -249,7 +264,7 @@ export async function runReviewPipeline(
     if (lockError.code !== '23505') throw new Error(`[fpl] cannot lock GW${gw}: ${lockError.message}`);
     const { data: existing } = await supabase
       .from('fpl_gw_reviews')
-      .select('status, attempts, updated_at')
+      .select('status, attempts, updated_at, cost_usd')
       .eq('season', FPL_SEASON)
       .eq('gw', gw)
       .single();
@@ -259,10 +274,19 @@ export async function runReviewPipeline(
     if (!retryable) {
       return { action: 'skipped', reason: `review already ${existing?.status ?? 'exists'} (attempts ${existing?.attempts ?? '?'})`, gw };
     }
+    // A stuck row = a function killed mid-call: that attempt was probably billed.
+    priorCost = Number(existing.cost_usd ?? 0) + (stuck ? UNKNOWN_ATTEMPT_COST_USD : 0);
     // Optimistic retry lock: only one caller wins the status/attempts transition.
     const { data: claimed } = await supabase
       .from('fpl_gw_reviews')
-      .update({ status: 'generating', attempts: existing.attempts + 1, facts, error_message: null, updated_at: new Date().toISOString() })
+      .update({
+        status: 'generating',
+        attempts: existing.attempts + 1,
+        facts,
+        cost_usd: priorCost,
+        error_message: null,
+        updated_at: new Date().toISOString(),
+      })
       .eq('season', FPL_SEASON)
       .eq('gw', gw)
       .eq('attempts', existing.attempts)
@@ -271,19 +295,15 @@ export async function runReviewPipeline(
     console.log(`[fpl] retrying GW${gw} review (attempt ${existing.attempts + 1}/${MAX_ATTEMPTS})`);
   }
 
-  // What earlier failed attempts of this GW already cost (kept in the budget).
-  const { data: before } = await supabase.from('fpl_gw_reviews').select('cost_usd').eq('season', FPL_SEASON).eq('gw', gw).single();
-  const priorCost = Number(before?.cost_usd ?? 0);
-
-  let attemptCost = UNKNOWN_ATTEMPT_COST_USD;
+  let review: Awaited<ReturnType<typeof writeReview>> | undefined;
   try {
-    const { review, usage, cost } = await writeReview(facts);
-    attemptCost = cost;
+    review = await writeReview(facts);
+    const { usage, cost } = review;
     const { error: saveError } = await supabase
       .from('fpl_gw_reviews')
       .update({
         status: 'ready',
-        review,
+        review: review.review,
         model: REVIEW_MODEL,
         input_tokens: usage.input_tokens,
         output_tokens: usage.output_tokens,
@@ -295,12 +315,10 @@ export async function runReviewPipeline(
     // Never launch a (paid) song for a review we could not store.
     if (saveError) throw new Error(`review written but not saved: ${saveError.message}`);
     console.log(
-      `[fpl] review GW${gw} written: in=${usage.input_tokens} out=${usage.output_tokens} cost=$${cost.toFixed(4)} (season $${(spent + cost).toFixed(2)}/${SEASON_BUDGET_USD})`,
+      `[fpl] review GW${gw} written: in=${usage.input_tokens} out=${usage.output_tokens} cost=$${cost.toFixed(4)} (season $${(spent + priorCost + cost).toFixed(2)}/${SEASON_BUDGET_USD})`,
     );
-    const songTaskId = opts.withSong === false ? null : await launchSong(FPL_SEASON, gw, buildSongBrief(facts));
-    return { action: 'generated', gw, costUsd: cost, songTaskId };
   } catch (e) {
-    if (e instanceof PaidAttemptError) attemptCost = e.costUsd;
+    const attemptCost = review ? review.cost : failedAttemptCost(e);
     const msg = e instanceof Error ? e.message : String(e);
     console.error(`[fpl] review GW${gw} failed (attempt cost ~$${attemptCost.toFixed(3)}): ${msg}`);
     const { error: failError } = await supabase
@@ -316,13 +334,24 @@ export async function runReviewPipeline(
     if (failError) console.error(`[fpl] cannot record failure of GW${gw}: ${failError.message}`);
     return { action: 'failed', gw, error: msg };
   }
+
+  // The review is stored: a song problem can no longer make us pay for it twice.
+  let songTaskId: string | null = null;
+  if (opts.withSong !== false) {
+    try {
+      songTaskId = await launchSong(FPL_SEASON, gw, buildSongBrief(facts));
+    } catch (e) {
+      console.error(`[fpl] song step crashed for GW${gw}:`, e);
+    }
+  }
+  return { action: 'generated', gw, costUsd: review!.cost, songTaskId };
 }
 
 /**
- * The GW the cron should handle: the most recent validated GW without a review
- * (so a GW missed by a failing cron is caught up), never older than the first
- * GW ever reviewed (no paid back-fill of the season). Falls back to the latest
- * validated GW, which lets a failed one be retried.
+ * The GW the cron should handle: the latest validated GW, or, if it is already
+ * reviewed, the one just before it when that one was missed (cron down for a
+ * whole week). Never further back: no paid back-fill of the season, whatever
+ * a manual run on an old GW left in the table.
  */
 async function nextGwToReview(snap: LeagueSnapshot): Promise<number | null> {
   const latest = latestCheckedGw(snap);
@@ -330,11 +359,12 @@ async function nextGwToReview(snap: LeagueSnapshot): Promise<number | null> {
   const { data, error } = await getSupabaseAdmin().from('fpl_gw_reviews').select('gw').eq('season', FPL_SEASON);
   if (error) throw new Error(`[fpl] cannot read reviewed GWs: ${error.message}`);
   const done = new Set((data ?? []).map((r) => r.gw as number));
-  if (!done.size) return latest;
-  const first = Math.min(...done);
-  const checked = snap.events.filter((e) => e.finished && e.data_checked && e.id >= first).map((e) => e.id);
-  const missing = checked.filter((g) => !done.has(g));
-  return missing.length ? Math.max(...missing) : latest;
+  const previous = latest - 1;
+  const previousChecked = snap.events.some((e) => e.id === previous && e.finished && e.data_checked);
+  // Only catch up if the season's reviews had already started before it.
+  const startedBefore = [...done].some((g) => g < previous);
+  if (done.has(latest) && previousChecked && !done.has(previous) && startedBefore) return previous;
+  return latest;
 }
 
 export async function getReviews(season = FPL_SEASON): Promise<ReviewRow[]> {

@@ -221,6 +221,8 @@ function transferImpacts(snap: LeagueSnapshot, m: ManagerSnapshot): TransferImpa
   const lastGw = snap.playedGws.at(-1) ?? 0;
   return m.transfers
     .filter((t) => t.event <= lastGw)
+    // bought and sold again before the same deadline: never played for us
+    .filter((t) => !m.transfers.some((o) => o.element_out === t.element_in && o.event === t.event && o.time > t.time))
     .map((t) => {
       const freeHit = m.chips.some((c) => c.name === 'freehit' && c.event === t.event);
       // The incoming player counts until he is sold again (or the last GW).
